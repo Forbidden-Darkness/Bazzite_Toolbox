@@ -728,17 +728,17 @@ launch_tuning_menu() {
                     clear
     # 🧬 PREMIUM SYMMETRICAL SILICON PROFILER DISPLAY GRID
     echo -e "  ${CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║                    ${BOLD}${BICyan}BC-250 SILICON VOLTAGE & THERMAL SCALING MATRIX${NC}                        ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║                    ${BOLD}${BICyan}BC-250 SILICON VOLTAGE & THERMAL SCALING MATRIX${NC}                          ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     
     # Header row configuration
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "${BOLD}Freq Block" "Voltage (VID)" "Thermal Load" "Silicon Performance Profile${RESET}" 
+    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "${BOLD}Freq Block" "Voltage (VID)" "Thermal Load" "Silicon Performance Profile${RESET}"  
     echo -e "  ${CYAN}║${BIBlack}   ──────────────┼──────────────────────┼──────────────┼────────────────────────────────── ${CYAN}║${NC}"
     
     # Standard Rows
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2000-2300 MHz" "800 mV - 840 mV" "50°C - 60°C" "Absolute Eco Floor (Dead Silent)"
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2400-2500 MHz" "840 mV - 860 mV" "58°C - 65°C" "Balanced Power Light Emulation"
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2600-2700 MHz" "860 mV - 890 mV" "62°C - 72°C" "Software Guard Floor Tiers"
+    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2000-2300 MHz" "800 mV - 840 mV" "50°C - 60°C" "Absolute Eco Floor (Dead Silent)"   
+    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2400-2500 MHz" "840 mV - 860 mV" "58°C - 65°C" "Balanced Power Light Emulation"   
+    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2600-2700 MHz" "860 mV - 890 mV" "62°C - 72°C" "Software Guard Floor Tiers"   
     
     # Highlight Tiers: color formatting codes passed explicitly through arguments to maintain alignment parameters
     printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%-20s%b │ %b%-12s%b │ %b%-34s%b ${CYAN}║${NC}\n" "${BIGreen}" "2800 MHz" "${NC}" "${BIGreen}" "890 mV - 905 mV" "${NC}" "${BIGreen}" "65°C - 75°C" "${NC}" "${BIGreen}" "🎯 EFFICIENCY SWEET SPOT (Opt 5)" "${NC}"
