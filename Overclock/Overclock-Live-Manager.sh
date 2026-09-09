@@ -665,7 +665,7 @@ launch_tuning_menu() {
         echo -e "    ${RED}W)${NC} 40/40 CU - WATER-COOLED BEAST ${BIBlack}───${NC}  3850 MHz  @  1150 mV  ${RED}│  AIO/WATER REQ.${NC}"
         echo -e "    ${CYAN}3)${NC} 38/40 CU - Extreme Overclock  ${BIBlack}───${NC}  3500 MHz  @  1020 mV  ${BIBlack}│${NC}  Max 85°C"
         echo -e "    ${CYAN}4)${NC} 38/40 CU - Balanced Gaming    ${BIBlack}───${NC}  3000 MHz  @   945 mV  ${BIBlack}│${NC}  Max 80°C"
-        echo -e "    ${CYAN}5)${NC} 36/40 CU - Silent / Eco Core  ${BIBlack}───${NC}  2800 MHz  @   890 mV  ${BIBlack}│${NC}  Max 75°C"        
+        echo -e "    ${CYAN}5)${NC} 36/40 CU - Silent / Eco Core  ${BIBlack}───${NC}  2800 MHz  @   890 mV  ${BIBlack}│${NC}  Max 75°C"
         echo ""
         echo -e "    ${BIGreen}6) Manual Custom Profile${NC}       ${BIBlack}(Fill MHz, mV, Max Temp manually)${NC}"
         echo -e "    ${BIGreen}7) Manual Custom Sandbox${NC}       ${BIBlack}(Test parameters safely without saving)${NC}"
@@ -679,27 +679,27 @@ launch_tuning_menu() {
         if [ -d "$REAL_HOME/Bazzite_Toolbox/Overclock" ]; then target_dir="$REAL_HOME/Bazzite_Toolbox/Overclock"; fi
 
         case "$tune_choice" in
-            1) 
+            1)
                 log "${GREEN}Staging 40/40 CU - Extreme Overclock template...${NC}"
                 printf "[overclock]\nfrequency=3500\nscale=-19\nmax_temperature=85\nkeep=True\n" > "$target_dir/overclock.conf"
                 run_preset_stress_flow
                 ;;
-            2) 
+            2)
                 log "${GREEN}Staging 40/40 CU - High-Efficiency template...${NC}"
                 printf "[overclock]\nfrequency=3000\nscale=-19\nmax_temperature=78\nkeep=True\n" > "$target_dir/overclock.conf"
                 run_preset_stress_flow
                 ;;
-            3) 
+            3)
                 log "${GREEN}Staging 38/40 CU - Extreme Overclock template...${NC}"
                 printf "[overclock]\nfrequency=3500\nscale=-19\nmax_temperature=85\nkeep=True\n" > "$target_dir/overclock.conf"
                 run_preset_stress_flow
                 ;;
-            4) 
+            4)
                 log "${GREEN}Staging 38/40 CU - Balanced Gaming template...${NC}"
                 printf "[overclock]\nfrequency=3000\nscale=-19\nmax_temperature=80\nkeep=True\n" > "$target_dir/overclock.conf"
                 run_preset_stress_flow
                 ;;
-            5) 
+            5)
                 log "${GREEN}Staging 36/40 CU - Silent / Eco Core template...${NC}"
                 printf "[overclock]\nfrequency=2800\nscale=-19\nmax_temperature=75\nkeep=True\n" > "$target_dir/overclock.conf"
                 run_preset_stress_flow
@@ -726,93 +726,104 @@ launch_tuning_menu() {
             6|7)
                 while true; do
                     clear
-    # 🧬 PREMIUM SYMMETRICAL SILICON PROFILER DISPLAY GRID
-    echo -e "  ${CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║                    ${BOLD}${BICyan}BC-250 SILICON VOLTAGE & THERMAL SCALING MATRIX${NC}                          ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    
-    # Header row configuration
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "${BOLD}Freq Block" "Voltage (VID)" "Thermal Load" "Silicon Performance Profile${RESET}"  
-    echo -e "  ${CYAN}║${BIBlack}   ──────────────┼──────────────────────┼──────────────┼────────────────────────────────── ${CYAN}║${NC}"
-    
-    # Standard Rows
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2000-2300 MHz" "800 mV - 840 mV" "50°C - 60°C" "Absolute Eco Floor (Dead Silent)"   
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2400-2500 MHz" "840 mV - 860 mV" "58°C - 65°C" "Balanced Power Light Emulation"   
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2600-2700 MHz" "860 mV - 890 mV" "62°C - 72°C" "Software Guard Floor Tiers"   
-    
-    # Highlight Tiers: color formatting codes passed explicitly through arguments to maintain alignment parameters
-    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%-20s%b │ %b%-12s%b │ %b%-34s%b ${CYAN}║${NC}\n" "${BIGreen}" "2800 MHz" "${NC}" "${BIGreen}" "890 mV - 905 mV" "${NC}" "${BIGreen}" "65°C - 75°C" "${NC}" "${BIGreen}" "🎯 EFFICIENCY SWEET SPOT (Opt 5)" "${NC}"
-    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%-20s%b │ %b%-12s%b │ %b%-34s%b ${CYAN}║${NC}\n" "${BIGreen}" "3000 MHz" "${NC}" "${BIGreen}" "920 mV - 940 mV" "${NC}" "${BIGreen}" "70°C - 80°C" "${NC}" "${BIGreen}" "🎯 GAMING SWEET SPOT (Opt 2/4)" "${NC}"
-    
-    # Standard Rows Continuation
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "3100-3400 MHz" "940 mV - 1000 mV" "72°C - 84°C" "Aggressive Air Tier (High Current)"
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "3500 MHz" "1000 mV - 1020 mV" "80°C - 85°C" "Stock Factory Air Ceiling"
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "3600-3700 MHz" "1030 mV - 1100 mV" "82°C - 88°C" "Extreme Overclock (High Fan Speed)"
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "3800 MHz" "1120 mV - 1160 mV" "88°C - 94°C" "Option W Liquid-Cooled Loop"
-    
-    # Danger Zone High-Visibility Row
-    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%-20s%b │ %b%-12s%b │ %b%-34s%b ${CYAN}║${NC}\n" "${RED}" "3900-4000 MHz" "${NC}" "${RED}" "1160 mV - 1325 mV" "${NC}" "${RED}" "92°C - 105°C+" "${NC}" "${RED}" "DANGER ZONE (Silicon Decay)" "${NC}"
+                    # 🧬 PREMIUM SYMMETRICAL SILICON PROFILER DISPLAY GRID (PART 2)
+                    echo -e "  ${CYAN}╔══════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+                    echo -e "  ${CYAN}║                      ${BOLD}${BICyan}BC-250 SILICON VOLTAGE & THERMAL SCALING MATRIX${NC}                         ${CYAN}║${NC}"
+                    echo -e "  ${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
 
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
+                    # Header row configuration - 100% Symmetrical Bounds Pinned
+                    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s   ${CYAN}║${NC}\n" "${BOLD}Freq Block" "Voltage (VID)" "Thermal Load" "Silicon Performance Profile${RESET}"
+                    echo -e "  ${CYAN}║${BIBlack}   ──────────────┼──────────────────────┼───────────────┼───────────────────────────────────  ${CYAN}║${NC}"
+
+                    # Standard Rows - Mapped explicitly with inner character counters
+                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "2000-2300 MHz" "800" "840" "50°C - 60°C" "Absolute Eco Floor (Dead Silent)"
+                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "2400-2500 MHz" "840" "860" "58°C - 65°C" "Balanced Power Light Emulation"
+                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "2600-2700 MHz" "860" "890" "62°C - 72°C" "Software Guard Floor Tiers"
+
+                    # Highlight Tiers: Color profiles passed dynamically without altering character count layout spacing
+                    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-12s%b   │ %b%-34s%b    ${CYAN}║${NC}\n" "${BIGreen}" "2800 MHz" "${NC}" "${BIGreen}" "890" "905" "${NC}" "${BIGreen}" "65°C - 75°C" "${NC}" "${BIGreen}" "🎯 EFFICIENCY SWEET SPOT (Opt 5)" "${NC}"
+                    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-12s%b   │ %b%-34s%b    ${CYAN}║${NC}\n" "${BIGreen}" "3000 MHz" "${NC}" "${BIGreen}" "920" "940" "${NC}" "${BIGreen}" "70°C - 80°C" "${NC}" "${BIGreen}" "🎯 GAMING SWEET SPOT (Opt 2/4)" "${NC}"
+
+                    # Standard Rows Continuation
+                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "3100-3400 MHz" "940" "1000" "72°C - 84°C" "Aggressive Air Tier (High Current)"
+                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s ${CYAN}║${NC}\n" "3500 MHz" "1000" "1020" "80°C - 85°C" "Stock Factory Air Ceiling Reference"
+                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "3600-3700 MHz" "1030" "1100" "82°C - 88°C" "Extreme Overclock (High Fan Speed)"
+                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "3800 MHz" "1120" "1160" "88°C - 94°C" "Option W Liquid-Cooled Loop Only"
+
+                    # Danger Zone High-Visibility Highlighting Row
+                    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-12s%b │ %b%-34s%b  ${CYAN}║${NC}\n" "${RED}" "3900-4000 MHz" "${NC}" "${RED}" "1160" "1325" "${NC}" "${RED}" "92°C - 105°C+" "${NC}" "${RED}" "DANGER ZONE (Silicon Decay)" "${NC}"
+
+                    echo -e "  ${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+                    echo ""
+
+                    echo -e "  ${DIM}    * Type [Q] to return to previous menu  │  Type [R] to refresh table view *${RESET}\n"
+
                     # ==============================================================================
-                    # HARDENED INPUT VALIDATION FILTERS (ENFORCING 2600MHz CEILING HOODS)
+                    # 🧬 HARDENED PARAMETER COLLECTION TRACK (NO DUPLICATE PROMPTS)
                     # ==============================================================================
+
+                    # 📐 INPUT ROW 1: TARGET FREQUENCY
                     while true; do
-                        read -p "  Enter Target Frequency (MHz) [2600 - 3850]: " custom_freq
-                        if [[ "$custom_freq" =~ ^[0-9]+$ ]]; then
-                            if [ "$custom_freq" -lt 2600 ]; then
-                                echo -e "  ${RED}SAFETY ERROR: Target cannot be below the 2600 MHz ECO floor!${NC}"
-                            elif [ "$custom_freq" -gt 3850 ]; then
-                                echo -e "  ${RED}SAFETY ERROR: Target cannot exceed the 3850 MHz maximum ceiling!${NC}"
-                            else
-                                break
-                            fi
+                        read -p "  Enter Target Frequency (MHz) [2000 - 4000]: " custom_freq
+                        if [[ "$custom_freq" =~ ^[Qq]$ ]]; then echo -e "  ${YELLOW}[←] Bailing out to tuning dashboard...${NC}"; sleep 0.8; break 2; fi
+                        if [[ "$custom_freq" == "r" ]]; then echo -e "  ${CYAN}[↺] Flushing screen buffer...${NC}"; sleep 0.4; continue 2; fi
+                        if [[ "$custom_freq" == "R" ]]; then echo -e "  ${GREEN}[↺] Hot-reloading script workspace...${NC}"; sleep 0.8; exec bash "$SCRIPT_PATH" "$@"; fi
+
+                        if [[ "$custom_freq" =~ ^[0-9]+$ ]] && [ "$custom_freq" -ge 2000 ] && [ "$custom_freq" -le 4000 ]; then
+                            break
                         else
-                            echo -e "  ${RED}Invalid input. Please enter a valid number for MHz.${NC}"
+                            echo -e "  ${RED}SAFETY ERROR: Frequency must sit between 2000 MHz and 4000 MHz!${NC}"
                         fi
                     done
 
+                    # 📐 INPUT ROW 2: TARGET VOLTAGE
                     while true; do
                         read -p "  Enter Target Voltage (mV / VID) [800 - 1325]: " custom_vid
-                        if [[ "$custom_vid" =~ ^[0-9]+$ ]]; then
-                            if [ "$custom_vid" -lt 800 ]; then
-                                echo -e "  ${RED}SAFETY ERROR: Target cannot drop below the 800 mV efficiency floor!${NC}"
-                            elif [ "$custom_vid" -gt 1325 ]; then
-                                echo -e "  ${RED}SAFETY ERROR: Voltage cannot exceed the absolute 1325 mV threshold!${NC}"
-                            else
-                                break
-                            fi
+                        if [[ "$custom_vid" =~ ^[Qq]$ ]]; then echo -e "  ${YELLOW}[←] Bailing out to tuning dashboard...${NC}"; sleep 0.8; break 2; fi
+                        if [[ "$custom_vid" == "r" ]]; then echo -e "  ${CYAN}[↺] Flushing screen buffer...${NC}"; sleep 0.4; continue 2; fi
+                        if [[ "$custom_vid" == "R" ]]; then echo -e "  ${GREEN}[↺] Hot-reloading script workspace...${NC}"; sleep 0.8; exec bash "$SCRIPT_PATH" "$@"; fi
+
+                        if [[ "$custom_vid" =~ ^[0-9]+$ ]] && [ "$custom_vid" -ge 800 ] && [ "$custom_vid" -le 1325 ]; then
+                            break
                         else
-                            echo -e "  ${RED}Invalid input. Please enter a valid number for mV.${NC}"
+                            echo -e "  ${RED}SAFETY ERROR: Voltage must sit between 800 mV and 1325 mV!${NC}"
                         fi
                     done
 
+                    # 📐 INPUT ROW 3: TEMPERATURE CEILING
                     while true; do
                         read -p "  Enter Max Temperature Target (°C) [60 - 95]: " custom_temp
-                        if [[ "$custom_temp" =~ ^[0-9]+$ ]]; then
-                            if [ "$custom_temp" -lt 60 ] || [ "$custom_temp" -gt 95 ]; then
-                                echo -e "  ${RED}SAFETY ERROR: Temperature limit must sit between 60°C and 95°C!${NC}"
-                            else
-                                break
-                            fi
+                        if [[ "$custom_temp" =~ ^[Qq]$ ]]; then echo -e "  ${YELLOW}[←] Bailing out to tuning dashboard...${NC}"; sleep 0.8; break 2; fi
+                        if [[ "$custom_temp" == "r" ]]; then echo -e "  ${CYAN}[↺] Flushing screen buffer...${NC}"  ; sleep 0.4; continue 2; fi
+                        if [[ "$custom_temp" == "R" ]]; then echo -e "  ${GREEN}[↺] Hot-reloading script workspace...${NC}"; sleep 0.8; exec bash "$SCRIPT_PATH" "$@"; fi
+
+                        if [[ "$custom_temp" =~ ^[0-9]+$ ]] && [ "$custom_temp" -ge 60 ] && [ "$custom_temp" -le 95 ]; then
+                            break
                         else
-                            echo -e "  ${RED}Invalid input. Please enter a safe temperature limit.${NC}"
+                            echo -e "  ${RED}SAFETY ERROR: Temperature limit must sit between 60°C and 95°C!${NC}"
                         fi
                     done
+
+                    # ==============================================================================
+                    # 🧬 HARDWARE DEPLOYMENT CORE (STRESS LOOPS & RESTORED LOOP-AGAIN PROMPTS)
+                    # ==============================================================================
                     log "${GREEN}Running custom tuning profile optimization...${NC}"
-                    
                     printf "[overclock]\nfrequency=%s\nscale=-19\nmax_temperature=%s\nkeep=True\n" "$custom_freq" "$custom_temp" > "$target_dir/overclock.conf"
-                    
+
                     if [ "$tune_choice" = "6" ]; then
+                        # 🧬 FIXED: Targets stress-ng to ensure full compatibility with layered image packages
+                        stress-ng --cpu "$target_threads" --timeout 150 >> "$LOG_FILE" 2>&1 &
                         run_preset_stress_flow
                     else
                         local sandbox_threads=$(nproc 2>/dev/null || echo "12")
                         if [[ "$live_threads" =~ ^[0-9]+$ ]] && [ "$live_threads" -gt 0 ]; then sandbox_threads="$live_threads"; fi
                         echo -e "\n  ${YELLOW}[●] Initializing Sandbox Stability Sweep Utilizing ${sandbox_threads} Threads...${NC}"
-                        stress --cpu "$sandbox_threads" --timeout 150 >> "$LOG_FILE" 2>&1 &
+
+                        # 🧬 FIXED: Targets stress-ng to actively saturate your core topologies under sandbox tests
+                        stress-ng --cpu "$sandbox_threads" --timeout 150 >> "$LOG_FILE" 2>&1 &
                         local stress_pid=$!
                         local seconds_left=150
+
                         while kill -0 "$stress_pid" 2>/dev/null; do
                             echo -ne "      Stability validation testing in progress... ${RED}${seconds_left}s${CYAN} remaining...${RESET}\r"
                             sleep 1
@@ -820,15 +831,23 @@ launch_tuning_menu() {
                         done
                         echo -e "\n  ${B_GREEN}✓ Sandbox verification sequence finalized.${NC}"
                     fi
-                    
+
+                    # 🧬 FULLY RESTORED FEATURE: Prompts for another sweep option cleanly
                     local loop_again=""
                     if [ "$tune_choice" = "7" ]; then
                         read -rp "  Would you like to run another stress test with different settings? [y/n]: " loop_again
                     else
+                        # For option 6, check if user confirmed the save during run_preset_stress_flow
                         if [[ "$save_choice" =~ ^[Yy]$ ]]; then break; fi
                         read -rp "  Would you like to try another configuration sweep with different settings? [y/n]: " loop_again
                     fi
-                    if [[ ! "$loop_again" =~ ^[Yy]$ ]]; then echo -e "  ${YELLOW}Returning safely to tuning menu...${NC}"; sleep 1.5; break; fi
+
+                    # If they don't type Y/y, break clear back to your primary selection menu
+                    if [[ ! "$loop_again" =~ ^[Yy]$ ]]; then
+                        echo -e "  ${YELLOW}Returning safely to tuning menu...${NC}"
+                        sleep 1.5
+                        break
+                    fi
                 done
                 ;;
             0|""|q|Q)
@@ -843,7 +862,6 @@ launch_tuning_menu() {
         esac
     done
 }
-
 
 prompt_reboot() {
     echo ""
