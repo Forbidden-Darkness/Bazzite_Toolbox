@@ -728,12 +728,12 @@ launch_tuning_menu() {
                     clear
     # 🧬 PREMIUM SYMMETRICAL SILICON PROFILER DISPLAY GRID
     echo -e "  ${CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║                    ${BOLD}${BICyan}BC-250 SILICON VOLTAGE & THERMAL SCALING MATRIX${NC}                   ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║                    ${BOLD}${BICyan}BC-250 SILICON VOLTAGE & THERMAL SCALING MATRIX${NC}                        ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     
     # Header row configuration
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "${BOLD}Freq Block" "Voltage (VID)" "Thermal Load" "Silicon Performance Profile${RESET}"
-    echo -e "  ${CYAN}║${BIBlack} ──────────────┼──────────────────────┼──────────────┼────────────────────────────────── ${CYAN}║${NC}"
+    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "${BOLD}Freq Block" "Voltage (VID)" "Thermal Load" "Silicon Performance Profile${RESET}" 
+    echo -e "  ${CYAN}║${BIBlack}   ──────────────┼──────────────────────┼──────────────┼────────────────────────────────── ${CYAN}║${NC}"
     
     # Standard Rows
     printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s ${CYAN}║${NC}\n" "2000-2300 MHz" "800 mV - 840 mV" "50°C - 60°C" "Absolute Eco Floor (Dead Silent)"
