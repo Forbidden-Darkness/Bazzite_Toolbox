@@ -1567,11 +1567,9 @@ toggle_compute_queue_fix() {
         echo ""
         
         tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
-        confirm "Would you like to safely remove the custom drivers now?"
-        local remove_check=$?
-
-        # 🧬 FIXED: In your confirm helper, 1 means YES (User typed 'y')
-        if [ "$remove_check" -eq 1 ]; then
+        
+        # 🧬 FIXED: Standard Bash 'if confirm' natively executes the internal true (0) return value paths!
+        if confirm "Would you like to safely remove the custom drivers now?"; then
             echo -e "${RED}[●] Step 1/2: Purging global environment variable pins...${NC}"
             sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf 2>/dev/null || true
             sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
@@ -1598,11 +1596,9 @@ toggle_compute_queue_fix() {
         echo ""
         
         tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
-        confirm "Would you like to launch the automated Mesa compilation pass now?"
-        local install_check=$?
-
-        # 🧬 FIXED: In your confirm helper, 1 means YES (User typed 'y')
-        if [ "$install_check" -eq 1 ]; then
+        
+        # 🧬 FIXED: Standard Bash 'if confirm' natively executes the internal true (0) return value paths!
+        if confirm "Would you like to launch the automated Mesa compilation pass now?"; then
             local start_time=$SECONDS
             local local_log="/var/log/bc250_oc_install.log"
             sudo touch "$local_log" && sudo chmod 666 "$local_log"
