@@ -1562,16 +1562,18 @@ update_cyan-skillfish() {
 # ==============================================================================
 toggle_compute_queue_fix() {
     local target_dir
-    target_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    target_dir=$(cd "$(dirname "${BASH_SOURCE}")" && pwd)
     
     local compiler_script="${target_dir}/Overclock/bc250_graphics_compiler.sh"
 
     if [[ -f "$compiler_script" ]]; then
+        # 🚀 PRIVILEGE HANDOFF: Grants baseline local user read and execution permissions 
         sudo chmod +x "$compiler_script" 2>/dev/null || true
+        sudo chown "${REAL_USER}:${REAL_USER}" "$compiler_script" 2>/dev/null || true
         
-        # 🚀 DIAGNOSTIC HOLD GATE: If the script returns an error status (non-zero),
-        # it will halt immediately and prevent the menu from covering it up!
-        if ! sudo bash "$compiler_script"; then
+        # 🚀 SANDBOX RESOLUTION DROP: Switches terminal runtime thread contexts safely back 
+        # to your designated local user identity ($REAL_USER) to completely satisfy Distrobox restrictions!
+        if ! sudo -u "$REAL_USER" REAL_USER="$REAL_USER" REAL_HOME="$REAL_HOME" BASH_ENV="" HOME="$REAL_HOME" bash "$compiler_script"; then
             echo -e "\n  ${YELLOW}[●] Diagnostics: Standalone compilation engine exited with an error state.${RESET}"
             echo -e "      Review the trace logs printed above before returning to the primary panel."
             echo -e "  ${CYAN}Press [Enter] to return safely back to the menu...${NC}"
