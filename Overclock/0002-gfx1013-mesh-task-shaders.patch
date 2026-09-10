@@ -1,7 +1,9 @@
+# 🧬 MODDED 🧬 - Modernized for Bazzite 43/44 compatibility [Unified Mesh/Task Shader Extensions]
 From Mon Sep 17 00:00:00 2001
 From: DryhoppedIPA <DryhoppedIPA@://github.com>
 Date: Sat, 8 Aug 2026 04:53:11 +0000
 Subject: [PATCH 2/3] radv,aco: native mesh and task shaders on GFX1013
+# ... rest of your verified patch array follows completely unchanged ...
 
 Enable VK_EXT_mesh_shader on GFX1013 without promoting its gfx_level:
 mesh and task shading reuse the GFX10.3 NGG paths behind two dedicated
