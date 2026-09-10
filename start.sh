@@ -1596,7 +1596,7 @@ toggle_compute_queue_fix() {
             echo -e "${GREEN}[+] Step 1/5: Cloning patch templates and gathering assets...${NC}"
             cd /tmp || return 1
             rm -rf bc250-gfx1013-fix 2>/dev/null || true
-            https://github.com/DryhoppedIPA/bc250-gfx1013-fix.git
+            git clone https://github.com/DryhoppedIPA/bc250-gfx1013-fix.git
             cd bc250-gfx1013-fix || return 1
 
             if [[ ! -d "/tmp/bc250-gfx1013-fix" ]]; then
