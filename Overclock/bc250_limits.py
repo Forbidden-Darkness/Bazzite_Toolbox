@@ -1,4 +1,5 @@
 # 🧬 HARDENED HARDWARE BOUNDS: Custom low-power constraints unlocked!
+# 🧬 MODDED
 freq_min = 2000
 freq_max = 4500
 
