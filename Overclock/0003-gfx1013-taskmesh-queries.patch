@@ -3,9 +3,9 @@ From: DryhoppedIPA <DryhoppedIPA@://github.com>
 Date: Sat, 8 Aug 2026 04:53:11 +0000
 Subject: [PATCH 3/3] radv: mesh/task pipeline-statistics queries on GFX1013
 
-Reuse RADV's existing GFX10.3 mesh-shader query emulation, retaining the
-device's real GFX10.1 identity and the 14-slot result layout required by
-the task and mesh statistic indices.
+Modernized for Bazzite 43/44 compatibility. Reuse RADV's existing GFX10.3 
+mesh-shader query emulation, retaining the device's real GFX10.1 identity 
+and the 14-slot result layout required by the task and mesh statistic indices.
 ---
  src/amd/common/ac_gpu_info.c          | 1 +
  src/amd/common/ac_gpu_info.h          | 1 +
@@ -64,11 +64,12 @@ index bf1ca5b..c7cea5b 100644
 --- a/src/amd/vulkan/radv_query.c
 +++ b/src/amd/vulkan/radv_query.c
 @@ -411,7 +411,8 @@ radv_get_pipelinestat_query_size(struct radv_device *device)
-     * invocations, it's easier to use the same size as GFX11.
-     */
+      * invocations, it's easier to use the same size as GFX11.
+      */
     const struct radv_physical_device *pdev = radv_device_physical(device);
 -   unsigned num_results = pdev->info.gfx_level >= GFX10_3 ? 14 : 11;
 +   unsigned num_results =
 +      pdev->info.gfx_level >= GFX10_3 || pdev->info.has_gfx1013_mesh_queries ? 14 : 11;
     return num_results * 8;
- }
+ -- 
+ 2.55.0
