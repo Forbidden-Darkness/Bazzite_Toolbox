@@ -1557,147 +1557,25 @@ update_cyan-skillfish() {
 }
 
 # ==============================================================================
-# 🧬 MODDED 🧬 UNIFIED ASYNC COMPUTE & GEOMETRY DRIVER COMPILATION SUITE
-# Engineered for complete out-of-the-box fresh install compatibility on Bazzite 43 & 44
+# UNIFIED ASYNC COMPUTE & GEOMETRY DRIVER SUITE ROUTING ENGINE
+# Calls our modular, dedicated background compilation engine script inside Overclock/
 # ==============================================================================
 toggle_compute_queue_fix() {
-    # 🚀 DEVELOPER CIRCUIT BREAKER: Overrides update downloads to protect your local file edits
-    local DEVELOPER_MODE=true
-
-    local is_patched=false
-    if [[ -f /etc/environment.d/99-bc250-gfx1013.conf ]] && [[ -f /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json ]] && [[ -f /opt/bc250-gfx1013/lib64/libvulkan_radeon.so ]]; then
-        is_patched=true
+    local compiler_script="./Overclock/bc250_graphics_compiler.sh"
+    
+    if [[ ! -f "$compiler_script" ]]; then
+        # Fallback tracking map configuration if executed out of alternate execution paths
+        compiler_script="${SCRIPT_DIR:-.}/Overclock/bc250_graphics_compiler.sh"
     fi
-
-    # 🧬 CHOICE PATHWAY 1: Driver patches are already present on disk (Removal loop)
-    if [ "$is_patched" = true ]; then
-        echo -e "\n  ${YELLOW}[⚠] Active Async Compute & Mesh Shading driver overrides detected on this host.${RESET}"
-        echo -e "      Selecting this action will completely uninstall the drivers and restore factory defaults."
-        echo ""
-        
-        tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
-        
-        if confirm "Would you like to safely remove the custom drivers now?"; then
-            echo -e "${RED}[●] Step 1/2: Purging global environment variable pins...${NC}"
-            sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf 2>/dev/null || true
-            sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-
-            echo -e "${RED}[●] Step 2/2: Cleaning structural workspace directory mapping trees...${NC}"
-            sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-            rm -rf /tmp/bc250-gfx1013-fix 2>/dev/null || true
-            sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
-
-            print_success "Custom graphics driver uninstalled successfully!"
-            prompt_reboot
-            return 0
-        else
-            echo -e "${CYAN}[-] Operation cancelled. Returning safely to primary toolkit menu...${NC}"
-            sleep 1.2
-            return 0
-        fi
-
-    # 🧬 CHOICE PATHWAY 2: System is running factory stock profiles (Compilation loop)
+    
+    if [[ -f "$compiler_script" ]]; then
+        # Hand over execution control directly to our clean independent suite
+        bash "$compiler_script"
     else
-        echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled geometry/compute features.${RESET}"
-        echo -e "      This utility will deploy an isolated build container, download Mesa source, apply your"
-        echo -e "      custom patch stack, and recompile the binary drivers for 100% true hardware activation."
-        echo ""
-        
-        tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
-        
-        if confirm "Would you like to launch the automated Mesa compilation pass now?"; then
-            local start_time=$SECONDS
-            local local_log="/var/log/bc250_oc_install.log"
-            sudo touch "$local_log" && sudo chmod 666 "$local_log"
-
-            echo -e "${GREEN}[+] Step 1/5: Cloning patch templates and gathering assets...${NC}"
-            cd /tmp || return 1
-            rm -rf bc250-gfx1013-fix 2>/dev/null || true
-            git clone https://github.com/DryhoppedIPA/bc250-gfx1013-fix.git >> "$local_log" 2>&1
-            cd bc250-gfx1013-fix || return 1
-
-            if [[ ! -d "/tmp/bc250-gfx1013-fix" ]]; then
-                print_error "Failed to fetch source patches from repository."
-                return 1
-            fi
-
-            local cloned_patch_dir="/tmp/bc250-gfx1013-fix/patches/mesa"
-            local source_base="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/"
-
-            sudo curl -sSL -o "$cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" "${source_base}0002-gfx1013-mesh-task-shaders.patch" >> "$local_log" 2>&1
-            sudo curl -sSL -o "$cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" "${source_base}0003-gfx1013-taskmesh-queries.patch" >> "$local_log" 2>&1
-
-            echo -e "${GREEN}[+] Step 2/5: Spawning isolated Distrobox build environment (Arch Linux)...${NC}"
-            sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
-            sudo -u "$REAL_USER" distrobox create -i docker.io/library/archlinux:latest -n bc250-build-box --yes >> "$local_log" 2>&1
-
-            echo -e "${GREEN}[+] Step 3/5: Synchronizing toolchain mirrors and installing dependencies...${NC}"
-            sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sudo pacman -Syu --noconfirm >> "$local_log" 2>&1
-            sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sudo pacman -S --needed --noconfirm base-devel meson ninja gcc libdrm libx11 libxext xorgproto libxcb libxshmfence expat zlib elfutils wayland wayland-protocols git python-mako python-ply >> "$local_log" 2>&1
-
-            echo -e "${GREEN}[+] Step 4/5: Downloading host-matched Mesa source code and executing git patch injections...${NC}"
-            local host_mesa_ver
-            host_mesa_ver=$(glxinfo 2>/dev/null | grep "Mesa " | head -n1 | awk '{print $3}' | cut -d'-' -f1 || echo "24.1.3")
-            
-            sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- rm -rf /tmp/mesa &>/dev/null || true
-            
-            # 🚀 FIXED CANONICAL ENDPOINT: Forces target allocations straight to the official Freedesktop GitLab server instance
-            sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp && git clone --depth 1 --branch mesa-$host_mesa_ver https://freedesktop.org" >> "$local_log" 2>&1
-
-            # Sequence patch execution injections inside the container workspace folder paths
-            sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0001-gfx1013-compute-queue-fix.patch" >> "$local_log" 2>&1
-            sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" >> "$local_log" 2>&1
-            sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" >> "$local_log" 2>&1
-
-            echo -e "${GREEN}[+] Step 5/5: Running Meson build configurations & compiling live binary layers...${NC}"
-            sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$local_log" 2>&1
-            sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$local_log" 2>&1
-
-            # Verify container object presence via the designated user frame before proceeding
-            if ! sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- test -f /tmp/mesa/build/src/amd/vulkan/libvulkan_radeon.so; then
-                print_error "Compilation aborted. The driver binary could not be generated. Check your logs at $local_log"
-                echo -e "  ${YELLOW}Diagnostic pause window active. Press [Enter] to return safely back to the menu...${NC}"
-                read -r
-                sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
-                return 1
-            fi
-
-            echo -e "${GREEN}[+] Step 6/6: Exporting compiled library objects and mapping Vulkan hooks...${NC}"
-            sudo mkdir -p /opt/bc250-gfx1013/lib64 2>/dev/null
-            sudo mkdir -p /opt/bc250-gfx1013/share/vulkan/icd.d 2>/dev/null
-            sudo mkdir -p /etc/environment.d 2>/dev/null
-
-            # Extract the raw compiled binary driver straight from our container partition space securely
-            sudo cp "$REAL_HOME/.local/share/distrobox/containers/bc250-build-box/tmp/mesa/build/src/amd/vulkan/libvulkan_radeon.so" /opt/bc250-gfx1013/lib64/libvulkan_radeon.so 2>/dev/null || \
-            sudo cp "/tmp/mesa/build/src/amd/vulkan/libvulkan_radeon.so" /opt/bc250-gfx1013/lib64/libvulkan_radeon.so 2>/dev/null
-
-            # Map out an explicit, path-secure ICD loader file pointing directly to our new library
-            sudo bash -c "cat <<EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
-{
-    \"file_format_version\": \"1.0.0\",
-    \"ICD\": {
-        \"library_path\": \"/opt/bc250-gfx1013/lib64/libvulkan_radeon.so\",
-        \"api_version\": \"1.3.290\"
-    }
-}
-EOF"
-
-            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-
-            # Wipe the temporary sandbox container out of memory to reclaim disk space limits
-            sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
-            rm -rf /tmp/bc250-gfx1013-fix 2>/dev/null || true
-
-            local elapsed=$((SECONDS - start_time))
-            print_success "Mesa driver compilation sequence finalized successfully in $((elapsed / 60))m $((elapsed % 60))s!"
-            prompt_reboot
-            return 0
-        else
-            echo -e "${CYAN}[-] Installation cancelled. Returning cleanly to main toolkit menu...${NC}"
-            sleep 1.2
-            return 0
-        fi
+        echo -e "  ${RED}❌  ERROR: Dedicated graphics compiler package mapping file not found at $compiler_script!${RESET}"
+        sleep 2
     fi
+    return 0
 }
 
 # ==============================================================================
