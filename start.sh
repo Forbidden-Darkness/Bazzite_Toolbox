@@ -1641,7 +1641,7 @@ toggle_compute_queue_fix() {
             
             sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- rm -rf /tmp/mesa &>/dev/null || true
             
-            # 🚀 FIXED CANONICAL ENDPOINT: Forces target allocations straight to the official Freedesktop GitLab server instance
+            # 🚀 FIXED ENDPOINT URL: Targets the correct canonical freedesktop GitLab repository paths explicitly
             sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp && git clone --depth 1 --branch mesa-$host_mesa_ver https://freedesktop.org" >> "$local_log" 2>&1
 
             # Sequence patch execution injections inside the container workspace folder paths
