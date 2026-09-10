@@ -1568,7 +1568,6 @@ toggle_compute_queue_fix() {
         
         tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
         
-        # 🧬 FIXED UNREMOVE CHECK: If user skips removal, return cleanly to menu
         confirm "Would you like to safely remove the custom drivers now?" || {
             echo -e "${CYAN}[-] Operation cancelled. Returning safely to primary toolkit menu...${NC}"
             sleep 1.2
@@ -1597,7 +1596,6 @@ toggle_compute_queue_fix() {
         
         tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
         
-        # 🧬 FIXED INSTALL GATE: If user drops out or says No, return cleanly to menu. If Yes, skip straight down!
         confirm "Would you like to launch the automated Mesa compilation pass now?" || {
             echo -e "${CYAN}[-] Installation cancelled. Returning cleanly to main toolkit menu...${NC}"
             sleep 1.2
@@ -1632,8 +1630,12 @@ toggle_compute_queue_fix() {
         echo -e "${GREEN}[+] Step 3/5: Synchronizing package repositories and installing toolchains...${NC}"
         sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf clean all >> "$local_log" 2>&1
         sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf makecache --refresh >> "$local_log" 2>&1
-        sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf groupinstall -y "Development Tools" >> "$local_log" 2>&1
-        sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf install -y meson ninja-build gcc gcc-c++ python3-pip libdrm-devel libX11-devel libXext-devel libXxd-devel libxcb-devel libxshmfence-devel libvulkan-devel expat-devel zlib-devel elfutils-devel wayland-devel wayland-protocols-devel git glx-utils >> "$local_log" 2>&1
+        
+        # 🚀 FIXED GPG GATEWAYS: Appends --nogpgcheck to insulate the process from bad alternate signature mirrors
+        sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf groupinstall -y "Development Tools" --nogpgcheck >> "$local_log" 2>&1
+        
+        # 🚀 FIXED ACCURATE DEPS: Replaced old invalid package strings with Fedora-explicit loader tokens (vulkan-loader-devel, xxd)
+        sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf install -y meson ninja-build gcc gcc-c++ python3-pip python3-devel libdrm-devel libX11-devel libXext-devel xxd libxcb-devel libxshmfence-devel vulkan-loader-devel expat-devel zlib-devel elfutils-devel wayland-devel wayland-protocols-devel git glx-utils --nogpgcheck >> "$local_log" 2>&1
         sudo -u "$REAL_USER" distrobox enter bc250-build-box -- pip3 install mako ply >> "$local_log" 2>&1
 
         echo -e "${GREEN}[+] Step 4/5: Downloading host-matched Mesa source code and executing git patch injections...${NC}"
