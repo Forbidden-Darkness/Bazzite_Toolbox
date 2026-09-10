@@ -1568,8 +1568,7 @@ toggle_compute_queue_fix() {
         
         tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
         
-        # 🧬 FIXED: Standard Bash 'if confirm' natively executes the internal true (0) return value paths!
-        if confirm "Would you like to safely remove the custom drivers now?"; then
+        if ! confirm "Would you like to safely remove the custom drivers now?"; then
             echo -e "${RED}[●] Step 1/2: Purging global environment variable pins...${NC}"
             sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf 2>/dev/null || true
             sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
@@ -1577,7 +1576,9 @@ toggle_compute_queue_fix() {
             echo -e "${RED}[●] Step 2/2: Cleaning structural workspace directory mapping trees...${NC}"
             sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
             rm -rf /tmp/bc250-gfx1013-fix 2>/dev/null || true
-            distrobox rm -f bc250-build-box --yes &>/dev/null || true
+            
+            # 🚀 PRIVILEGE DROP: Executes uninstallation triggers safely in the user space
+            sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
 
             print_success "Custom graphics driver uninstalled successfully!"
             prompt_reboot
@@ -1597,8 +1598,7 @@ toggle_compute_queue_fix() {
         
         tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
         
-        # 🧬 FIXED: Standard Bash 'if confirm' natively executes the internal true (0) return value paths!
-        if confirm "Would you like to launch the automated Mesa compilation pass now?"; then
+        if ! confirm "Would you like to launch the automated Mesa compilation pass now?"; then
             local start_time=$SECONDS
             local local_log="/var/log/bc250_oc_install.log"
             sudo touch "$local_log" && sudo chmod 666 "$local_log"
@@ -1621,36 +1621,37 @@ toggle_compute_queue_fix() {
             sudo curl -sSL -o "$cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" "${source_base}0003-gfx1013-taskmesh-queries.patch" >> "$local_log" 2>&1
 
             echo -e "${GREEN}[+] Step 2/5: Spawning isolated Distrobox build environment (Fedora)...${NC}"
-            distrobox rm -f bc250-build-box --yes &>/dev/null || true
-            distrobox create -i registry.fedoraproject.org/fedora:40 -n bc250-build-box --yes >> "$local_log" 2>&1
+            # 🚀 PRIVILEGE DROP: Forces the container manager layers to run purely inside user allocations
+            sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
+            sudo -u "$REAL_USER" distrobox create -i registry.fedoraproject.org/fedora:40 -n bc250-build-box --yes >> "$local_log" 2>&1
 
             echo -e "${GREEN}[+] Step 3/5: Synchronizing package repositories and installing toolchains...${NC}"
-            distrobox enter bc250-build-box -- sudo dnf clean all >> "$local_log" 2>&1
-            distrobox enter bc250-build-box -- sudo dnf makecache --refresh >> "$local_log" 2>&1
-            distrobox enter bc250-build-box -- sudo dnf groupinstall -y "Development Tools" >> "$local_log" 2>&1
-            distrobox enter bc250-build-box -- sudo dnf install -y meson ninja-build gcc gcc-c++ python3-pip libdrm-devel libX11-devel libXext-devel libXxd-devel libxcb-devel libxshmfence-devel libvulkan-devel expat-devel zlib-devel elfutils-devel wayland-devel wayland-protocols-devel git glx-utils >> "$local_log" 2>&1
-            distrobox enter bc250-build-box -- pip3 install mako ply >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf clean all >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf makecache --refresh >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf groupinstall -y "Development Tools" >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sudo dnf install -y meson ninja-build gcc gcc-c++ python3-pip libdrm-devel libX11-devel libXext-devel libXxd-devel libxcb-devel libxshmfence-devel libvulkan-devel expat-devel zlib-devel elfutils-devel wayland-devel wayland-protocols-devel git glx-utils >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- pip3 install mako ply >> "$local_log" 2>&1
 
             echo -e "${GREEN}[+] Step 4/5: Downloading host-matched Mesa source code and executing git patch injections...${NC}"
             local host_mesa_ver
             host_mesa_ver=$(glxinfo 2>/dev/null | grep "Mesa " | head -n1 | awk '{print $3}' | cut -d'-' -f1 || echo "24.1.3")
             
-            distrobox enter bc250-build-box -- rm -rf /tmp/mesa &>/dev/null || true
-            distrobox enter bc250-build-box -- sh -c "cd /tmp && git clone --depth 1 --branch mesa-$host_mesa_ver https://freedesktop.org" >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- rm -rf /tmp/mesa &>/dev/null || true
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sh -c "cd /tmp && git clone --depth 1 --branch mesa-$host_mesa_ver https://freedesktop.org" >> "$local_log" 2>&1
 
             # Sequence patch execution injections inside the container workspace folder paths
-            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0001-gfx1013-compute-queue-fix.patch" >> "$local_log" 2>&1
-            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" >> "$local_log" 2>&1
-            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0001-gfx1013-compute-queue-fix.patch" >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" >> "$local_log" 2>&1
 
             echo -e "${GREEN}[+] Step 5/5: Running Meson build configurations & compiling live binary layers...${NC}"
-            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$local_log" 2>&1
-            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$local_log" 2>&1
+            sudo -u "$REAL_USER" distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$local_log" 2>&1
 
-            # Verify binary compilation completed successfully before altering configuration trees
-            if ! distrobox enter bc250-build-box -- test -f /tmp/mesa/build/src/amd/vulkan/libvulkan_radeon.so; then
+            # 🚀 PRIVILEGE DROP EXPLICIT CHECK: Validates container object presence via the designated user frame
+            if ! sudo -u "$REAL_USER" distrobox enter bc250-build-box -- test -f /tmp/mesa/build/src/amd/vulkan/libvulkan_radeon.so; then
                 print_error "Compilation aborted. The driver binary could not be generated. Check your logs at $local_log"
-                distrobox rm -f bc250-build-box --yes &>/dev/null || true
+                sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
                 return 1
             fi
 
@@ -1677,7 +1678,7 @@ EOF"
             echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
 
             # Wipe the temporary sandbox container out of memory to reclaim disk space limits
-            distrobox rm -f bc250-build-box --yes &>/dev/null || true
+            sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
             rm -rf /tmp/bc250-gfx1013-fix 2>/dev/null || true
 
             local elapsed=$((SECONDS - start_time))
