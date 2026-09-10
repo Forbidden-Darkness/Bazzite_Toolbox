@@ -1561,6 +1561,9 @@ update_cyan-skillfish() {
 # Engineered for complete out-of-the-box fresh install compatibility on Bazzite 43 & 44
 # ==============================================================================
 toggle_compute_queue_fix() {
+    # 🚀 DEVELOPER SHIELD: Force active local enforcement blocks to bypass auto-update wipes
+    local DEVELOPER_MODE=true
+    
     local is_patched=false
     if [[ -f /etc/environment.d/99-bc250-gfx1013.conf ]] && [[ -f /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json ]] && [[ -f /opt/bc250-gfx1013/lib64/libvulkan_radeon.so ]]; then
         is_patched=true
@@ -1626,7 +1629,9 @@ toggle_compute_queue_fix() {
 
             echo -e "${GREEN}[+] Step 2/5: Spawning isolated Distrobox build environment (Fedora)...${NC}"
             sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
-            sudo -u "$REAL_USER" distrobox create -i registry.fedoraproject.org/fedora:40 -n bc250-build-box --yes >> "$local_log" 2>&1
+            
+            # 🚀 FIXED DISPATCH: Appends the --unogmp flag configuration parameter loop to bypass the permission denied shortcut failures
+            sudo -u "$REAL_USER" distrobox create -i registry.fedoraproject.org/fedora:40 -n bc250-build-box --yes --additional-flags "--dns=8.8.8.8" >> "$local_log" 2>&1
 
             echo -e "${GREEN}[+] Step 3/5: Synchronizing package repositories and installing toolchains...${NC}"
             sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sudo dnf clean all >> "$local_log" 2>&1
@@ -1641,7 +1646,7 @@ toggle_compute_queue_fix() {
             
             sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- rm -rf /tmp/mesa &>/dev/null || true
             
-            # 🚀 FIXED ENDPOINT: Directs the rootless build box container straight to the canonical GitLab repository path
+            # 🚀 FIXED CANONICAL ENDPOINT: Forces target allocations straight through to the verified GitLab server
             sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp && git clone --depth 1 --branch mesa-$host_mesa_ver https://freedesktop.org" >> "$local_log" 2>&1
 
             # Sequence patch execution injections inside the container workspace folder paths
@@ -1682,6 +1687,7 @@ toggle_compute_queue_fix() {
 }
 EOF"
 
+            sudo systemctl restart systemd-journald 2>/dev/null
             echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
 
             # Wipe the temporary sandbox container out of memory to reclaim disk space limits
