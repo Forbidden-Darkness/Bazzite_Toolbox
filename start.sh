@@ -1561,18 +1561,22 @@ update_cyan-skillfish() {
 # Calls our modular, dedicated background compilation engine script inside Overclock/
 # ==============================================================================
 toggle_compute_queue_fix() {
-    # 🚀 ABSOLUTE WORKSPACE RESOLUTION: Dynamically tracks down your exact folder directory home base location
     local target_dir
     target_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
     
     local compiler_script="${target_dir}/Overclock/bc250_graphics_compiler.sh"
 
-    # Verify execution permissions are actively granted to the standalone asset row
     if [[ -f "$compiler_script" ]]; then
         sudo chmod +x "$compiler_script" 2>/dev/null || true
         
-        # 🚀 Hand over terminal thread execution directly to our clean independent suite
-        sudo bash "$compiler_script"
+        # 🚀 DIAGNOSTIC HOLD GATE: If the script returns an error status (non-zero),
+        # it will halt immediately and prevent the menu from covering it up!
+        if ! sudo bash "$compiler_script"; then
+            echo -e "\n  ${YELLOW}[●] Diagnostics: Standalone compilation engine exited with an error state.${RESET}"
+            echo -e "      Review the trace logs printed above before returning to the primary panel."
+            echo -e "  ${CYAN}Press [Enter] to return safely back to the menu...${NC}"
+            read -r
+        fi
     else
         echo -e "\n  ${RED}❌  ERROR: Dedicated graphics compiler package mapping file not found!${RESET}"
         echo -e "      Expected path: ${compiler_script}"
