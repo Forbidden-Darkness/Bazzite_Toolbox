@@ -1033,11 +1033,14 @@ echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH DEVELOPMENT BREAKOUT GATE)
 # =====================================================================
-local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+# =====================================================================
+# 2. AUTO-UPDATE MECHANISM (WITH DEVELOPMENT BREAKOUT OVERRIDE)
+# =====================================================================
+local_script_update_url="https://githubusercontent.com"
 
-# 🧬 MODDED BREAKOUT GATE: Skip updates if developer profile is active to prevent local overwrite wipes
+# 🧬 MODDED BREAKOUT GATE: Skip updates if development folder workspace is active to prevent local overwrite wipes
 if [[ "$REAL_USER" == "bsystem" ]] || [[ "$SCRIPT_PATH" == *"/Bazzite_Toolbox/"* ]]; then
-    print_info "Developer profile or local repository workspace active. Auto-update bypassed safely."
+    print_info "Developer profile or local repository workspace detected. Auto-update bypassed safely."
 else
     if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
         if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
@@ -1060,7 +1063,6 @@ else
         fi
     fi
 fi
-
 print_info "Starting main script workflow..."
 
 ask_desktop_shortcut() {
