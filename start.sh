@@ -1565,8 +1565,12 @@ toggle_compute_queue_fix() {
         echo -e "\n  ${YELLOW}[⚠] Active Async Compute & Mesh Shading driver overrides detected on this host.${RESET}"
         echo -e "      Selecting this action will completely uninstall the drivers and restore factory defaults."
         echo ""
+        
+        # 🧬 FIXED REGISTRY GATE: Accurately parses your custom confirm return logic
         if confirm "Would you like to safely remove the custom drivers now?"; then
-            :
+            echo -e "${CYAN}[-] Operation cancelled. Returning safely to primary toolkit menu...${NC}"
+            sleep 1.2
+            return 0
         else
             echo -e "${RED}[●] Step 1/2: Purging global environment variable pins...${NC}"
             sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf 2>/dev/null || true
@@ -1581,9 +1585,6 @@ toggle_compute_queue_fix() {
             prompt_reboot
             return 0
         fi
-        echo -e "${CYAN}[-] Operation cancelled. Returning safely to primary toolkit menu...${NC}"
-        sleep 1.2
-        return 0
 
     # 🧬 CHOICE PATHWAY 2: System is running factory stock profiles (Compilation loop)
     else
@@ -1591,6 +1592,8 @@ toggle_compute_queue_fix() {
         echo -e "      This utility will deploy an isolated build container, download Mesa source, apply your"
         echo -e "      custom patch stack, and recompile the binary drivers for 100% true hardware activation."
         echo ""
+        
+        # 🧬 FIXED REGISTRY GATE: Accurately parses your custom confirm return logic
         if confirm "Would you like to launch the automated Mesa compilation pass now?"; then
             echo -e "${CYAN}[-] Installation cancelled. Returning cleanly to main toolkit menu...${NC}"
             sleep 1.2
@@ -1622,7 +1625,6 @@ toggle_compute_queue_fix() {
             distrobox create -i registry.fedoraproject.org/fedora:40 -n bc250-build-box --yes >> "$local_log" 2>&1
 
             echo -e "${GREEN}[+] Step 3/5: Synchronizing package repositories and installing toolchains...${NC}"
-            # 🚀 FIXED CONTAINER INTERFACE: Forces a clean cache synchronizer update before downloading binaries
             distrobox enter bc250-build-box -- sudo dnf clean all >> "$local_log" 2>&1
             distrobox enter bc250-build-box -- sudo dnf makecache --refresh >> "$local_log" 2>&1
             distrobox enter bc250-build-box -- sudo dnf groupinstall -y "Development Tools" >> "$local_log" 2>&1
@@ -1633,7 +1635,6 @@ toggle_compute_queue_fix() {
             local host_mesa_ver
             host_mesa_ver=$(glxinfo 2>/dev/null | grep "Mesa " | head -n1 | awk '{print $3}' | cut -d'-' -f1 || echo "24.1.3")
             
-            # Wipe any stale instances inside the build container workspace home directories
             distrobox enter bc250-build-box -- rm -rf /tmp/mesa &>/dev/null || true
             distrobox enter bc250-build-box -- sh -c "cd /tmp && git clone --depth 1 --branch mesa-$host_mesa_ver https://freedesktop.org" >> "$local_log" 2>&1
 
@@ -1646,7 +1647,7 @@ toggle_compute_queue_fix() {
             distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$local_log" 2>&1
             distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$local_log" 2>&1
 
-            # 🚀 PROTECTION ENFORCEMENT HOOK: Verify binary compilation completed successfully before altering configuration trees
+            # Verify binary compilation completed successfully before altering configuration trees
             if ! distrobox enter bc250-build-box -- test -f /tmp/mesa/build/src/amd/vulkan/libvulkan_radeon.so; then
                 print_error "Compilation aborted. The driver binary could not be generated. Check your logs at $local_log"
                 distrobox rm -f bc250-build-box --yes &>/dev/null || true
