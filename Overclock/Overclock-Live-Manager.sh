@@ -22,9 +22,11 @@ BIWhite='\033[1;97m'      # White
 NC='\033[0m' # No Color (Reset)
 
 # 🧬 DYNAMIC GITHUB STRINGS FOR MODDED PYTHON OVERRIDES
-# (Make sure to replace 'YourGitHubUsername' and 'YourRepoName' with your exact info after uploading!)
 MODDED_APPLY_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250_apply.py"
 MODDED_LIMITS_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250_limits.py"
+
+# 🧬 FIXED CEILING ANCHOR: Uniform global mapping for your un-faked testing driver
+MODDED_DETECT_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250_detect.py"
 
 # Verify root/sudo privileges
 if [ "$EUID" -ne 0 ]; then
@@ -936,13 +938,16 @@ run_phase2() {
     sudo ln -sf /opt/bc250_smu_tools/venv/bin/bc250-apply /usr/local/bin/bc250-apply
 
     # ==============================================================================
-    # 🧬 AUTOMATED HARDWARE UNLOCK ENGINE: OVERWRITING DRIVER CONSTRAINTS
+    # 🧬 HARDENED INJECTION ENGINE: OVERWRITING CONSTRAINTS AND TESTING TIMERS
     # ==============================================================================
     log "${GREEN}[⚙] Injecting custom low-power overrides from your repository...${NC}"
     local py_packages="/opt/bc250_smu_tools/venv/lib64/python3.14/site-packages"
-    
+
+    # 🚀 Curl downloads directly overwrite factory defaults using your uniform global targets
     sudo curl -sSL -o "$py_packages/bc250_apply.py" "$MODDED_APPLY_URL" >> "$LOG_FILE" 2>&1
     sudo curl -sSL -o "$py_packages/bc250_limits.py" "$MODDED_LIMITS_URL" >> "$LOG_FILE" 2>&1
+    sudo curl -sSL -o "$py_packages/bc250_detect.py" "$MODDED_DETECT_URL" >> "$LOG_FILE" 2>&1
+
     
     # Obliterate pre-compiled cache artifacts to force immediate system evaluation
     sudo rm -rf "$py_packages/__pycache__" 2>/dev/null || true
