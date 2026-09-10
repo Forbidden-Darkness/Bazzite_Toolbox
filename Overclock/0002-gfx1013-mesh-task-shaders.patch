@@ -3,7 +3,13 @@ From Mon Sep 17 00:00:00 2001
 From: DryhoppedIPA <DryhoppedIPA@://github.com>
 Date: Sat, 8 Aug 2026 04:53:11 +0000
 Subject: [PATCH 2/3] radv,aco: native mesh and task shaders on GFX1013
-# ... rest of your verified patch array follows completely unchanged ...
+
+Modernized for Bazzite 43/44 compatibility. Refactored layout vectors to align 
+with modern Mesa directory trees. Enables VK_EXT_mesh_shader on GFX1013 by reusing 
+the GFX10.3 NGG pipeline paths behind dedicated capabilities trackers without changing 
+the baseline gfx_level. Resolves the zero-count DISPATCH_TASKMESH_INDIRECT_MULTI_ACE firmware 
+hang by predication mapping the ACE/GFX packet pair cleanly on the count.
+---
 
 Enable VK_EXT_mesh_shader on GFX1013 without promoting its gfx_level:
 mesh and task shading reuse the GFX10.3 NGG paths behind two dedicated
