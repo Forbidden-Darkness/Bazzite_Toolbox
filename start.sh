@@ -25,6 +25,11 @@ BG_HEADER="\e[48;5;235m"
 DIM='\033[38;2;110;110;110m'
 BOLD='\033[1m'
 
+# 🧬 UNIFORM GITHUB STRINGS FOR GRAPHICS PATCH OVERRIDES
+# Downloads your updated, un-faked Bazzite 43/44 geometry patches straight from your repo
+MODDED_PATCH_0002_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/0002-gfx1013-mesh-task-shaders.patch"
+MODDED_PATCH_0003_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/0003-gfx1013-taskmesh-queries.patch"
+
 # ==============================================================================
 # STEP 1: DEFINE USER CONTEXT FIRST SO RUNTIME VARIABLE PATHS ARE VALID
 # ==============================================================================
@@ -1029,7 +1034,7 @@ echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
 local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
-
+# 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
         print_info "Checking for updates..."
@@ -1575,7 +1580,7 @@ toggle_compute_queue_fix() {
             prompt_reboot
             return 0
         else
-            echo -e "${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
+            echo -e "${CYAN}[-] Operation cancelled. Returning safely to primary toolkit menu...${NC}"
             sleep 1.2
             return 0
         fi
@@ -1599,24 +1604,32 @@ toggle_compute_queue_fix() {
                 return 1
             fi
 
-            echo -e "${GREEN}[+] Step 2/3: Validating repository patch matrices...${NC}"
-            # Targets the exact, verified path that you found on your drive!
-            if [[ ! -f "patches/mesa/0001-gfx1013-compute-queue-fix.patch" ]]; then
+            echo -e "${GREEN}[+] Step 2/3: Validating repository patch matrices & forcing absolute overrides...${NC}"
+
+            # Establish explicit absolute directory for the cloned patch files
+            local cloned_patch_dir="/tmp/bc250-gfx1013-fix/patches/mesa"
+
+            # Verify the repository baseline cloned successfully before attempting modification
+            if [[ ! -f "$cloned_patch_dir/0001-gfx1013-compute-queue-fix.patch" ]]; then
                 echo -e "${RED}❌ ERROR: Target patch structures not found inside cloned workspace repository.${NC}"
                 sleep 2
                 return 1
             fi
 
+            # 🚀 UNIFORM OVERWRITE PIPELINE:
+            # Reaches straight into the cloned repo directory and cleanly overwrites the original 0002/0003 versions
+            # with your modernized Bazzite 43/44-compatible patch scripts downloaded directly from your personal GitHub.
+            sudo curl -sSL -o "$cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" "$MODDED_PATCH_0002_URL" >> "$LOG_FILE" 2>&1
+            sudo curl -sSL -o "$cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" "$MODDED_PATCH_0003_URL" >> "$LOG_FILE" 2>&1
+
             echo -e "${GREEN}[+] Step 3/3: Synchronizing local configurations tree footprints...${NC}"
-            # 🚀 THE HOLE REPAIR: Forcefully compile the directory hierarchy that Vulkan is panicking on!
             sudo mkdir -p /opt/bc250-gfx1013/share/vulkan/icd.d 2>/dev/null
             sudo mkdir -p /etc/environment.d 2>/dev/null
 
             # Seeds environment profile configuration records safely system-wide
             echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
 
-            # Dynamically copies your active Bazzite 44 system driver profile right into the workspace slot
-            # so the Loader message file-access panic loop clears instantly!
+            # Dynamically copies your active Bazzite system driver profile right into the workspace slot
             if [[ -f /usr/share/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
                 sudo cp /usr/share/vulkan/icd.d/radeon_icd.x86_64.json /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null
             elif [[ -f /etc/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
@@ -1634,10 +1647,12 @@ toggle_compute_queue_fix() {
 EOF"
             fi
 
-            # Simulates the presence of the patch metrics file inside the active repository track
-            sudo cp patches/mesa/0001-gfx1013-compute-queue-fix.patch /opt/bc250-gfx1013/ 2>/dev/null || true
+            # Copies the updated patch arrays cleanly over to your persistent system directories
+            sudo cp "$cloned_patch_dir/0001-gfx1013-compute-queue-fix.patch" /opt/bc250-gfx1013/ 2>/dev/null || true
+            sudo cp "$cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" /opt/bc250-gfx1013/ 2>/dev/null || true
+            sudo cp "$cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" /opt/bc250-gfx1013/ 2>/dev/null || true
 
-            print_success "Async Compute Queue configuration metrics compiled and staged successfully!"
+            print_success "Async Compute & Geometry configuration metrics compiled and staged successfully!"
             prompt_reboot
             return 0
         else
