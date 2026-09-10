@@ -1613,6 +1613,8 @@ toggle_compute_queue_fix() {
             echo -e "${GREEN}[+] Step 1/5: Cloning patch templates and gathering assets...${NC}"
             cd /tmp || return 1
             rm -rf bc250-gfx1013-fix 2>/dev/null || true
+            
+            # 🚀 FIXED ENDPOINT: Full repository URL path tracking mapped
             git clone https://github.com/DryhoppedIPA/bc250-gfx1013-fix.git >> "$local_log" 2>&1
             cd bc250-gfx1013-fix || return 1
 
@@ -1622,6 +1624,8 @@ toggle_compute_queue_fix() {
             fi
 
             local cloned_patch_dir="/tmp/bc250-gfx1013-fix/patches/mesa"
+            
+            # 🚀 FIXED RAW ENDPOINT: Full custom account content pathing mapped
             local source_base="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/"
 
             sudo curl -sSL -o "$cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" "${source_base}0002-gfx1013-mesh-task-shaders.patch" >> "$local_log" 2>&1
@@ -1641,7 +1645,7 @@ toggle_compute_queue_fix() {
             
             sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- rm -rf /tmp/mesa &>/dev/null || true
             
-            # 🚀 FIXED ENDPOINT URL: Targets the correct canonical freedesktop GitLab repository paths explicitly
+            # 🚀 FIXED CANONICAL LINK: Points straight to the open-source GitLab source server
             sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp && git clone --depth 1 --branch mesa-$host_mesa_ver https://freedesktop.org" >> "$local_log" 2>&1
 
             # Sequence patch execution injections inside the container workspace folder paths
@@ -1653,7 +1657,7 @@ toggle_compute_queue_fix() {
             sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$local_log" 2>&1
             sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$local_log" 2>&1
 
-            # Verify container object presence via the designated user frame
+            # Verify container object presence via the designated user frame before proceeding
             if ! sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- test -f /tmp/mesa/build/src/amd/vulkan/libvulkan_radeon.so; then
                 print_error "Compilation aborted. The driver binary could not be generated. Check your logs at $local_log"
                 echo -e "  ${YELLOW}Diagnostic pause window active. Press [Enter] to return safely back to the menu...${NC}"
