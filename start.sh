@@ -1033,7 +1033,7 @@ echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH DEVELOPMENT BREAKOUT OVERRIDE)
 # =====================================================================
-local_script_update_url="https://githubusercontent.com"
+local_script_update_url="https://github.com/Forbidden-Darkness/Bazzite_Toolbox/raw/refs/heads/main/start.sh"
 
 # 🧬 MODDED BREAKOUT GATE: Skip updates if development folder workspace is active to prevent local overwrite wipes
 if [[ "$REAL_USER" == "bsystem" ]] || [[ "$SCRIPT_PATH" == *"/Bazzite_Toolbox/"* ]]; then
@@ -1566,13 +1566,15 @@ toggle_compute_queue_fix() {
     
     local compiler_script="${target_dir}/Overclock/bc250_graphics_compiler.sh"
 
+    # 🚀 FORCE PURGE LOCKED FRAGMENTS: Re-elevates via root to smash old locked filesystem folder structures
+    sudo rm -rf /tmp/bc250-gfx1013-fix /tmp/mesa 2>/dev/null || true
+
     if [[ -f "$compiler_script" ]]; then
-        # 🚀 PRIVILEGE HANDOFF: Synchronizes directory permissions to ensure standard local user visibility
+        # Ensure correct ownership and permissions across filesystem structures
         sudo chmod +x "$compiler_script" 2>/dev/null || true
         sudo chown "${REAL_USER}:${REAL_USER}" "$compiler_script" 2>/dev/null || true
         
-        # 🚀 SANDBOX ESCAPE HOOK: Drops parent root context and hands the environment execution loop
-        # directly over to your regular user configuration space to clear all Distrobox restrictions!
+        # 🚀 SANDBOX RESOLUTION GATE: Drops parent root context cleanly to pass Distrobox constraints!
         if ! sudo -u "$REAL_USER" REAL_USER="$REAL_USER" REAL_HOME="$REAL_HOME" BASH_ENV="" HOME="$REAL_HOME" bash "$compiler_script"; then
             echo -e "\n  ${YELLOW}[●] Diagnostics: Standalone compilation engine exited with an error state.${RESET}"
             echo -e "      Review the trace logs printed above before returning to the primary panel."
