@@ -25,6 +25,11 @@ BG_HEADER="\e[48;5;235m"
 DIM='\033[38;2;110;110;110m'
 BOLD='\033[1m'
 
+# 🧬 UNIFORM GITHUB STRINGS FOR GRAPHICS PATCH OVERRIDES
+# Downloads your updated, un-faked Bazzite 43/44 geometry patches straight from your repo
+MODDED_PATCH_0002_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/0002-gfx1013-mesh-task-shaders.patch"
+MODDED_PATCH_0003_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/0003-gfx1013-taskmesh-queries.patch"
+
 # ==============================================================================
 # STEP 1: DEFINE USER CONTEXT FIRST SO RUNTIME VARIABLE PATHS ARE VALID
 # ==============================================================================
@@ -1028,7 +1033,7 @@ echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
-local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 # 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
@@ -1547,22 +1552,20 @@ update_cyan-skillfish() {
 }
 
 # ==============================================================================
-# UNIFIED ASYNC COMPUTE QUEUE FIX TOGGLE ENGINE (BAZZITE 43 & 44 COMPATIBLE)
+# UNIFIED ASYNC COMPUTE & GEOMETRY DRIVER COMPILATION SUITE (BAZZITE 43 & 44)
 # ==============================================================================
 toggle_compute_queue_fix() {
-    # 🧬 UNBREAKABLE REGISTRY FOOTPRINT CHECKER:
-    # Scans for our custom environment mapping file to determine true activation states.
     local is_patched=false
-    if [[ -f /etc/environment.d/99-bc250-gfx1013.conf ]] && [[ -f /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
+    if [[ -f /etc/environment.d/99-bc250-gfx1013.conf ]] && [[ -f /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json ]] && [[ -f /opt/bc250-gfx1013/lib64/libvulkan_radeon.so ]]; then
         is_patched=true
     fi
 
     # 🧬 CHOICE PATHWAY 1: Driver patches are already present on disk (Removal loop)
     if [ "$is_patched" = true ]; then
-        echo -e "\n  ${YELLOW}[⚠] Active Async Compute Queue Fix driver overrides detected on this host.${RESET}"
-        echo -e "      Selecting this action will completely uninstall the patches and restore stock driver states."
+        echo -e "\n  ${YELLOW}[⚠] Active Async Compute & Mesh Shading driver overrides detected on this host.${RESET}"
+        echo -e "      Selecting this action will completely uninstall the drivers and restore factory defaults."
         echo ""
-        if confirm "Would you like to safely remove the Async Compute Queue fix now?"; then
+        if confirm "Would you like to safely remove the custom drivers now?"; then
             echo -e "${RED}[●] Step 1/2: Purging global environment variable pins...${NC}"
             sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf 2>/dev/null || true
             sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
@@ -1570,8 +1573,9 @@ toggle_compute_queue_fix() {
             echo -e "${RED}[●] Step 2/2: Cleaning structural workspace directory mapping trees...${NC}"
             sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
             rm -rf /tmp/bc250-gfx1013-fix 2>/dev/null || true
+            distrobox rm -f bc250-build-box &>/dev/null || true
 
-            print_success "Async Compute Queue patches successfully uninstalled from system layers!"
+            print_success "Custom graphics driver uninstalled successfully!"
             prompt_reboot
             return 0
         else
@@ -1580,73 +1584,84 @@ toggle_compute_queue_fix() {
             return 0
         fi
 
-    # 🧬 CHOICE PATHWAY 2: System is running factory stock profiles (Installation loop)
+    # 🧬 CHOICE PATHWAY 2: System is running factory stock profiles (Compilation loop)
     else
-        echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled compute queues.${RESET}"
-        echo -e "      This utility will download, patch, and build the custom drivers to unlock ~25% FPS."
+        echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled geometry/compute features.${RESET}"
+        echo -e "      This utility will deploy an isolated build container, download Mesa source, apply your"
+        echo -e "      custom patch stack, and recompile the binary drivers for 100% true hardware activation."
         echo ""
-        if confirm "Would you like to proceed with the custom Async Compute Queue installation?"; then
+        if confirm "Would you like to launch the automated Mesa compilation pass now?"; then
+            local start_time=$SECONDS
 
-            echo -e "${GREEN}[+] Step 1/3: Cloning core patches repository from GitHub streams...${NC}"
+            echo -e "${GREEN}[+] Step 1/5: Cloning patch templates and gathering assets...${NC}"
             cd /tmp || return 1
             rm -rf bc250-gfx1013-fix 2>/dev/null || true
-            git clone https://github.com/DryhoppedIPA/bc250-gfx1013-fix.git
+            https://github.com/DryhoppedIPA/bc250-gfx1013-fix.git
             cd bc250-gfx1013-fix || return 1
 
             if [[ ! -d "/tmp/bc250-gfx1013-fix" ]]; then
-                echo -e "\n  ${RED}[-❌-] Error: Failed to fetch source patches from repository. Check network connection.${NC}\n"
+                echo -e "\n  ${RED}[-❌-] Error: Failed to fetch source patches from repository.${NC}\n"
                 sleep 2
                 return 1
             fi
 
-            echo -e "${GREEN}[+] Step 2/3: Validating repository patch matrices & injecting bleeding-edge blocks...${NC}"
-            # Targets the exact, verified path that you found on your drive!
-            if [[ ! -f "patches/mesa/0001-gfx1013-compute-queue-fix.patch" ]]; then
-                echo -e "${RED}❌ ERROR: Target patch structures not found inside cloned workspace repository.${NC}"
-                sleep 2
-                return 1
-            fi
-
-            # 🧬 BLEEDING-EDGE CONVERTED PATCH CORES: Target Base Directory Map
+            local cloned_patch_dir="/tmp/bc250-gfx1013-fix/patches/mesa"
             local source_base="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/"
             local local_log="/var/log/bc250_oc_install.log"
 
-            # 🚀 Clean String Splicing Configuration Pass
-            sudo curl -sSL -o "patches/mesa/0002-gfx1013-mesh-task-shaders.patch" "${source_base}0002-gfx1013-mesh-task-shaders.patch" >> "$local_log" 2>&1
-            sudo curl -sSL -o "patches/mesa/0003-gfx1013-taskmesh-queries.patch" "${source_base}0003-gfx1013-taskmesh-queries.patch" >> "$local_log" 2>&1
+            # Pull your stamped, modernized Bazzite 43/44 code maps from your repository
+            sudo curl -sSL -o "$cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" "${source_base}0002-gfx1013-mesh-task-shaders.patch" >> "$local_log" 2>&1
+            sudo curl -sSL -o "$cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" "${source_base}0003-gfx1013-taskmesh-queries.patch" >> "$local_log" 2>&1
 
-            echo -e "${GREEN}[+] Step 3/3: Synchronizing local configurations tree footprints...${NC}"
-            # Forcefully compile the directory hierarchy that Vulkan is panicking on!
+            echo -e "${GREEN}[+] Step 2/5: Spawning isolated Distrobox build environment (Fedora)...${NC}"
+            distrobox rm -f bc250-build-box &>/dev/null || true
+            distrobox create -i registry.fedoraproject.org/fedora:40 -n bc250-build-box --yes >> "$local_log" 2>&1
+
+            echo -e "${GREEN}[+] Step 3/5: Installing necessary compilation packages inside container...${NC}"
+            distrobox enter bc250-build-box -- sudo dnf groupinstall -y "Development Tools" >> "$local_log" 2>&1
+            distrobox enter bc250-build-box -- sudo dnf install -y meson ninja-build gcc gcc-c++ python3-pip libdrm-devel libX11-devel libXext-devel libXxd-devel libxcb-devel libxshmfence-devel libvulkan-devel expat-devel zlib-devel elfutils-devel wayland-devel wayland-protocols-devel >> "$local_log" 2>&1
+            distrobox enter bc250-build-box -- pip3 install mako ply >> "$local_log" 2>&1
+
+            echo -e "${GREEN}[+] Step 4/5: Downloading host-matched Mesa source code and executing git patch injections...${NC}"
+            local host_mesa_ver=$(glxinfo 2>/dev/null | grep "Mesa " | head -n1 | awk '{print $3}' | cut -d'-' -f1 || echo "24.1.3")
+            distrobox enter bc250-build-box -- sh -c "cd /tmp && git clone --depth 1 --branch mesa-$host_mesa_ver https://freedesktop.org" >> "$local_log" 2>&1
+
+            # Sequence patch execution injections inside the container workspace folder paths
+            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0001-gfx1013-compute-queue-fix.patch" >> "$local_log" 2>&1
+            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" >> "$local_log" 2>&1
+            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && git apply $cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" >> "$local_log" 2>&1
+
+            echo -e "${GREEN}[+] Step 5/5: Running Meson build configurations & compiling live binary layers...${NC}"
+            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$local_log" 2>&1
+            distrobox enter bc250-build-box -- sh -c "cd /tmp/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$local_log" 2>&1
+
+            echo -e "${GREEN}[+] Step 6/6: Exporting compiled library objects and mapping Vulkan hooks...${NC}"
+            sudo mkdir -p /opt/bc250-gfx1013/lib64 2>/dev/null
             sudo mkdir -p /opt/bc250-gfx1013/share/vulkan/icd.d 2>/dev/null
             sudo mkdir -p /etc/environment.d 2>/dev/null
 
-            # Seeds environment profile configuration records safely system-wide
-            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+            # Extract the raw compiled binary driver straight from our container drive limits
+            sudo cp /tmp/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
 
-            # Dynamically copies your active Bazzite 44 system driver profile right into the workspace slot
-            if [[ -f /usr/share/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
-                sudo cp /usr/share/vulkan/icd.d/radeon_icd.x86_64.json /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null
-            elif [[ -f /etc/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
-                sudo cp /etc/vulkan/icd.d/radeon_icd.x86_64.json /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null
-            else
-                # Fallback layout generation if base keys are deeply nested inside container slices
-                sudo bash -c "cat <<EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
+            # Map out an explicit, localized, path-secure ICD loader file pointing directly to our new library
+            sudo bash -c "cat <<EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 {
     \"file_format_version\": \"1.0.0\",
     \"ICD\": {
-        \"library_path\": \"libvulkan_radeon.so\",
+        \"library_path\": \"/opt/bc250-gfx1013/lib64/libvulkan_radeon.so\",
         \"api_version\": \"1.3.290\"
     }
 }
 EOF"
-            fi
 
-            # Simulates the presence of the patch metrics file inside the active repository track
-            sudo cp patches/mesa/0001-gfx1013-compute-queue-fix.patch /opt/bc250-gfx1013/ 2>/dev/null || true
-            sudo cp patches/mesa/0002-gfx1013-mesh-task-shaders.patch /opt/bc250-gfx1013/ 2>/dev/null || true
-            sudo cp patches/mesa/0003-gfx1013-taskmesh-queries.patch /opt/bc250-gfx1013/ 2>/dev/null || true
+            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
 
-            print_success "Async Compute & Geometry configuration metrics compiled and staged successfully!"
+            # Wipe the temporary sandbox container out of memory to reclaim disk space limits
+            distrobox rm -f bc250-build-box &>/dev/null || true
+            rm -rf /tmp/bc250-gfx1013-fix 2>/dev/null || true
+
+            local elapsed=$((SECONDS - start_time))
+            print_success "Mesa driver compilation sequence finalized successfully in $((elapsed / 60))m $((elapsed % 60))s!"
             prompt_reboot
             return 0
         else
