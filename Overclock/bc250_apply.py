@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # 🧬 MODDED 🧬 - Bazzite Toolbox v1.5 [Custom Silicon Voltage Curve Target Enforcer]
-#import sys
-#import os
 # ... rest of your verified python file logic follows completely unchanged ...
 import configparser
 import argparse
