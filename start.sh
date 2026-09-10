@@ -1566,15 +1566,16 @@ toggle_compute_queue_fix() {
     
     local compiler_script="${target_dir}/Overclock/bc250_graphics_compiler.sh"
 
-    # 🚀 FORCE PURGE LOCKED FRAGMENTS: Re-elevates via root to smash old locked filesystem folder structures
+    # 🚀 FORCE PURGE LOCKED FRAGMENTS: Smashes old stale text directories left behind by root crashes
     sudo rm -rf /tmp/bc250-gfx1013-fix /tmp/mesa 2>/dev/null || true
 
     if [[ -f "$compiler_script" ]]; then
-        # Ensure correct ownership and permissions across filesystem structures
+        # Ensure correct ownership and execution rights are mapped across filesystem layers
         sudo chmod +x "$compiler_script" 2>/dev/null || true
         sudo chown "${REAL_USER}:${REAL_USER}" "$compiler_script" 2>/dev/null || true
         
-        # 🚀 SANDBOX RESOLUTION GATE: Drops parent root context cleanly to pass Distrobox constraints!
+        # 🚀 SANDBOX FREEDOM GATE: Temporarily drops root context to pass Distrobox unprivileged constraints,
+        # while passing through required environmental handles smoothly!
         if ! sudo -u "$REAL_USER" REAL_USER="$REAL_USER" REAL_HOME="$REAL_HOME" BASH_ENV="" HOME="$REAL_HOME" bash "$compiler_script"; then
             echo -e "\n  ${YELLOW}[●] Diagnostics: Standalone compilation engine exited with an error state.${RESET}"
             echo -e "      Review the trace logs printed above before returning to the primary panel."
