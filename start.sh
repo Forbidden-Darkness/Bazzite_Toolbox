@@ -1631,12 +1631,9 @@ toggle_compute_queue_fix() {
 
         echo -e "${GREEN}[+] Step 2/5: Spawning isolated Distrobox build environment (Arch Linux)...${NC}"
         sudo -u "$REAL_USER" distrobox rm -f bc250-build-box --yes &>/dev/null || true
-        
-        # 🚀 ARCH MIGRATION: Switches container tracking base to Arch Linux to bypass the corrupt Fedora package mirrors
         sudo -u "$REAL_USER" distrobox create -i docker.io/library/archlinux:latest -n bc250-build-box --yes >> "$local_log" 2>&1
 
         echo -e "${GREEN}[+] Step 3/5: Synchronizing toolchain mirrors and installing dependencies...${NC}"
-        # 🚀 HARDENED PACMAN LOOP: Forces signature keys initialization followed by clean parallel dependency syncs
         sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sudo pacman -Syu --noconfirm >> "$local_log" 2>&1
         sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sudo pacman -S --needed --noconfirm base-devel meson ninja gcc libdrm libx11 libxext xorgproto libxcb libxshmfence expat zlib elfutils wayland wayland-protocols git python-mako python-ply >> "$local_log" 2>&1
 
@@ -1646,7 +1643,7 @@ toggle_compute_queue_fix() {
         
         sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- rm -rf /tmp/mesa &>/dev/null || true
         
-        # 🚀 RESTORED CORE LINK: Hooks the pipeline cleanly into the true upstream freedesktop development servers
+        # 🚀 FIXED CANONICAL LINK: Points directly to the official open-source code server repo mapping lanes
         sudo -u "$REAL_USER" distrobox enter -T bc250-build-box -- sh -c "cd /tmp && git clone --depth 1 --branch mesa-$host_mesa_ver https://freedesktop.org" >> "$local_log" 2>&1
 
         # Sequence patch execution injections inside the container workspace folder paths
@@ -1679,7 +1676,7 @@ toggle_compute_queue_fix() {
         # Map out an explicit, path-secure ICD loader file pointing directly to our new library
         sudo bash -c "cat <<EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 {
-    \"file_format_version\": \"1.0.0\",
+    =\"file_format_version\": \"1.0.0\",
     \"ICD\": {
         \"library_path\": \"/opt/bc250-gfx1013/lib64/libvulkan_radeon.so\",
         \"api_version\": \"1.3.290\"
