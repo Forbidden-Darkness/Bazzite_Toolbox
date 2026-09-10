@@ -1,7 +1,9 @@
+# 🧬 MODDED 🧬 - Modernized for Bazzite 43/44 compatibility [14-Slot Pipeline Statistics Query Emulation]
 From Mon Sep 17 00:00:00 2001
 From: DryhoppedIPA <DryhoppedIPA@://github.com>
 Date: Sat, 8 Aug 2026 04:53:11 +0000
 Subject: [PATCH 3/3] radv: mesh/task pipeline-statistics queries on GFX1013
+# ... rest of your verified patch array follows completely unchanged ...
 
 Modernized for Bazzite 43/44 compatibility. Reuse RADV's existing GFX10.3 
 mesh-shader query emulation, retaining the device's real GFX10.1 identity 
