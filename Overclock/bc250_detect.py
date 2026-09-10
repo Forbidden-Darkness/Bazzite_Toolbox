@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-# 🧬 MODDED 🧬
+# 🧬 MODDED 🧬 - Bazzite Toolbox v1.5 [2000MHz Low-Power Floor + 150s Sweep Engine Validation]
+#import sys
+#import os
+#import time
+# ... rest of your verified python file logic follows completely unchanged ...
+
 import struct
 import time
 import configparser
