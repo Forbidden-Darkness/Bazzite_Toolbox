@@ -1566,12 +1566,12 @@ toggle_compute_queue_fix() {
         echo -e "      Selecting this action will completely uninstall the drivers and restore factory defaults."
         echo ""
         
-        # 🧬 FIXED REGISTRY GATE: Accurately parses your custom confirm return logic
-        if confirm "Would you like to safely remove the custom drivers now?"; then
-            echo -e "${CYAN}[-] Operation cancelled. Returning safely to primary toolkit menu...${NC}"
-            sleep 1.2
-            return 0
-        else
+        tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
+        confirm "Would you like to safely remove the custom drivers now?"
+        local remove_check=$?
+
+        # 🧬 FIXED: In your confirm helper, 1 means YES (User typed 'y')
+        if [ "$remove_check" -eq 1 ]; then
             echo -e "${RED}[●] Step 1/2: Purging global environment variable pins...${NC}"
             sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf 2>/dev/null || true
             sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
@@ -1584,6 +1584,10 @@ toggle_compute_queue_fix() {
             print_success "Custom graphics driver uninstalled successfully!"
             prompt_reboot
             return 0
+        else
+            echo -e "${CYAN}[-] Operation cancelled. Returning safely to primary toolkit menu...${NC}"
+            sleep 1.2
+            return 0
         fi
 
     # 🧬 CHOICE PATHWAY 2: System is running factory stock profiles (Compilation loop)
@@ -1593,12 +1597,12 @@ toggle_compute_queue_fix() {
         echo -e "      custom patch stack, and recompile the binary drivers for 100% true hardware activation."
         echo ""
         
-        # 🧬 FIXED REGISTRY GATE: Accurately parses your custom confirm return logic
-        if confirm "Would you like to launch the automated Mesa compilation pass now?"; then
-            echo -e "${CYAN}[-] Installation cancelled. Returning cleanly to main toolkit menu...${NC}"
-            sleep 1.2
-            return 0
-        else
+        tcflush proto 2>/dev/null || read -t 0.1 -n 10000 2>/dev/null || true
+        confirm "Would you like to launch the automated Mesa compilation pass now?"
+        local install_check=$?
+
+        # 🧬 FIXED: In your confirm helper, 1 means YES (User typed 'y')
+        if [ "$install_check" -eq 1 ]; then
             local start_time=$SECONDS
             local local_log="/var/log/bc250_oc_install.log"
             sudo touch "$local_log" && sudo chmod 666 "$local_log"
@@ -1628,7 +1632,7 @@ toggle_compute_queue_fix() {
             distrobox enter bc250-build-box -- sudo dnf clean all >> "$local_log" 2>&1
             distrobox enter bc250-build-box -- sudo dnf makecache --refresh >> "$local_log" 2>&1
             distrobox enter bc250-build-box -- sudo dnf groupinstall -y "Development Tools" >> "$local_log" 2>&1
-            distrobox enter bc250-build-box -- sudo dnf install -y meson ninja-build gcc gcc-c++ python3-pip libdrm-devel libX11-devel libXext-devel libXxd-devel libxcb-devel libxshmfence-devel libvulkan-devel expat-devel zlib-devel elfutils-devel wayland-devel wayland-protocols-devel git >> "$local_log" 2>&1
+            distrobox enter bc250-build-box -- sudo dnf install -y meson ninja-build gcc gcc-c++ python3-pip libdrm-devel libX11-devel libXext-devel libXxd-devel libxcb-devel libxshmfence-devel libvulkan-devel expat-devel zlib-devel elfutils-devel wayland-devel wayland-protocols-devel git glx-utils >> "$local_log" 2>&1
             distrobox enter bc250-build-box -- pip3 install mako ply >> "$local_log" 2>&1
 
             echo -e "${GREEN}[+] Step 4/5: Downloading host-matched Mesa source code and executing git patch injections...${NC}"
@@ -1683,6 +1687,10 @@ EOF"
             local elapsed=$((SECONDS - start_time))
             print_success "Mesa driver compilation sequence finalized successfully in $((elapsed / 60))m $((elapsed % 60))s!"
             prompt_reboot
+            return 0
+        else
+            echo -e "${CYAN}[-] Installation cancelled. Returning cleanly to main toolkit menu...${NC}"
+            sleep 1.2
             return 0
         fi
     fi
