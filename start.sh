@@ -1031,9 +1031,6 @@ esac
 echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 
 # =====================================================================
-# 2. AUTO-UPDATE MECHANISM (WITH DEVELOPMENT BREAKOUT GATE)
-# =====================================================================
-# =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH DEVELOPMENT BREAKOUT OVERRIDE)
 # =====================================================================
 local_script_update_url="https://githubusercontent.com"
@@ -1063,6 +1060,7 @@ else
         fi
     fi
 fi
+
 print_info "Starting main script workflow..."
 
 ask_desktop_shortcut() {
