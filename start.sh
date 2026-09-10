@@ -1031,28 +1031,33 @@ esac
 echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 
 # =====================================================================
-# 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
+# 2. AUTO-UPDATE MECHANISM (WITH DEVELOPMENT BREAKOUT GATE)
 # =====================================================================
-#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
-# 🧬 MODDED 🧬
-if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
-    if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
-        print_info "Checking for updates..."
+local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 
-        TEMP_FILE=$(mktemp)
-        if curl -s -L --connect-timeout 2 "$local_script_update_url" -o "$TEMP_FILE"; then
-            if ! cmp -s "$SCRIPT_PATH" "$TEMP_FILE"; then
-                print_info "New version detected! Updating..."
+# 🧬 MODDED BREAKOUT GATE: Skip updates if developer profile is active to prevent local overwrite wipes
+if [[ "$REAL_USER" == "bsystem" ]] || [[ "$SCRIPT_PATH" == *"/Bazzite_Toolbox/"* ]]; then
+    print_info "Developer profile or local repository workspace active. Auto-update bypassed safely."
+else
+    if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
+        if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
+            print_info "Checking for updates..."
 
-                cp "$TEMP_FILE" "$SCRIPT_PATH"
-                chmod +x "$SCRIPT_PATH"
-                rm -f "$TEMP_FILE"
+            TEMP_FILE=$(mktemp)
+            if curl -s -L --connect-timeout 2 "$local_script_update_url" -o "$TEMP_FILE"; then
+                if ! cmp -s "$SCRIPT_PATH" "$TEMP_FILE"; then
+                    print_info "New version detected! Updating..."
 
-                print_info "Applying update and restarting..."
-                exec bash "$SCRIPT_PATH" --updated "$@"
+                    cp "$TEMP_FILE" "$SCRIPT_PATH"
+                    chmod +x "$SCRIPT_PATH"
+                    rm -f "$TEMP_FILE"
+
+                    print_info "Applying update and restarting..."
+                    exec bash "$SCRIPT_PATH" --updated "$@"
+                fi
             fi
+            rm -f "$TEMP_FILE"
         fi
-        rm -f "$TEMP_FILE"
     fi
 fi
 
