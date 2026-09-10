@@ -1,8 +1,14 @@
+# 🧬 MODDED 🧬 - Modernized for Bazzite 43/44 compatibility [Async Compute Queue Activation]
 From Mon Sep 17 00:00:00 2001
-From: DryhoppedIPA <DryhoppedIPA@users.noreply.github.com>
+From: DryhoppedIPA <DryhoppedIPA@://github.com>
 Date: Sat, 8 Aug 2026 04:53:11 +0000
-Subject: [PATCH 1/3] radv,ac: GFX1013 compute queue fix (identity, exposure,
- ACE dispatch WA)
+Subject: [PATCH 1/3] radv,ac: GFX1013 compute queue fix (identity, exposure, ACE dispatch WA)
+
+Modernized for Bazzite 43/44 compatibility. Exposes the ACE compute queue family
+unconditionally and routes the GFX1013 graphics core through the existing Iceland/Tonga 
+async-compute threadgroup workaround (thread-dimension dispatch mode) to prevent RADV 
+meta transfer corruption while maintaining native GFX10.1 platform identity.
+---
 
 Three changes that together make the GFX1013 (BC-250) dedicated compute
 queues usable:
