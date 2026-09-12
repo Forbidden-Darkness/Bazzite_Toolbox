@@ -1,0 +1,112 @@
+diff --git a/src/amd/compiler/instruction_selection/aco_isel_setup.cpp b/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
+index cb9a2b1..448a9a9 100644
+--- a/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
++++ b/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
+@@ -773,9 +773,11 @@ setup_isel_context(Program* program, unsigned shader_count, struct nir_shader* c
+    program->workgroup_size = program->info.workgroup_size;
+    assert(program->workgroup_size);
+ 
+-   /* Mesh shading only works on GFX10.3+. */
++   /* Mesh shading normally requires GFX10.3+. GFX1013 is enabled only by a
++    * separately attested driver capability without changing its gfx_level.
++    */
+    ASSERTED bool mesh_shading = ctx.stage.has(SWStage::TS) || ctx.stage.has(SWStage::MS);
+-   assert(!mesh_shading || ctx.program->gfx_level >= GFX10_3);
++   assert(!mesh_shading || options->has_mesh_shading);
+ 
+    setup_tcs_info(&ctx);
+diff --git a/src/amd/vulkan/radv_cmd_buffer.c b/src/amd/vulkan/radv_cmd_buffer.c
+index 0fea709..a18b402 100644
+--- a/src/amd/vulkan/radv_cmd_buffer.c
++++ b/src/amd/vulkan/radv_cmd_buffer.c
+@@ -3181,7 +3181,8 @@ radv_emit_hw_ngg(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *e
+        *
+        * Requirement: GE_CNTL.VERT_GRP_SIZE = VGT_GS_ONCHIP_CNTL.ES_VERTS_PER_SUBGRP - 5
+        */
+-      if (pdev->info.gfx_level == GFX10 && es_type != MESA_SHADER_TESS_EVAL && ngg_state->hw_max_esverts != 256) {
++      if (pdev->info.gfx_level == GFX10 && shader->info.stage != MESA_SHADER_MESH &&
++          es_type != MESA_SHADER_TESS_EVAL && ngg_state->hw_max_esverts != 256) {
+          ge_cntl &= C_03096C_VERT_GRP_SIZE;
+ 
+          if (ngg_state->hw_max_esverts > 5) {
+@@ -8828,10 +8829,13 @@ radv_bind_pre_rast_shader(struct radv_cmd_buffer *cmd_buffer, const struct radv_
+    }
+ 
+    if ((shader->info.stage == MESA_SHADER_MESH) != !!(cmd_buffer->state.active_stages & VK_SHADER_STAGE_MESH_BIT_EXT)) {
+-      /* Re-emit primitive topology because the mesh shading pipeline clobbered
++      /* Re-emit primitive topology because the mesh shading pipeline clobbered
+        * it. GFX10.3+ also needs VRS state because the combiner is different,
+        * but native GFX10.1 has no fragment-shading-rate state to emit.
+        */
+-      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_VGT_PRIM_STATE;
++      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VGT_PRIM_STATE;
++      if (pdev->info.gfx_level >= GFX10_3)
++         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;
+    }
+ 
+    if (cmd_buffer->state.force_vrs_per_vertex != shader->info.force_vrs_per_vertex) {
+@@ -11854,6 +11858,7 @@ radv_emit_indirect_taskmesh_draw_packets(const struct radv_device *device, struc
+    const struct radv_physical_device *pdev = radv_device_physical(device);
+    const uint32_t view_mask = cmd_state->render.view_mask;
+    const unsigned num_views = MAX2(1, util_bitcount(view_mask));
++   const bool gfx1013_skip_zero_pair = workaround_cond_va && pdev->info.family == CHIP_GFX1013;
+    unsigned ace_predication_size = num_views * 11; /* DISPATCH_TASKMESH_INDIRECT_MULTI_ACE size */
+ 
+    if (pdev->info.has_taskmesh_indirect0_bug && info->count_va) {
+@@ -11872,8 +11877,15 @@ radv_emit_indirect_taskmesh_draw_packets(const struct radv_device *device, struc
+       ac_emit_cp_copy_data(cmd_buffer->cs, COPY_DATA_IMM, COPY_DATA_DST_MEM, 1, workaround_cond_va,
+                            AC_CP_COPY_DATA_WR_CONFIRM, false);
+ 
+-      /* 2x COND_EXEC + 1x COPY_DATA + Nx DISPATCH_TASKMESH_DIRECT_ACE */
+-      ace_predication_size += 2 * 5 + 6 + 6 * num_views;
++      if (gfx1013_skip_zero_pair) {
++         /* GFX1013 also hangs on the zero-dimensional direct ACE fallback.
++          * Predicate the normal ACE and matching GFX packets on count instead.
++          */
++         ace_predication_size += 5 + 6; /* 1x COND_EXEC + 1x COPY_DATA */
++      } else {
++         /* 2x COND_EXEC + 1x COPY_DATA + Nx DISPATCH_TASKMESH_DIRECT_ACE */
++         ace_predication_size += 2 * 5 + 6 + 6 * num_views;
++      }
+    }
+ 
+    radv_cs_emit_compute_predication(device, cmd_state, ace_cs, cmd_state->cond_render.mec_inv_pred_va,
+@@ -11890,6 +11902,9 @@ radv_emit_indirect_taskmesh_draw_packets(const struct radv_device *device, struc
+    if (!view_mask) {
+       radv_cs_emit_dispatch_taskmesh_indirect_multi_ace_packet(device, cmd_state, ace_cs, info->indirect_va,
+                                                                info->count, info->count_va, info->stride);
++      if (gfx1013_skip_zero_pair)
++         ac_emit_cp_cond_exec(cmd_buffer->cs, pdev->info.gfx_level, info->count_va,
++                              4 /* DISPATCH_TASKMESH_GFX size */);
+       radv_cs_emit_dispatch_taskmesh_gfx_packet(device, cmd_state, cmd_buffer->cs);
+    } else {
+       u_foreach_bit (view, view_mask) {
+@@ -11897,11 +11912,14 @@ radv_emit_indirect_taskmesh_draw_packets(const struct radv_device *device, struc
+ 
+          radv_cs_emit_dispatch_taskmesh_indirect_multi_ace_packet(device, cmd_state, ace_cs, info->indirect_va,
+                                                                   info->count, info->count_va, info->stride);
++         if (gfx1013_skip_zero_pair)
++            ac_emit_cp_cond_exec(cmd_buffer->cs, pdev->info.gfx_level, info->count_va,
++                                 4 /* DISPATCH_TASKMESH_GFX size */);
+          radv_cs_emit_dispatch_taskmesh_gfx_packet(device, cmd_state, cmd_buffer->cs);
+       }
+    }
+ 
+-   if (workaround_cond_va) {
++   if (workaround_cond_va && !gfx1013_skip_zero_pair) {
+       ac_emit_cp_cond_exec(ace_cs, pdev->info.gfx_level, workaround_cond_va,
+                            6 * num_views /* Nx DISPATCH_TASKMESH_DIRECT_ACE */);
+ 
+diff --git a/src/amd/vulkan/radv_device.c b/src/amd/vulkan/radv_device.c
+index 73a8d7d..d690bfb 100644
+--- a/src/amd/vulkan/radv_device.c
++++ b/src/amd/vulkan/radv_device.c
+@@ -1195,6 +1195,8 @@ radv_device_init_compiler_info(struct radv_device *device)
+             .nggc_max_ps_params = nggc_max_ps_params,
+             .no_ngg_gs = instance->drirc.performance.disable_ngg_gs,
+             .load_grid_size_from_user_sgpr = pdev->load_grid_size_from_user_sgpr,
++            .has_gfx1013_mesh_shading = pdev->info.has_gfx1013_mesh_shading,
++            .has_gfx1013_task_shading = pdev->info.has_gfx1013_task_shading,
+             .emulate_ngg_gs_query_pipeline_stat = pdev->emulate_ngg_gs_query_pipeline_stat,
+             .primitives_generated_query = primitives_generated_query,
+             .mesh_shader_queries = mesh_shader_queries,
