@@ -1,9 +1,7 @@
-# 🧬 MODDED 🧬 - Modernized for Bazzite 43/44 compatibility [14-Slot Pipeline Statistics Query Emulation]
 From Mon Sep 17 00:00:00 2001
-From: DryhoppedIPA <DryhoppedIPA@://github.com>
+From: DryhoppedIPA <DryhoppedIPA@github.com>
 Date: Sat, 8 Aug 2026 04:53:11 +0000
 Subject: [PATCH 3/3] radv: mesh/task pipeline-statistics queries on GFX1013
-# ... rest of your verified patch array follows completely unchanged ...
 
 Modernized for Bazzite 43/44 compatibility. Reuse RADV's existing GFX10.3 
 mesh-shader query emulation, retaining the device's real GFX10.1 identity 
@@ -52,7 +50,7 @@ index 8794ff8..93adbd4 100644
  
        /* VK_EXT_depth_clip_control */
        .depthClipControl = true,
-@@ -2743,7 +2743,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
+@@ -2743,7 +2755,7 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
  
     pdev->emulate_ngg_gs_query_pipeline_stat = pdev->use_ngg && pdev->info.gfx_level < GFX11;
  
@@ -73,5 +71,6 @@ index bf1ca5b..c7cea5b 100644
 +   unsigned num_results =
 +      pdev->info.gfx_level >= GFX10_3 || pdev->info.has_gfx1013_mesh_queries ? 14 : 11;
     return num_results * 8;
- -- 
- 2.55.0
+ }
+-- 
+2.55.0
