@@ -1,11 +1,8 @@
 From Mon Sep 17 00:00:00 2001
 From: DryhoppedIPA <DryhoppedIPA@github.com>
 Date: Sat, 8 Aug 2026 04:53:11 +0000
-Subject: [PATCH 3/3] radv: mesh/task pipeline-statistics queries on GFX1013
+Subject: [PATCH 3/3] radv: mesh/task pipeline-statistics queries emulation layers
 
-Modernized for Bazzite 43/44 compatibility. Reuse RADV's existing GFX10.3 
-mesh-shader query emulation, retaining the device's real GFX10.1 identity 
-and the 14-slot result layout required by the task and mesh statistic indices.
 ---
  src/amd/common/ac_gpu_info.c          | 1 +
  src/amd/common/ac_gpu_info.h          | 1 +
@@ -17,7 +14,7 @@ diff --git a/src/amd/common/ac_gpu_info.c b/src/amd/common/ac_gpu_info.c
 index b607af0..3fc2abb 100644
 --- a/src/amd/common/ac_gpu_info.c
 +++ b/src/amd/common/ac_gpu_info.c
-@@ -1039,6 +1039,7 @@ void ac_fill_bug_info(struct radeon_info *info)
+@@ -980,6 +1039,7 @@ void ac_fill_bug_info(struct radeon_info *info)
     /* GFX1013 remains a GFX10.1 device; never promote gfx_level. */
     info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;
     info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;
@@ -72,5 +69,3 @@ index bf1ca5b..c7cea5b 100644
 +      pdev->info.gfx_level >= GFX10_3 || pdev->info.has_gfx1013_mesh_queries ? 14 : 11;
     return num_results * 8;
  }
--- 
-2.55.0
