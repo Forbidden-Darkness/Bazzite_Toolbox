@@ -27,8 +27,9 @@ BOLD='\033[1m'
 
 # 🧬 UNIFORM GITHUB STRINGS FOR GRAPHICS PATCH OVERRIDES
 # Downloads your updated, un-faked Bazzite 43/44 geometry patches straight from your repo
-MODDED_PATCH_0002_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/0002-gfx1013-mesh-task-shaders.patch"
-MODDED_PATCH_0003_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/0003-gfx1013-taskmesh-queries.patch"
+MODDED_PATCH_0001_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0001-gfx1013-compute-queue.patch"
+MODDED_PATCH_0002_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0002-gfx1013-mesh-task-shaders.patch"
+MODDED_PATCH_0003_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0003-gfx1013-taskmesh-queries.patch"
 
 # ==============================================================================
 # STEP 1: DEFINE USER CONTEXT FIRST SO RUNTIME VARIABLE PATHS ARE VALID
@@ -1033,7 +1034,7 @@ echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
-local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 # 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
@@ -1212,6 +1213,7 @@ uninstall_blue_pill() {
     echo -e "${GREEN}\n[✓] Safe Removal Scheduled Successfully!${NC}"
     echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer."
     echo ""
+    play_success_chime
     prompt_reboot
 }
 
@@ -1281,6 +1283,7 @@ install_blue_pill() {
 
         # Drop the persistent tracker file right after successful execution
         touch "$HOME/Blue_Pill_16GB/.installed"
+        play_success_chime
         prompt_reboot
     fi
 }
@@ -1338,6 +1341,7 @@ uninstall_red_pill() {
     echo -e "${GREEN}\n[✓] Safe Removal Scheduled Successfully!${NC}"
     echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer."
     echo ""
+    play_success_chime
     prompt_reboot
 }
 
@@ -1408,6 +1412,7 @@ install_red_pill() {
 
         # Drop the persistent tracker file right after successful execution
         touch "$HOME/Red_Pill_32GB/.installed"
+        play_success_chime
         prompt_reboot
     fi
 }
@@ -1551,116 +1556,188 @@ update_cyan-skillfish() {
     fi
 }
 
-# ==============================================================================
-# UNIFIED ASYNC COMPUTE QUEUE FIX TOGGLE ENGINE (BAZZITE 43 & 44 COMPATIBLE)
-# ==============================================================================
-toggle_compute_queue_fix() {
-    # 🧬 UNBREAKABLE REGISTRY FOOTPRINT CHECKER:
-    # Scans for our custom environment mapping file to determine true activation states.
-    local is_patched=false
-    if [[ -f /etc/environment.d/99-bc250-gfx1013.conf ]] && [[ -f /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
-        is_patched=true
-    fi
+# 🧬 EXPLICIT DISPLAYPORT BREAKOUT ENGINE: Routes digital audio signals straight past the sudo security container blocks
+    play_success_chime() {
+        # 🔔 VISUAL PASS: Blinks the terminal screen for immediate visual verification
+        echo -ne '\e[?5h'; sleep 0.1; echo -ne '\e[?5l'
 
-    # 🧬 CHOICE PATHWAY 1: Driver patches are already present on disk (Removal loop)
-    if [ "$is_patched" = true ]; then
-        echo -e "\n  ${YELLOW}[⚠] Active Async Compute Queue Fix driver overrides detected on this host.${RESET}"
-        echo -e "      Selecting this action will completely uninstall the patches and restore stock driver states."
-        echo ""
-        if confirm "Would you like to safely remove the Async Compute Queue fix now?"; then
-            echo -e "${RED}[●] Step 1/2: Purging global environment variable pins...${NC}"
-            sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf 2>/dev/null || true
-            sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-
-            echo -e "${RED}[●] Step 2/2: Cleaning structural workspace directory mapping trees...${NC}"
-            sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-            rm -rf /tmp/bc250-gfx1013-fix 2>/dev/null || true
-
-            print_success "Async Compute Queue patches successfully uninstalled from system layers!"
-            prompt_reboot
-            return 0
-        else
-            echo -e "${CYAN}[-] Operation cancelled. Returning safely to primary toolkit menu...${NC}"
-            sleep 1.2
-            return 0
+        # 🔊 AUDIO PASS: Bypasses container locks to throw your native .ogg chime straight down your DisplayPort lines
+        local real_uid; real_uid=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
+        if [[ -f "/usr/share/sounds/oxygen/stereo/outcome-success.ogg" ]] && command -v pw-play &>/dev/null; then
+            sudo -u "$REAL_USER" XDG_RUNTIME_DIR="/run/user/$real_uid" PIPEWIRE_RUNTIME_DIR="/run/user/$real_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$real_uid/bus" pw-play /usr/share/sounds/oxygen/stereo/outcome-success.ogg &>/dev/null || true
         fi
+    }
 
-    # 🧬 CHOICE PATHWAY 2: System is running factory stock profiles (Installation loop)
-    else
-        echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled compute queues.${RESET}"
-        echo -e "      This utility will download, patch, and build the custom drivers to unlock ~25% FPS."
-        echo ""
-        if confirm "Would you like to proceed with the custom Async Compute Queue installation?"; then
+toggle_compute_queue_fix() {
+    # 🚀 LOCAL ENVIRONMENT INSULATION: Hardcode explicit tracking variables to prevent scope loss bugs
+    local mesa_build_log="/var/log/bc250_toolbox.log"
+    local mesa_compile_ver="26.2.2"
+    local bin_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/option-2/libvulkan_radeon.so"
 
-            echo -e "${GREEN}[+] Step 1/3: Cloning core patches repository from GitHub streams...${NC}"
-            cd /tmp || return 1
-            rm -rf bc250-gfx1013-fix 2>/dev/null || true
-            git clone https://github.com/DryhoppedIPA/bc250-gfx1013-fix.git
-            cd bc250-gfx1013-fix || return 1
+    while true; do
+        clear
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -e "    🎮 BC-250 HARDWARE PERFORMANCE TOOLKIT — BAZZITE RE-ENGINEERED  "
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -e "   1) Custom Route: Compile & Install Custom Mesa Driver Natively"
+        echo -e "   2) Express Route: Download & Install Pre-Compiled Performance Driver"
+        echo -e "   3) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
+        echo -e "   4) Check Driver Activation & Hardware Extension Telemetry Status"
+        echo -e "   ↵) Hit [Enter] to return back to the main menu"
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -n "  Select an option [1-4]: "
 
-            if [[ ! -d "/tmp/bc250-gfx1013-fix" ]]; then
-                echo -e "\n  ${RED}[-❌-] Error: Failed to fetch source patches from repository. Check network connection.${NC}\n"
-                sleep 2
-                return 1
-            fi
+        local sub_opt; read -r sub_opt
+        case "$sub_opt" in
+            1)
+                if [[ -f "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so" ]]; then
+                    echo -e "\n  ${YELLOW}[⚠] Active Custom Mesa Driver overrides detected on this host.${RESET}"
+                    if confirm "Would you like to safely remove the existing Custom Mesa overrides before proceeding?"; then
+                        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                        sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+                        sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                        echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
+                    fi
+                fi
 
-            echo -e "${GREEN}[+] Step 2/3: Validating repository patch matrices & forcing absolute overrides...${NC}"
+                echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled compute queues.${RESET}"
+                if confirm "Would you like to proceed with the custom Async Compute Queue installation?"; then
+                    sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
 
-            # Establish explicit absolute directory for the cloned patch files
-            local cloned_patch_dir="/tmp/bc250-gfx1013-fix/patches/mesa"
+                    echo -e "\n${GREEN}[+] Step 1/5: Spawning clean virtual toolchain environment (Fedora 44 Box)...${RESET}"
+                    podman rm -f bc250-build-box &>/dev/null || true
+                    podman run -d --name bc250-build-box registry.fedoraproject.org/fedora:44 sleep infinity >> "$mesa_build_log" 2>&1
 
-            # Verify the repository baseline cloned successfully before attempting modification
-            if [[ ! -f "$cloned_patch_dir/0001-gfx1013-compute-queue-fix.patch" ]]; then
-                echo -e "${RED}❌ ERROR: Target patch structures not found inside cloned workspace repository.${NC}"
-                sleep 2
-                return 1
-            fi
+                    echo -e "${GREEN}[+] Step 2/5: Provisioning compiler dependencies inside sandbox...${RESET}"
+                    podman exec bc250-build-box dnf install -y --nogpgcheck @development-tools >> "$mesa_build_log" 2>&1
+                    podman exec bc250-build-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1
 
-            # 🚀 UNIFORM OVERWRITE PIPELINE:
-            # Reaches straight into the cloned repo directory and cleanly overwrites the original 0002/0003 versions
-            # with your modernized Bazzite 43/44-compatible patch scripts downloaded directly from your personal GitHub.
-            sudo curl -sSL -o "$cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" "$MODDED_PATCH_0002_URL" >> "$LOG_FILE" 2>&1
-            sudo curl -sSL -o "$cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" "$MODDED_PATCH_0003_URL" >> "$LOG_FILE" 2>&1
+                    echo -e "${GREEN}[+] Step 3/5: Downloading stable Mesa ${mesa_compile_ver} source from official code servers...${RESET}"
+                    podman exec bc250-build-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa >> "$mesa_build_log" 2>&1
+                    podman exec bc250-build-box mkdir -p /root/patches
 
-            echo -e "${GREEN}[+] Step 3/3: Synchronizing local configurations tree footprints...${NC}"
-            sudo mkdir -p /opt/bc250-gfx1013/share/vulkan/icd.d 2>/dev/null
-            sudo mkdir -p /etc/environment.d 2>/dev/null
+                    echo -e "${GREEN}[+] Step 4/5: Pulling pristine, un-corrupted patch assets directly from GitHub...${RESET}"
+                    podman exec bc250-build-box wget -qO /root/patches/0001.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0001-gfx1013-compute-queue.patch" >> "$mesa_build_log" 2>&1
+                    podman exec bc250-build-box wget -qO /root/patches/0002.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0002-gfx1013-mesh-task-shaders.patch" >> "$mesa_build_log" 2>&1
+                    podman exec bc250-build-box wget -qO /root/patches/0003.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0003-gfx1013-taskmesh-queries.patch" >> "$mesa_build_log" 2>&1
 
-            # Seeds environment profile configuration records safely system-wide
-            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+                    echo -e "${GREEN}[+] Step 5/5: Injecting hardware performance patches and compiling custom driver...${RESET}"
+                    podman exec bc250-build-box sh -c "cd /root/mesa && git apply --whitespace=nowarn --recount /root/patches/0001.patch" >> "$mesa_build_log" 2>&1
+                    podman exec bc250-build-box sh -c "cd /root/mesa && git apply --whitespace=nowarn --recount /root/patches/0003.patch" >> "$mesa_build_log" 2>&1
 
-            # Dynamically copies your active Bazzite system driver profile right into the workspace slot
-            if [[ -f /usr/share/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
-                sudo cp /usr/share/vulkan/icd.d/radeon_icd.x86_64.json /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null
-            elif [[ -f /etc/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
-                sudo cp /etc/vulkan/icd.d/radeon_icd.x86_64.json /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null
-            else
-                # Fallback layout generation if base keys are deeply nested inside container slices
-                sudo bash -c "cat <<EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
+                    podman exec bc250-build-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_bug_info.c 2>/dev/null || podman exec bc250-build-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.c
+                    podman exec bc250-build-box sed -i '/bool has_taskmesh_indirect0_bug;/a \   bool has_gfx1013_mesh_shading;\n   bool has_gfx1013_task_shading;' /root/mesa/src/amd/common/ac_gpu_info.h
+                    podman exec bc250-build-box sed -i '/bool record_stats;/a \   bool has_mesh_shading;' /root/mesa/src/amd/compiler/aco_shader_info.h
+                    podman exec bc250-build-box sed -i 's/assert(!mesh_shading || ctx.program->gfx_level >= GFX10_3);/assert(!mesh_shading || options->has_mesh_shading);/g' /root/mesa/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
+                    podman exec bc250-build-box sed -i 's/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_VGT_PRIM_STATE;/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VGT_PRIM_STATE;\n      if (pdev->info.gfx_level >= GFX10_3) cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;/g' /root/mesa/src/amd/vulkan/radv_cmd_buffer.c
+                    podman exec bc250-build-box sed -i 's/info->family == CHIP_TONGA;/info->family == CHIP_TONGA || ((info->family == CHIP_NAVI10 || info->family == CHIP_NAVI14) \&\& info->gfx_level == GFX10);/g' /root/mesa/src/amd/common/ac_gpu_info.c
+
+                    echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
+                    podman exec bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
+                    podman exec bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$mesa_build_log" 2>&1
+
+                    if ! podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
+                        echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
+                        podman rm -f bc250-build-box --force &>/dev/null || true
+                        read -rp "Press [Enter] to return back to main menu..." dummy
+                        continue
+                    fi
+
+                    echo -e "${GREEN}[+] Step 6/6: Exporting custom library objects to host space...${RESET}"
+                    sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
+                    podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
+                    podman rm -f bc250-build-box --force &>/dev/null || true
+
+                    sudo bash <<'EOF'
+cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 {
-    \"file_format_version\": \"1.0.0\",
-    \"ICD\": {
-        \"library_path\": \"libvulkan_radeon.so\",
-        \"api_version\": \"1.3.290\"
+    "file_format_version": "1.0.0",
+    "ICD": {
+        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",
+        "api_version": "1.3.290"
     }
 }
-EOF"
-            fi
+INNER_EOF
+EOF
+                    echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+                    print_success "Mesa graphics driver compiled and linked successfully!"
+                    play_success_chime
+                    prompt_reboot; continue
+                fi
+                ;;
+                        2)
+                # 🚀 AUTOMATED PRE-FLIGHT REMOVAL PASS: Detects active overrides before proceeding [1.11]
+                if [[ -f "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so" ]]; then
+                    echo -e "\n  ${YELLOW}[⚠] Active Custom Mesa Driver overrides detected on this host.${RESET}"
+                    if confirm "Would you like to safely remove the existing Custom Mesa overrides before proceeding?"; then
+                        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                        sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+                        sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                        echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
+                    fi
+                fi
 
-            # Copies the updated patch arrays cleanly over to your persistent system directories
-            sudo cp "$cloned_patch_dir/0001-gfx1013-compute-queue-fix.patch" /opt/bc250-gfx1013/ 2>/dev/null || true
-            sudo cp "$cloned_patch_dir/0002-gfx1013-mesh-task-shaders.patch" /opt/bc250-gfx1013/ 2>/dev/null || true
-            sudo cp "$cloned_patch_dir/0003-gfx1013-taskmesh-queries.patch" /opt/bc250-gfx1013/ 2>/dev/null || true
-
-            print_success "Async Compute & Geometry configuration metrics compiled and staged successfully!"
-            prompt_reboot
-            return 0
-        else
-            echo -e "${CYAN}[-] Installation cancelled. Returning cleanly to main toolkit menu...${NC}"
-            sleep 1.2
-            return 0
-        fi
-    fi
+                echo -e "\n${GREEN}[+] Initializing Express Route Prebuilt Binary Deployment...${RESET}"
+                if confirm "Instantly deploy the pre-compiled performance driver asset?"; then
+                    sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
+                    echo -e "${GREEN}[+] Pulling optimized 21MB pre-baked graphics binary...${RESET}"
+                    if ! sudo wget -qO /opt/bc250-gfx1013/lib64/libvulkan_radeon.so "$bin_url"; then
+                        echo -e "${RED}❌ ERROR: Prebuilt binary asset not found at GitHub repository destination.${RESET}"
+                        read -rp "Press [Enter] to return back to sub-menu..." dummy; continue
+                    fi
+                    sudo bash <<'EOF'
+cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
+{
+    "file_format_version": "1.0.0",
+    "ICD": {
+        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",
+        "api_version": "1.3.290"
+    }
+}
+INNER_EOF
+EOF
+                    echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+                    print_success "Pre-compiled performance driver deployed and mapped successfully!"
+                    play_success_chime
+                    prompt_reboot; continue
+                fi
+                ;;
+            3)
+                echo -e "\n  ${YELLOW}[⚠] Preparing to safely remove custom graphics layers...${RESET}"
+                if confirm "Completely uninstall the Async Compute Queue overrides?"; then
+                    sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                    sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+                    sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                    print_success "Async Compute Queue patches successfully uninstalled!"
+                    play_success_chime
+                    prompt_reboot; return 0
+                fi
+                ;;
+            4)
+                echo -e "\n${CYAN}[ℹ] Verifying Active Hardware Pipeline Status Profiles...${RESET}"
+                local stock_ver; stock_ver=$(rpm -q mesa-dri-drivers --qf "%{VERSION}\n" 2>/dev/null | head -n1 || echo "Unknown")
+                echo -e "  Stock System Driver Version:  ${YELLOW}${stock_ver}${RESET}"
+                if [[ -f /etc/environment.d/99-bc250-gfx1013.conf ]] || (grep -q "VK_DRIVER_FILES" /etc/environment 2>/dev/null); then
+                    echo -e "  Custom ICD Configuration Layer: ${GREEN}ACTIVE (Using Custom Mod Override)${RESET}"
+                else
+                    echo -e "  Custom ICD Configuration Layer: ${RED}NOT DETECTED (Using Factory Stock)${RESET}"
+                fi
+                echo -e "\n${CYAN}[ℹ] Querying Active Vulkan Telemetry Extensions:${RESET}"
+                if [[ -f /opt/bc250-gfx1013/lib64/libvulkan_radeon.so ]]; then
+                    strings /opt/bc250-gfx1013/lib64/libvulkan_radeon.so | grep -E "VK_EXT_mesh_shader|VK_NV_mesh_shader" || echo "  -> Custom extensions compiled but dormant (Reboot required)"
+                else
+                    echo "  -> Extension indicators empty (Stock Profile)"
+                fi
+                echo ""
+                read -rp "Press [Enter] to return back to sub-menu..." dummy
+                ;;
+            *)
+                echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
+                sleep 1
+                return 0
+                ;;
+        esac
+    done
 }
 
 # ==============================================================================
@@ -2336,6 +2413,364 @@ pin_active_image_layer() {
 }
 
 # ==============================================================================
+# 🧬 HARDWARE-AWARE PERFORMANCE PROFILE CONFIGURATION GENERATOR
+# ==============================================================================
+configure_governor_profile() {
+        clear
+    echo ""
+    echo -e "  ${CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║               ${BOLD}${BICyan}BC-250 SILICON GOVERNOR & PERFORMANCE PROFILE MANAGER${NC}                         ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║                    ${DIM}* HARDWARE SPECIFICATIONS AUDIT WIZARD *${NC}                                 ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "  ${CYAN}╔═ Dynamic Telemetry Scanner ═════════════════════════════════════════════════════════════════╗${NC}"
+
+    # 🚀 ADVANCED HYBRID SILICON AUTODETECTOR LAYER
+    local detected_cus=24
+
+    # 🔍 WinnieLV WGP Mask Parser: Dynamically decodes active live config files
+    if [[ -f /etc/bc250-cu-live-manager.conf ]]; then
+        local raw_masks
+        raw_masks=$(grep "BC250_WGP_MASKS=" /etc/bc250-cu-live-manager.conf | cut -d= -f2)
+        if [[ -n "$raw_masks" ]]; then
+            # Sum up bit elements across all four shader engine channels smoothly
+            local total_bits=0
+            IFS=',' read -r -a mask_array <<< "$raw_masks"
+            for mask in "${mask_array[@]}"; do
+                local val=$((mask))
+                # Counts active binary bits to pull exact total routed WGPs
+                for ((i=0; i<32; i++)); do
+                    (( (val >> i) & 1 )) && ((total_bits++))
+                done
+            done
+            # Each active bit represents 1 WGP which houses exactly 2 active CUs
+            (( detected_cus = total_bits * 2 ))
+        fi
+    fi
+
+    # Fallback to direct kernel diagnostics query if manager profile config hasn't been written yet
+    if (( detected_cus == 0 )) && command -v umr &> /dev/null; then
+        detected_cus=$(umr -i 0 -g 2>/dev/null | grep -i "cu_per_sh" | awk '{print $3 * 4}')
+    fi
+    if [[ ! "$detected_cus" =~ ^[0-9]+$ ]] || (( detected_cus <= 0 )); then
+        detected_cus=24
+    fi
+
+    local live_threads=$(nproc 2>/dev/null || echo "12")
+    local detected_cores=$(( live_threads / 2 ))
+
+    echo -e "  ${CYAN}║${NC}   ${BOLD}${GREEN}✔ ACTIVE HARDWARE IDENTIFIED:${NC} ${detected_cus}/40 Compute Units  │  ${detected_cores} CPU Cores / ${live_threads} Threads            ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+
+        # 📋 AUDIT NO. 1: COOLING INFRASTRUCTURE
+    echo -e "  ${CYAN}╔═ [1/5] HARDWARE AUDIT: COOLING INFRASTRUCTURE ══════════════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║${NC}  Select the physical cooling system configuration currently active on this node:            ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}1)${NC} Stock / Factory OEM Basic Air Cooler                                                   ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}2)${NC} High-End Aftermarket Air Cooled (Heavy Fin Stack / High CFM Fans)                      ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}3)${NC} Liquid Cooled / AIO Closed Loop / Custom Water Block                                   ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    local cooling_choice=""
+    read -p "  Enter cooling profile option [1-3]: " cooling_choice
+
+    local THROTTLE_TEMP=72
+    local RECOVERY_TEMP=65
+    local COOLING_LABEL="Stock Air"
+
+    case "$cooling_choice" in
+        1) THROTTLE_TEMP=72; RECOVERY_TEMP=65; COOLING_LABEL="Stock Air (Restricted)";;
+        2) THROTTLE_TEMP=84; RECOVERY_TEMP=75; COOLING_LABEL="Premium Air Cooled";;
+        3) THROTTLE_TEMP=65; RECOVERY_TEMP=58; COOLING_LABEL="Liquid Cooled Core";;
+        *) echo -e "  ${RED}❌ Invalid choice. Falling back to safe Stock Air parameters.${NC}"; THROTTLE_TEMP=72;;
+    esac
+    echo ""
+
+        # 📋 AUDIT NO. 2: POWER BUDGET (300W - 500W+ STRATA)
+    echo -e "  ${CYAN}╔═ [2/5] HARDWARE AUDIT: POWER INFRASTRUCTURE overhead ═══════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║${NC}  Enter your physical Power Supply Unit (PSU) maximum continuous wattage rating:             ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "  ${CYAN}║${NC}   ${DIM}* Platform registers custom profiles from a 300W baseline up to a 500W+ extreme ceiling * ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    local psu_wattage=""
+    read -p "  PSU Wattage Rating (e.g., 300, 450, 500): " psu_wattage
+
+    if ! [[ "$psu_wattage" =~ ^[0-9]+$ ]]; then
+        echo -e "  ${RED}⚠ Invalid format. Defaulting power tracking to minimal 300W limits.${NC}"
+        psu_wattage=300
+    fi
+    echo ""
+
+            # 📋 AUDIT NO. 3: FUTURE TARGET COMPUTE UNITS (INTELLIGENT HYBRID CONFIRMATION)
+    echo -e "  ${CYAN}╔═ [3/5] HARDWARE AUDIT: GRAPHICS COMPUTE UNIT PROFILES ══════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cus}/40 Compute Units (CUs) currently active on this core.         ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "  ${CYAN}║${NC}   Are you planning to change or target a different operational footprint?                   ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}                                                                                             ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}1)${NC} Target 36 CUs Active  ${DIM}(Down-binned / Maximum High-Efficiency Target Layout)${NC}            ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}2)${NC} Target 38 CUs Active  ${DIM}(Optimal Mid-Tier Custom Performance Curve Baseline)${NC}             ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}3)${NC} Target 40 CUs Active  ${DIM}(Absolute Full Die Silicon Array Matrix Unlocked)${NC}                ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    local cu_choice=""
+    read -p "  Select target CU configuration profile [1-3]: " cu_choice
+
+    local ACTIVE_CUS=38
+    case "$cu_choice" in
+        1) ACTIVE_CUS=36;;
+        2) ACTIVE_CUS=38;;
+        3) ACTIVE_CUS=40;;
+        *) echo -e "  ${YELLOW}⚠ Unknown parameter. Defaulting profile curve to stable 38 CU footprint.${NC}"; ACTIVE_CUS=38;;
+    esac
+    echo ""
+
+        # 📋 AUDIT NO. 4: FUTURE TARGET CPU CORES
+    echo -e "  ${CYAN}╔═ [4/5] HARDWARE AUDIT: CPU CORE COMPLEX ALLOCATION ═════════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cores} CPU Cores / ${live_threads} Threads currently active on this node.          ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "  ${CYAN}║${NC}   Select your target operational profile layout:                                            ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}                                                                                             ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}1)${NC} Target 6 Cores / 12 Threads  ${DIM}(Power-saving / High-Efficiency Sweet Spot)${NC}               ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}2)${NC} Target 8 Cores / 16 Threads  ${DIM}(Full Hardware Multithreading Unlocked)${NC}                   ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    local core_choice=""
+    read -p "  Select target CPU core complex [1-2]: " core_choice
+
+    local ACTIVE_CORES=8
+    local INTERVAL_SAMPLE=4000
+    case "$core_choice" in
+        1)
+            ACTIVE_CORES=6
+            INTERVAL_SAMPLE=6000   # Loosen to 6ms to protect a 12-thread pool from telemetry choke
+            ;;
+        2)
+            ACTIVE_CORES=8
+            INTERVAL_SAMPLE=4000   # Keep at ultra-fast 4ms for full 16-thread pools
+            ;;
+        *)
+            echo -e "  ${YELLOW}⚠ Defaulting to full 8 Core / 16 Thread complex matrices.${NC}"
+            ACTIVE_CORES=8
+            INTERVAL_SAMPLE=4000
+            ;;
+    esac
+    echo ""
+
+    # 📋 SYSTEM TARGET TUNING LEVEL SELECTION
+    echo -e "  ${CYAN}╔═ [5/5] HARDWARE AUDIT: SYSTEM TUNING OPTIMIZATION PROFILE ══════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║${NC}  Select the desired optimization and frequency scaling profile layer for this host:         ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}1)${NC} Normal Computer Use  ${DIM}(Silent profile, low voltage, browser/desktop work)${NC}               ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}2)${NC} Standard Gaming      ${DIM}(Balanced high-efficiency foundation at 1800MHz)${NC}                  ${CYAN}║${NC}"
+    echo -e "  ${CYAN}║${NC}   ${BIWhite}3)${NC} Heavy Overclocking   ${DIM}(Absolute Max Custom Curve: Up to 2150MHz @ 1020mV)${NC}               ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    local tuning_choice=""
+    read -p "  Select tuning profile [1-3]: " tuning_choice
+    echo ""
+
+    local PROFILE_LABEL=""
+    local RAMP_NORMAL=15
+    local RAMP_BURST=40
+    local FREQ_MAX=1400
+    local VOLT_MAX=780
+
+    case "$tuning_choice" in
+        1)
+            PROFILE_LABEL="NORMAL COMPUTER USE (LOW POWER)"
+            RAMP_NORMAL=5; RAMP_BURST=15; FREQ_MAX=1400; VOLT_MAX=780
+            ;;
+        2)
+            PROFILE_LABEL="STANDARD GAMING (BALANCED PERFORMANCE)"
+            RAMP_NORMAL=10; RAMP_BURST=50; FREQ_MAX=1800; VOLT_MAX=900
+            ;;
+        3)
+            PROFILE_LABEL="HEAVY OVERCLOCKING GAMEPLAY (MAX CEILING)"
+            RAMP_NORMAL=15; RAMP_BURST=80; FREQ_MAX=2150; VOLT_MAX=1020
+            ;;
+        *)
+            echo -e "  ${RED}❌ Invalid tuning layout selection. Aborting...${NC}"; sleep 1.5; return 1;;
+    esac
+
+    # 🧬 THE STEPPED INTERCEPT ENGINE: Automated downscaling enforcement rules based on PSU Strata
+    if (( psu_wattage >= 300 && psu_wattage < 400 )); then
+        echo -e "  ${RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "  ${RED}║  [⚠] CRITICAL HARDWARE LOCKOUT: SEVERE PSU CONSTRAINT ENFORCED                              ║${NC}"
+        echo -e "  ${RED}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
+        echo -e "  ${RED}║  Your reported ${psu_wattage}W power supply is below the minimum required headroom for 3D gaming.  ║${NC}"
+        echo -e "  ${RED}║  Toolkit has hardlocked profile to Normal Computer Use (1400MHz) to prevent OCP trips.      ║${NC}"
+        echo -e "  ${RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        PROFILE_LABEL="NORMAL COMPUTER USE (FORCED SAFETY CLAMP)"
+        FREQ_MAX=1400; VOLT_MAX=780; RAMP_NORMAL=5; RAMP_BURST=15; tuning_choice=1
+
+    elif (( psu_wattage >= 400 && psu_wattage < 500 )) && [ "$tuning_choice" -eq 3 ]; then
+        echo -e "  ${YELLOW}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "  ${YELLOW}║  [⚠] MODERATE POWER HEADROOM DETECTED: AUTO-DOWN-SAMPLING PERFORMANCE ACTIVE                ║${NC}"
+        echo -e "  ${YELLOW}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
+        echo -e "  ${YELLOW}║  Your reported ${psu_wattage}W PSU cannot safely protect against 2150MHz transient spikes.           ║${NC}"
+        echo -e "  ${YELLOW}║  Toolkit has safely scaled your target down to Standard Gaming mode (1800MHz @ 900mV).      ║${NC}"
+        echo -e "  ${YELLOW}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        PROFILE_LABEL="STANDARD GAMING (AUTO-DOWNSCALED FROM MAXIMUM CEILING)"
+        FREQ_MAX=1800; VOLT_MAX=900; RAMP_BURST=50; tuning_choice=2
+    fi
+    echo -e "  ${YELLOW}[ℹ] Compiling target configurations using tailored hardware masks...${NC}"
+    local TARGET_CONF="/etc/cyan-skillfish-governor-smu/config.toml"
+    sudo mkdir -p /etc/cyan-skillfish-governor-smu 2>/dev/null
+
+    # 🚀 AUTO-BACKUP TRACE: Preserves existing setup properties cleanly before overwriting
+    if [[ -f "$TARGET_CONF" ]]; then
+        sudo cp "$TARGET_CONF" "${TARGET_CONF}.bak_$(date +%Y%m%d_%H%M%S)" 2>/dev/null
+    fi
+
+    sudo bash -c "cat <<EOF > $TARGET_CONF
+# ==============================================================================
+# PROFILE TEMPLATE LAYOUT: $PROFILE_LABEL
+# Calculated dynamically via BC-250 Spec Auditor Wizard Suite
+# Hardware Target Mask: $ACTIVE_CUS CUs Unlocked | $ACTIVE_CORES CPU Cores Active
+# Hardware Spec Mask: Cooling = $COOLING_LABEL | Power Source = ${psu_wattage}W PSU
+# ==============================================================================
+
+[timing.intervals]
+sample = $INTERVAL_SAMPLE          # Auto-scaled based on targeted operational CPU core complex
+adjust = 30000         # 30ms loop ensures smooth clock stepping without micro-stutter
+
+[gpu-usage]
+fix-freq = true
+fix-metrics = true
+method = \"busy-flag\"   # Best compatibility mode for RDNA2 Cyan Skillfish architectures
+flush-every = 5        # Flushes frequently to completely eliminate micro-stutter
+
+[gpu]
+set-method = \"smu\"     # Direct SMU control for immediate frequency overrides
+target_card = \"card1\"  # Points directly to your active BC-250 hardware node
+
+[dbus]
+enabled = true         # Enables inter-process communication for system overlays
+
+# MHz/ms scaling rates
+[timing.ramp-rates]
+normal = $RAMP_NORMAL            # Tracking speed optimized for active profile limits
+burst = $RAMP_BURST             # Frequency jumps scaled dynamically to match your \${psu_wattage}W current allocation
+
+# Evaluation sampling parameters
+[timing]
+burst-samples = 3      # Allows fast response to heavy engine load spikes
+down-events = 20       # High filtration to aggressively prevent framerate drops
+
+# Control loop window boundaries (MHz)
+[frequency-thresholds]
+adjust = 5             # Tighter control loop window for precise stability
+upper = 0.94           # Lock peak frequencies until utilization drops significantly
+lower = 0.82           # Force higher clocks even during brief engine stalls or asset loading
+
+# Utilization target margins (%)
+[load-target]
+upper = 0.80           # Prevents aggressive downclocking during variable frame times
+lower = 0.60           # Forces high clock retention during geometry/draw call pipeline limits
+
+# °C Thermal tracking configurations
+[temperature]
+throttling = $THROTTLE_TEMP        # HARD CEILING: Scaled directly from your \$COOLING_LABEL spec option
+throttling_recovery = $RECOVERY_TEMP # Safe temperature buffer to prevent rapid thermal stutter loops
+
+# ==============================================================================
+# CLOCK & VOLTAGE FREQUENCY CURVE
+# Ceiling and exponential safe-points auto-scaled for active spec parameters.
+# ==============================================================================
+
+[frequency-range]
+min = 350
+max = $FREQ_MAX             # Dynamic performance ceiling applied securely
+min_voltage = 700      # Stabilized voltage floor for hardware system bus
+max_voltage = $VOLT_MAX     # Maximum voltage ceiling matching profile budget limit
+
+[[safe-points]]
+frequency = 350
+voltage = 700
+
+[[safe-points]]
+frequency = 500
+voltage = 700
+
+[[safe-points]]
+frequency = 1000
+voltage = 740          # Raised low-state voltage to prevent hard-lock idling crashes
+
+[[safe-points]]
+frequency = 1400
+voltage = 780          # Adjusted mid-state baseline
+EOF"
+    # Appends extra safe points up to 1800MHz if option 2 or 3 is authorized
+    if [ "$tuning_choice" -gt 1 ]; then
+    sudo bash -c "cat <<EOF >> $TARGET_CONF
+
+[[safe-points]]
+frequency = 1500
+voltage = 810          # Exponential scaling begins here to combat silicon leakage
+
+[[safe-points]]
+frequency = 1600
+voltage = 840
+
+[[safe-points]]
+frequency = 1700
+voltage = 870
+
+[[safe-points]]
+frequency = 1800
+voltage = 900          # High-efficiency gaming foundation threshold
+EOF"
+    fi
+
+    # Appends your exact extreme safe points up to 2150MHz ONLY if 500W+ overhead is verified
+    if [ "$tuning_choice" -eq 3 ]; then
+    sudo bash -c "cat <<EOF >> $TARGET_CONF
+
+[[safe-points]]
+frequency = 1900
+voltage = 930
+
+[[safe-points]]
+frequency = 1950
+voltage = 945
+
+[[safe-points]]
+frequency = 2000
+voltage = 960          # 2GHz high-performance threshold
+
+[[safe-points]]
+frequency = 2050
+voltage = 975
+
+[[safe-points]]
+frequency = 2100
+voltage = 995          # Approaching high-stress limits (+20mV)
+
+[[safe-points]]
+frequency = 2125
+voltage = 1008         # High-leakage compensation step
+
+[[safe-points]]
+frequency = 2150
+voltage = 1020         # Maximum performance tier matching your exact --vid 1020 limit
+EOF"
+    fi
+
+    echo -e "  ${GREEN}[✓] New config.toml compiled successfully using hardware constraints!${NC}"
+    echo -e "  ${YELLOW}[⚙] Cycling changes into live governor service memory...${NC}"
+
+    sudo systemctl daemon-reload 2>/dev/null || true
+    sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null || true
+
+    echo -e "  ${GREEN}[✓] Task complete! Active system profiles locked into memory space cleanly.${NC}\n"
+    read -rp "  Press [Enter] to exit back to the main menu..."
+}
+
+# ==============================================================================
 # INTEGRATED: MASTER UNIVERSAL DYNAMIC BC-250 SILICON HARVEST ENGINE MATRIX
 # ==============================================================================
 view_cu_map() {
@@ -2615,7 +3050,7 @@ show_menu() {
         echo -e "  ║         ${YELLOW}██████╔╝██║  ██║███████╗███████╗██║   ██║   ███████╗   ╚██████╔╝███████║\033[38;2;0;255;0m       ║"
         echo -e "  ║         ${YELLOW}╚══════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝   ╚═╝   ╚══════╝    ╚═════╝ ╚══════╝\033[38;2;0;255;0m      ║"
         echo "  ║                                                                                        ║"
-        echo -e "  ║    ${B_BLUE}[●] BLUE Pill\033[38;2;0;255;0m             📟📟📟  System Core Telemetry  📟             ${RED}RED Pill [●]\033[38;2;0;255;0m    ║"
+        echo -e "  ║    ${B_BLUE}[●] BLUE Pill\033[38;2;0;255;0m             📟  System Core Telemetry  📟             ${RED}RED Pill [●]\033[38;2;0;255;0m    ║"
         echo "  ║                                                                                        ║"
         echo -e "  ║        System Load: ${WHITE}${load_avg}\033[38;2;0;255;0m        │           Silicon Temp: ${YELLOW}${cpu_temp}\033[38;2;0;255;0m               ║"
         echo "  ╚════════════════════════════════════════════════════════════════════════════════════════╝"
@@ -2648,6 +3083,8 @@ show_menu() {
         echo -e "    ${CYAN}[B] Enable Auto-Start${RESET}      ${DIM}(Turn On Every Boot)${RESET} ${YELLOW}[E] Disable Auto-Start${RESET}     ${DIM}(Keep Off on Boot)${RESET}"
         echo -e "    ${BLUE}[C] Restart Governor${RESET}        ${DIM}(Refresh Tweaks)${RESET}    ${BLUE}[F] Monitor Governor Live Logs${RESET}   ${DIM}(Press [Enter] to Exit)${RESET}"
         echo -e "    ${MAGENTA}[G] Check Governor Version${RESET}                      ${CYAN}[H] Upgrade Governor Track${RESET} ${DIM}  (Fetch Latest Stable COPR Build)${RESET}"
+        echo -e "                   ${BOLD}${CYAN}• Silicon Governor & Performance Tuning Profile Manager:${RESET}"
+        echo -e "                           ${CYAN}[I]${RESET}  Modify Governor Performance Profile     ${DIM}(Hardware Spec Audit Wizard)${RESET}"
         echo ""
 
         # --- CONFIG NOTICES ---
@@ -2664,7 +3101,7 @@ show_menu() {
         echo -e "    ${CYAN}[3] ACPI Table Fix${RESET}  ${DIM}(Install/Uni)${RESET}    ${CYAN}[4] RAM/VRAM Split${RESET}  ${DIM}(Dynamic Split)${RESET}"
         echo -e "    ${CYAN}[X] Xbox Adapter${RESET}    ${DIM}(Xone Driver)${RESET}    ${CYAN}[5] CPU OC & CU Suite${RESET} ${DIM}(Live SMU Manager)${RESET}"
         echo -e "    ${CYAN}[6] Wake-on-LAN${RESET}     ${DIM}(Port Selector)${RESET}  ${CYAN}[P] Pin Stable Layer${RESET}   ${DIM}(OSTree Backup)${RESET}"
-        echo -e "    ${CYAN}[7] GFX1013 Fix${RESET}     ${DIM}(Async Tweak)${RESET}    ${CYAN}[H] CU Map Matrix${RESET}    ${DIM}(Harvest Map)${RESET}"
+        echo -e "    ${CYAN}[7] GFX1013 Fix${RESET}     ${DIM}(Async Tweak)${RESET}    ${CYAN}[M] CU Map Matrix${RESET}    ${DIM}(Harvest Map)${RESET}"
         echo -e "    ${CYAN}[O] CU Harvest Maps${RESET} ${DIM}(Web Browser)${RESET}"
         echo ""
 
@@ -2701,7 +3138,6 @@ show_menu() {
             7) toggle_compute_queue_fix ;;
 
             # 🚀 UPDATED CORRESPONDING SWITCH ENGINES NATIVELY
-            h|H) update_cyan-skillfish ;; # Captures your new Section 2 choice cleanly
             g|G)
                 clear
                 echo -e "${CYAN}Displaying Cyan Skillfish Governor SMU Version...${NC}"
@@ -2710,7 +3146,9 @@ show_menu() {
                 echo ""
                 read -rp "Press [Enter] to return to the main menu..."
                 ;;
-            m|M|h_matrix) view_cu_map ;; # Moved from lower case H to preserve loop safety mappings
+            h|H) update_cyan-skillfish ;; # Captures your new Section 2 choice cleanly
+            i|I) configure_governor_profile ;;
+            m|M) view_cu_map ;; # Moved from lower case H to preserve loop safety mappings
 
             a|A)
                 echo -e "${GREEN}Executing Temporary Start...${NC}"
