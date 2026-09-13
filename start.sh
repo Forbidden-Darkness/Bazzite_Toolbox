@@ -26,7 +26,6 @@ DIM='\033[38;2;110;110;110m'
 BOLD='\033[1m'
 
 # 🧬 UNIFORM GITHUB STRINGS FOR GRAPHICS PATCH OVERRIDES
-# Downloads your updated, un-faked Bazzite 43/44 geometry patches straight from your repo
 MODDED_PATCH_0001_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0001-gfx1013-compute-queue.patch"
 MODDED_PATCH_0002_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0002-gfx1013-mesh-task-shaders.patch"
 MODDED_PATCH_0003_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0003-gfx1013-taskmesh-queries.patch"
