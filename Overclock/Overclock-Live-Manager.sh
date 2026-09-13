@@ -56,6 +56,18 @@ print_info() {
     echo -e "${GREEN}[INFO] $1${NC}"
 }
 
+# 🧬 EXPLICIT DISPLAYPORT BREAKOUT ENGINE: Routes digital audio signals straight past the sudo security container blocks
+    play_success_chime() {
+        # 🔔 VISUAL PASS: Blinks the terminal screen for immediate visual verification
+        echo -ne '\e[?5h'; sleep 0.1; echo -ne '\e[?5l'
+
+        # 🔊 AUDIO PASS: Bypasses container locks to throw your native .ogg chime straight down your DisplayPort lines
+        local real_uid; real_uid=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
+        if [[ -f "/usr/share/sounds/oxygen/stereo/outcome-success.ogg" ]] && command -v pw-play &>/dev/null; then
+            sudo -u "$REAL_USER" XDG_RUNTIME_DIR="/run/user/$real_uid" PIPEWIRE_RUNTIME_DIR="/run/user/$real_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$real_uid/bus" pw-play /usr/share/sounds/oxygen/stereo/outcome-success.ogg &>/dev/null || true
+        fi
+    }
+
 ensure_bazzite_dependencies() {
     local missing_packages=()
 
@@ -620,6 +632,7 @@ EOF"
     echo -e "  ${GREEN}[✓] Task complete! Active system profiles locked into memory space cleanly.${NC}\n"
     read -rp "  Press [Enter] to exit back to the main menu..."
 }
+
 # 🧬 HELPER ENGINE: Executes countdown loop and interactive save gate for options 1-6
 run_preset_stress_flow() {
     local target_threads=$(nproc 2>/dev/null || echo "12")
@@ -645,6 +658,7 @@ run_preset_stress_flow() {
     
     read -rp "Would you like to permanently save and activate these custom settings? [y/n]: " save_choice
     if [[ "$save_choice" =~ ^[Yy]$ ]]; then
+        play_success_chime
         finalize_settings
     else
         echo -e "${CYAN}[-] Save aborted. Returning safely to tuning menu...${NC}"
@@ -921,6 +935,7 @@ EOF"
     sudo systemctl enable bc250-resume.service >> "$LOG_FILE" 2>&1
     sudo rpm-ostree kargs --append=mitigations=off >> "$LOG_FILE" 2>&1
     sudo rpm-ostree install stress python3-devel >> "$LOG_FILE" 2>&1
+    play_success_chime
     prompt_reboot
 }
 
@@ -1004,6 +1019,7 @@ EOF"
     sudo systemctl daemon-reload
     sudo systemctl enable bc250-resume.service >> "$LOG_FILE" 2>&1
     sudo rpm-ostree install umr >> "$LOG_FILE" 2>&1
+    play_success_chime
     prompt_reboot
 }
 
@@ -1031,6 +1047,7 @@ uninstall_cpu_overclock() {
     sudo rpm-ostree kargs --delete=mitigations=off >> "$LOG_FILE" 2>&1
     sudo rpm-ostree uninstall stress python3-devel >> "$LOG_FILE" 2>&1
     sudo systemctl daemon-reload
+    play_success_chime
     prompt_reboot
 }
 
@@ -1043,6 +1060,7 @@ uninstall_cu_live_manager() {
     sudo rm -f /tmp/bc250-cu-live-manager.sh
     sudo rpm-ostree uninstall umr >> "$LOG_FILE" 2>&1
     sudo systemctl daemon-reload
+    play_success_chime
     prompt_reboot
 }
 
