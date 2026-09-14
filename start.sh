@@ -26,6 +26,7 @@ DIM='\033[38;2;110;110;110m'
 BOLD='\033[1m'
 
 # 🧬 UNIFORM GITHUB STRINGS FOR GRAPHICS PATCH OVERRIDES
+# Downloads your updated, un-faked Bazzite 43/44 geometry patches straight from your repo
 MODDED_PATCH_0001_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0001-gfx1013-compute-queue.patch"
 MODDED_PATCH_0002_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0002-gfx1013-mesh-task-shaders.patch"
 MODDED_PATCH_0003_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0003-gfx1013-taskmesh-queries.patch"
@@ -1158,12 +1159,13 @@ prompt_reboot() {
 # =====================================================================
 # Complete, Deep-Clean Removal Logic for the Blue Pill
 uninstall_blue_pill() {
+    local run_mode="$1" # Catches the suppression modifier parameter cleanly
+
     echo -e "${YELLOW}[●] Step 1/7: Forcibly stopping and disabling all governor services...${NC}"
     (sudo systemctl stop cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
     (sudo systemctl disable cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 2/7: Stripping away system initramfs configuration locks...${NC}"
-    # FIX: Disables the stuck manual initramfs flag inside the script to fix background transaction crashes
     (sudo rpm-ostree initramfs --disable 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 3/7: Unlayering package structures from the system tree (Takes ~2 mins)...${NC}"
@@ -1171,26 +1173,10 @@ uninstall_blue_pill() {
     (sudo copr disable filippor/bazzite -y 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 4/7: Restoring factory kernel arguments (kargs)...${NC}"
-    local kargs_remove=(
-        --delete=mitigations=off
-        --delete=zswap.enabled=1
-        --delete=zswap.max_pool_percent=25
-        --delete=zswap.compressor=lz4
-        --delete=systemd.zram=0
-        --delete=ttm.pages_limit
-        --delete=ttm.page_pool_size
-        --delete=amdgpu.gttsize
-    )
-
-    # 🧬 TWIN-STEP SPLASH GUARD INTEGRATION:
-    # Purges performance flags while concurrently re-enforcing visual loading markers
+    local kargs_remove=(--delete=mitigations=off --delete=zswap.enabled=1 --delete=zswap.max_pool_percent=25 --delete=zswap.compressor=lz4 --delete=systemd.zram=0 --delete=ttm.pages_limit --delete=ttm.page_pool_size --delete=amdgpu.gttsize)
     (sudo rpm-ostree kargs "${kargs_remove[@]}" --append="quiet" --append="rhgb" >> /var/log/bc250_oc_install.log 2>&1 || true) &>/dev/null
-
-    # Synchronize layout template configurations
     (sudo sed -i 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="quiet rhgb /g' /etc/default/grub 2>/dev/null) &>/dev/null
 
-    # 🧬 GRUB ENVIRONMENT BLOCK FORCE-INJECTION
-    # Directly writes to the environment registers to block ostree interpretation skips
     echo -e "${GREEN}[+] Step 5/7: Hard-locking visual splash screen variables...${NC}"
     (sudo grub2-editenv - set kernelopts="quiet rhgb" 2>/dev/null) &>/dev/null
 
@@ -1209,92 +1195,90 @@ uninstall_blue_pill() {
     (sudo systemctl daemon-reload) &>/dev/null
     (ujust regenerate-grub &>/dev/null || true) &>/dev/null
 
+    # 🚀 CONDITIONAL REBOOT PASS: Skips terminal hijack if switching layouts programmatically
+    if [[ "$run_mode" == "silent" ]]; then
+        return 0
+    fi
+
     echo -e "${GREEN}\n[✓] Safe Removal Scheduled Successfully!${NC}"
-    echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer."
-    echo ""
-    play_success_chime
-    prompt_reboot
+    echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer.\n"
+    play_success_chime; prompt_reboot
 }
 
 # Unified Wrapper handling the Intelligent Toggle Switch selection logic
 install_blue_pill() {
+    local tracking_dir="$HOME/Blue_Pill_16GB"
+
     # 1. Primary Check: Is Blue Pill already active on this host?
-    if [ -f "$HOME/Blue_Pill_16GB/.installed" ]; then
+    if [ -f "$tracking_dir/.installed" ]; then
         echo -e "${YELLOW}[●] Active Blue Pill optimization suite detected on this machine.${NC}"
         echo -e "${BOLD}${MAGENTA}Would you like to completely uninstall the suite and restore defaults?${RESET}"
-        read -rp "  Select [y/N]: " rollback_choice
-        echo ""
-
-        if [[ "$rollback_choice" =~ ^[Yy]$ ]]; then
+        if confirm "Select option"; then
             uninstall_blue_pill
-            rm -f "$HOME/Blue_Pill_16GB/.installed" 2>/dev/null || true
+            rm -f "$tracking_dir/.installed" 2>/dev/null || true
         else
             echo -e "${DIM}Operation canceled. Returning to main menu...${RESET}"
             sleep 1
         fi
-    else
-        # 🧬 2. CROSS-CONFLICT SHIELD GATE: Detects if the Red Pill suite is running on this machine
-        if [ -f "$HOME/Red_Pill_32GB/.installed" ]; then
-            clear
-            echo -e "\n  ${RED}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-            echo -e "  ${RED}║                     SUITE CONFLICT SHIELD ACTIVE                  ║${NC}"
-            echo -e "  ${RED}║               CROSS-DEPLOYMENT COLLISION BLOCKED                  ║${NC}"
-            echo -e "  ${RED}╚═══════════════════════════════════════════════════════════════════╝${NC}"
-            echo ""
-            echo -e "  ${YELLOW}[⚠] NOTICE:${NC} The opposing ${RED}Red Pill (32GB Suite)${NC} is currently active on this system."
-            echo -e "      Deploying both concurrently will corrupt your BTRFS subvolumes."
-            echo ""
-            echo -e "      The toolbox can automatically execute a deep safe uninstallation of"
-            echo -e "      the Red Pill suite and reset system defaults before continuing."
-            echo ""
-
-            if confirm "Would you like to completely uninstall Red Pill first and proceed?"; then
-                echo -e "\n${YELLOW}[●] Initializing automated Red Pill rollback sequence...${NC}"
-                uninstall_red_pill
-                rm -f "$HOME/Red_Pill_32GB/.installed" 2>/dev/null || true
-                echo -e "${GREEN}[✓] Red Pill successfully uninstalled. Continuing to Blue Pill setup...${NC}"
-                sleep 2
-            else
-                echo -e "  ${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
-                sleep 1.5
-                return 0
-            fi
-        fi
-
-        # 🧬 3. PRE-FLIGHT INSTALLATION CONFIRMATION GATE
-        echo -e "\n  ${B_BLUE}[●] Initialization Notice: You are about to deploy the Blue Pill Suite.${RESET}"
-        echo -e "      This will alter your host swap partition layout and download performance binaries."
-
-        if ! confirm "Are you sure this optimization option is what you want?"; then
-            echo -e "  ${CYAN}[-] Installation bypassed. Returning cleanly to main menu...${NC}"
-            sleep 1.2
-            return 0
-        fi
-
-        echo -e "\n${B_BLUE}=== Executing Blue Pill (16GB Setup) ===${NC}"
-        mkdir -p ~/Blue_Pill_16GB
-        cd ~/Blue_Pill_16GB || return 1
-        rm -f Setup-16GB.sh
-        wget https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Setup-16GB.sh
-        # wget https://raw.githubusercontent.com/NexGen-3D-Printing/SteamMachine/main/Setup-16GB.sh
-        chmod +x Setup-16GB.sh
-        sudo ./Setup-16GB.sh
-
-        # Drop the persistent tracker file right after successful execution
-        touch "$HOME/Blue_Pill_16GB/.installed"
-        play_success_chime
-        prompt_reboot
+        return 0
     fi
+
+    # 🧬 2. CROSS-CONFLICT SHIELD GATE: Detects and removes Red Pill if present
+    if [ -f "$HOME/Red_Pill_32GB/.installed" ]; then
+        clear
+        echo -e "\n  ${RED}╔═══════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "  ${RED}║                     SUITE CONFLICT SHIELD ACTIVE                  ║${NC}"
+        echo -e "  ${RED}║               CROSS-DEPLOYMENT COLLISION BLOCKED                  ║${NC}"
+        echo -e "  ${RED}╚═══════════════════════════════════════════════════════════════════╝${NC}"
+        echo -e "\n  ${YELLOW}[⚠] NOTICE:${NC} The opposing ${RED}Red Pill (32GB Suite)${NC} is currently active on this system."
+        echo -e "      Deploying both concurrently will corrupt your BTRFS subvolumes.\n"
+
+        if confirm "Would you like to completely uninstall Red Pill first and proceed?"; then
+            echo -e "\n${YELLOW}[●] Initializing automated Red Pill rollback sequence...${NC}"
+            # 🚀 FIXED: Passes silent string parameter to suppress mid-script reboot loops
+            uninstall_red_pill "silent"
+            rm -f "$HOME/Red_Pill_32GB/.installed" 2>/dev/null || true
+            echo -e "${GREEN}[✓] Red Pill successfully uninstalled. Continuing to Blue Pill setup...${NC}\n"
+            sleep 1.5
+        else
+            echo -e "  ${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
+            sleep 1.5; return 0
+        fi
+    fi
+
+    # 🧬 3. PRE-FLIGHT INSTALLATION CONFIRMATION GATE
+    echo -e "\n  ${B_BLUE}[●] Initialization Notice: You are about to deploy the Blue Pill Suite.${RESET}"
+    echo -e "      This will alter your host swap partition layout and download performance binaries."
+
+    if ! confirm "Are you sure this optimization option is what you want?"; then
+        echo -e "  ${CYAN}[-] Installation bypassed. Returning cleanly to main menu...${RESET}"
+        sleep 1.2; return 0
+    fi
+
+    # 🚀 4. UNINTERRUPTED EXECUTION TRACK
+    echo -e "\n${B_BLUE}=== Executing Blue Pill (16GB Setup) ===${NC}"
+    mkdir -p "$tracking_dir" && cd "$tracking_dir" || return 1
+    rm -f Setup-16GB.sh
+
+    if ! wget -q https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Setup-16GB.sh; then
+        echo -e "${RED}❌ ERROR: Setup-16GB.sh asset not found at GitHub repository destination.${NC}"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    chmod +x Setup-16GB.sh && sudo ./Setup-16GB.sh
+    touch "$tracking_dir/.installed"
+    play_success_chime; prompt_reboot
 }
 
 # Complete, Deep-Clean Removal Logic for the Red Pill
 uninstall_red_pill() {
+    local run_mode="$1" # Catches the suppression modifier parameter cleanly
+
     echo -e "${YELLOW}[●] Step 1/7: Forcibly stopping and disabling all governor services...${NC}"
     (sudo systemctl stop cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
     (sudo systemctl disable cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 2/7: Stripping away system initramfs configuration locks...${NC}"
-    # FIX: Disables the stuck manual initramfs flag inside the script to fix background transaction crashes
     (sudo rpm-ostree initramfs --disable 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 3/7: Unlayering package structures from the system tree (Takes ~2 mins)...${NC}"
@@ -1302,27 +1286,14 @@ uninstall_red_pill() {
     (sudo copr disable filippor/bazzite -y 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 4/7: Restoring factory kernel arguments (kargs)...${NC}"
-    local kargs_remove=(
-        --delete=mitigations=off
-        --delete=zswap.enabled=1
-        --delete=zswap.max_pool_percent=25
-        --delete=zswap.compressor=lz4
-        --delete=systemd.zram=0
-    )
-
-    # 🧬 TWIN-STEP SPLASH GUARD INTEGRATION:
-    # Purges performance flags while concurrently re-enforcing visual loading markers
+    local kargs_remove=(--delete=mitigations=off --delete=zswap.enabled=1 --delete=zswap.max_pool_percent=25 --delete=zswap.compressor=lz4 --delete=systemd.zram=0 --delete=ttm.pages_limit --delete=ttm.page_pool_size --delete=amdgpu.gttsize)
     (sudo rpm-ostree kargs "${kargs_remove[@]}" --append="quiet" --append="rhgb" >> /var/log/bc250_oc_install.log 2>&1 || true) &>/dev/null
-
-    # Synchronize layout template configurations
     (sudo sed -i 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="quiet rhgb /g' /etc/default/grub 2>/dev/null) &>/dev/null
 
-    # 🧬 GRUB ENVIRONMENT BLOCK FORCE-INJECTION
-    # Directly writes to the environment registers to block ostree skips and hold the splash active
     echo -e "${GREEN}[+] Step 5/7: Hard-locking visual splash screen variables...${NC}"
     (sudo grub2-editenv - set kernelopts="quiet rhgb" 2>/dev/null) &>/dev/null
 
-    echo -e "${YELLOW}[●] Step 6/7: Tearing down BTRFS disk swapfile infrastructure...${NC}"
+    echo -e "${YELLOW}[●] Step 6/7: Tearing down BTRFS disk swapfile subvolume...${NC}"
     (sudo swapoff /var/swap/swapfile 2>/dev/null || true) &>/dev/null
     (sudo rm -f /var/swap/swapfile 2>/dev/null || true) &>/dev/null
     (sudo btrfs subvolume delete /var/swap 2>/dev/null || true) &>/dev/null
@@ -1337,83 +1308,79 @@ uninstall_red_pill() {
     (sudo systemctl daemon-reload) &>/dev/null
     (ujust regenerate-grub &>/dev/null || true) &>/dev/null
 
+    # 🚀 CONDITIONAL REBOOT PASS: Skips terminal hijack if switching layouts programmatically
+    if [[ "$run_mode" == "silent" ]]; then
+        return 0
+    fi
+
     echo -e "${GREEN}\n[✓] Safe Removal Scheduled Successfully!${NC}"
-    echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer."
-    echo ""
-    play_success_chime
-    prompt_reboot
+    echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer.\n"
+    play_success_chime; prompt_reboot
 }
 
 # Unified Wrapper handling the Intelligent Toggle Switch selection logic
 install_red_pill() {
+    local tracking_dir="$HOME/Red_Pill_32GB"
+
     # 1. Primary Check: Is Red Pill already active on this host?
-    if [ -f "$HOME/Red_Pill_32GB/.installed" ]; then
+    if [ -f "$tracking_dir/.installed" ]; then
         echo -e "${YELLOW}[●] Active Red Pill optimization suite detected on this machine.${NC}"
         echo -e "${BOLD}${MAGENTA}Would you like to completely uninstall the suite and restore defaults?${RESET}"
-        read -rp "  Select [y/N]: " rollback_choice
-        echo ""
-
-        if [[ "$rollback_choice" =~ ^[Yy]$ ]]; then
+        if confirm "Select option"; then
             uninstall_red_pill
-            rm -f "$HOME/Red_Pill_32GB/.installed" 2>/dev/null || true
+            rm -f "$tracking_dir/.installed" 2>/dev/null || true
         else
             echo -e "${DIM}Operation canceled. Returning to main menu...${RESET}"
             sleep 1
         fi
-    else
-        # 🧬 2. CROSS-CONFLICT SHIELD GATE: Detects if the Blue Pill suite is running on this machine
-        if [ -f "$HOME/Blue_Pill_16GB/.installed" ]; then
-            clear
-            echo -e "\n  ${RED}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-            echo -e "  ${RED}║                     SUITE CONFLICT SHIELD ACTIVE                  ║${NC}"
-            echo -e "  ${RED}║               CROSS-DEPLOYMENT COLLISION BLOCKED                  ║${NC}"
-            echo -e "  ${RED}╚═══════════════════════════════════════════════════════════════════╝${NC}"
-            echo ""
-            echo -e "  ${YELLOW}[⚠] NOTICE:${NC} The opposing ${B_BLUE}Blue Pill (16GB Suite)${NC} is currently active on this system."
-            echo -e "      Deploying both concurrently will corrupt your BTRFS subvolumes."
-            echo ""
-            echo -e "      The toolbox can automatically execute a deep safe uninstallation of"
-            echo -e "      the Blue Pill suite and reset system defaults before continuing."
-            echo ""
-
-            if confirm "Would you like to completely uninstall Blue Pill first and proceed?"; then
-                echo -e "\n${YELLOW}[●] Initializing automated Blue Pill rollback sequence...${NC}"
-                uninstall_blue_pill
-                rm -f "$HOME/Blue_Pill_16GB/.installed" 2>/dev/null || true
-                echo -e "${GREEN}[✓] Blue Pill successfully uninstalled. Continuing to Red Pill setup...${NC}"
-                sleep 2
-            else
-                echo -e "  ${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
-                sleep 1.5
-                return 0
-            fi
-        fi
-
-        # 🧬 3. PRE-FLIGHT INSTALLATION CONFIRMATION GATE
-        # Safeguards non-Linux users from accidental executions by requiring a clear choice
-        echo -e "\n  ${RED}[●] Initialization Notice: You are about to deploy the Red Pill Suite.${RESET}"
-        echo -e "      This will alter your host swap partition layout and download performance binaries."
-
-        if ! confirm "Are you sure this optimization option is what you want?"; then
-            echo -e "  ${CYAN}[-] Installation bypassed. Returning cleanly to main menu...${NC}"
-            sleep 1.2
-            return 0
-        fi
-
-        echo -e "\n${RED}=== Executing Red Pill (32GB Setup) ===${NC}"
-        mkdir -p ~/Red_Pill_32GB
-        cd ~/Red_Pill_32GB || return 1
-        rm -f Setup-32GB.sh
-        wget https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Setup-32GB.sh
-        # wget https://raw.githubusercontent.com/NexGen-3D-Printing/SteamMachine/main/Setup-32GB.sh
-        chmod +x Setup-32GB.sh
-        sudo ./Setup-32GB.sh
-
-        # Drop the persistent tracker file right after successful execution
-        touch "$HOME/Red_Pill_32GB/.installed"
-        play_success_chime
-        prompt_reboot
+        return 0
     fi
+
+    # 🧬 2. CROSS-CONFLICT SHIELD GATE: Detects and removes Blue Pill if present
+    if [ -f "$HOME/Blue_Pill_16GB/.installed" ]; then
+        clear
+        echo -e "\n  ${RED}╔═══════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "  ${RED}║                     SUITE CONFLICT SHIELD ACTIVE                  ║${NC}"
+        echo -e "  ${RED}║               CROSS-DEPLOYMENT COLLISION BLOCKED                  ║${NC}"
+        echo -e "  ${RED}╚═══════════════════════════════════════════════════════════════════╝${NC}"
+        echo -e "\n  ${YELLOW}[⚠] NOTICE:${NC} The opposing ${B_BLUE}Blue Pill (16GB Suite)${NC} is currently active on this system."
+        echo -e "      Deploying both concurrently will corrupt your BTRFS subvolumes.\n"
+
+        if confirm "Would you like to completely uninstall Blue Pill first and proceed?"; then
+            echo -e "\n${YELLOW}[●] Initializing automated Blue Pill rollback sequence...${NC}"
+            # 🚀 FIXED: Passes silent string parameter to suppress mid-script reboot loops
+            uninstall_blue_pill "silent"
+            rm -f "$HOME/Blue_Pill_16GB/.installed" 2>/dev/null || true
+            echo -e "${GREEN}[✓] Blue Pill successfully uninstalled. Continuing to Red Pill setup...${NC}\n"
+            sleep 1.5
+        else
+            echo -e "  ${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
+            sleep 1.5; return 0
+        fi
+    fi
+
+    # 🧬 3. PRE-FLIGHT INSTALLATION CONFIRMATION GATE
+    echo -e "\n  ${RED}[●] Initialization Notice: You are about to deploy the Red Pill Suite.${RESET}"
+    echo -e "      This will alter your host swap partition layout and download performance binaries."
+
+    if ! confirm "Are you sure this optimization option is what you want?"; then
+        echo -e "  ${CYAN}[-] Installation bypassed. Returning cleanly to main menu...${RESET}"
+        sleep 1.2; return 0
+    fi
+
+    # 🚀 4. UNINTERRUPTED EXECUTION TRACK
+    echo -e "\n${RED}=== Executing Red Pill (32GB Setup) ===${NC}"
+    mkdir -p "$tracking_dir" && cd "$tracking_dir" || return 1
+    rm -f Setup-32GB.sh
+
+    if ! wget -q https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Setup-32GB.sh; then
+        echo -e "${RED}❌ ERROR: Setup-32GB.sh asset not found at GitHub repository destination.${NC}"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    chmod +x Setup-32GB.sh && sudo ./Setup-32GB.sh
+    touch "$tracking_dir/.installed"
+    play_success_chime; prompt_reboot
 }
 
 # Function to Launch Overclock
@@ -1570,17 +1537,16 @@ toggle_compute_queue_fix() {
     local bin_url1="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/option-1/libvulkan_radeon.so"
     local bin_url2="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/option-2/libvulkan_radeon.so"
 
-    while true; do
+while true; do
         clear
         echo -e "${CYAN}====================================================================${RESET}"
         echo -e "    🎮 BC-250 HARDWARE PERFORMANCE TOOLKIT — BAZZITE RE-ENGINEERED  "
         echo -e "${CYAN}====================================================================${RESET}"
-        echo -e "   1) Custom Route (Navi10): Compile Custom Driver Natively (High-Tier)"
-        echo -e "   2) Custom Route (Navi14): Compile Custom Driver Natively (Low-Tier)"
-        echo -e "   3) Express Route (Navi10): Download & Install Pre-Compiled Performance Driver (High-Tier)"
-        echo -e "   4) Express Route (Navi14): Download & Install Pre-Compiled Performance Driver (Low-Tier)"
-        echo -e "   5) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
-        echo -e "   6) Check Driver Activation & Hardware Extension Telemetry Status"
+        echo -e "   1) Custom Route: Compile & Install Custom Mesa Driver Natively"
+        echo -e "   2) Express Route: Download & Install Pre-Compiled Performance Driver"
+        echo -e "   3) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
+        echo -e "   4) Check Driver Activation & Hardware Extension Telemetry Status"
+        echo ""
         echo -e "   ↵) Hit [Enter] to return back to the main menu"
         echo -e "${CYAN}====================================================================${RESET}"
         echo -n "  Select an option [1-5]: "
@@ -1589,7 +1555,36 @@ toggle_compute_queue_fix() {
         case "$sub_opt" in
 
             1)
-                local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
+                # 🎮 RESTORED SUB-MENU INTEGRATION
+                echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
+                echo -e "      a) Custom Route (Navi10): Compile Custom Driver Natively (High-Tier Mid-Range Architecture - 40 CUs - Recommended)"
+                echo -e "      b) Custom Route (Navi14): Compile Custom Driver Natively (Low-Tier Budget Entry-Level Architecture - 24 CUs)"
+
+
+                local ACTION_CHOICE
+                read -rp "$(echo -e "  ${CYAN}Select an option [a-b]: ${RESET}")" ACTION_CHOICE
+
+                # Nested case statement to handle the sub-menu selection
+                case "$ACTION_CHOICE" in
+                    a|A)
+                        local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
+                if [[ -f "$target_lib" ]]; then
+                    # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Automatically reads bytes on disk to name the active hardware profile [1.11]
+                    local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
+                    local active_profile="CHIP_NAVI10 (Dedicated High-Tier Layout)"
+                    if (( file_bytes > 21700000 )); then
+                        active_profile="CHIP_NAVI14 (Unified Performance Layout)"
+                    fi
+
+                    echo -e "\n  ${YELLOW}[⚠] Active overrides detected: Currently running $active_profile.${RESET}"
+                    if confirm "Would you like to safely remove this existing driver override layer before proceeding?"; then
+                        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                        sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+                        sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                        echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
+                    fi
+                fi
+                        local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                 if [[ -f "$target_lib" ]]; then
                     # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Automatically reads bytes on disk to name the active hardware profile [1.11]
                     local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
@@ -1666,8 +1661,8 @@ EOF
                     play_success_chime; prompt_reboot; continue
                 fi
                 ;;
-            2)
-                local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
+                    b|B)
+                        local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                 if [[ -f "$target_lib" ]]; then
                     # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Automatically reads bytes on disk to name the active hardware profile [1.11]
                     local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
@@ -1750,122 +1745,131 @@ EOF
                     prompt_reboot; continue
                 fi
                 ;;
-        3)
-                # --- AUTOMATIC DRIVER DETECT VIA FILE SIZE ---
-                local current_driver="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                local detected_variant="Custom Mesa"
-                local bin_url="$bin_url1"
-                local bin_size_text="20.6MB"
+                    *)
+                        echo -e "${RED}Invalid choice.${RESET}"
+                        ;;
+                esac
+                ;; # Closes main option 1
+            2)
+                # 🎮 RESTORED SUB-MENU INTEGRATION
+                echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
+                echo -e "      a) Express Route (Navi10): Download & Install Pre-Compiled Performance Driver (High-Tier - 40 CUs)"
+                echo -e "      b) Express Route (Navi14): Download & Install Pre-Compiled Performance Driver (Low-Tier - 24 CUs)"
 
-                if [[ -f "$current_driver" ]]; then
-                    # Check file size in bytes to identify what is currently installed
-                    local file_size
-                    file_size=$(stat -c%s "$current_driver" 2>/dev/null || echo 0)
 
-                    # Adjust size thresholds to match your Navi 14 vs Navi 10 binaries
-                    if (( file_size > 0 && file_size < 21400000 )); then
-                        detected_variant="Navi 14 Prebuilt"
-                        bin_url="$bin_url2"
-                        bin_size_text="20.5MB"
-                        echo -e "  ${GREEN}[✓] Active Driver Detected: ${detected_variant} (${file_size} bytes)${RESET}"
-                    else
-                        detected_variant="Navi 10 Prebuilt"
-                        bin_url="$bin_url1"
-                        bin_size_text="20.6MB"
-                        echo -e "  ${GREEN}[✓] Active Driver Detected: ${detected_variant} (${file_size} bytes)${RESET}"
-                    fi
+                local ACTION_CHOICE
+                read -rp "$(echo -e "  ${CYAN}Select an option [a-b]: ${RESET}")" ACTION_CHOICE
 
-                    echo -e "\n  ${YELLOW}[⚠] Active ${detected_variant} Driver overrides detected.${RESET}"
-                    if confirm "Would you like to safely remove the existing ${detected_variant} overrides before proceeding?"; then
-                        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                        sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                        sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-                        echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
-                    fi
-                fi
+                # Nested case statement to handle the sub-menu selection
+                case "$ACTION_CHOICE" in
+                    a|A)
+                        # --- AUTOMATIC DRIVER DETECT VIA FILE SIZE ---
+                        local current_driver="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
+                        local detected_variant="Custom Mesa"
+                        local bin_size_text="20.6MB" # Locked strictly for Navi10 deployment logs
 
-                # --- EXECUTING EXPRESS DEPLOYMENT ROUTE ---
-                echo -e "\n${GREEN}[+] Initializing Express Route Prebuilt Binary Deployment...${RESET}"
-                if confirm "Instantly deploy the pre-compiled (Navi10) performance driver asset?"; then
-                    sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
-                    echo -e "${GREEN}[+] Pulling optimized ${bin_size_text} pre-baked graphics binary...${RESET}"
+                        if [[ -f "$current_driver" ]]; then
+                            # Check file size in bytes to identify what is currently installed
+                            local file_size; file_size=$(stat -c%s "$current_driver" 2>/dev/null || echo 0)
 
-                    # Dynamically passes the matching target URL
-                    if ! sudo wget -qO /opt/bc250-gfx1013/lib64/libvulkan_radeon.so "$bin_url"; then
-                        echo -e "${RED}❌ ERROR: Prebuilt binary asset not found at GitHub repository destination.${RESET}"
-                        read -rp "Press [Enter] to return back to sub-menu..." dummy; continue
-                    fi
-                    sudo bash <<'EOF'
+                            # Identify the old driver purely for the warning message
+                            if (( file_size > 0 && file_size < 21700000 )); then
+                                detected_variant="Navi 10 Prebuilt"
+                            else
+                                detected_variant="Navi 14 Prebuilt"
+                            fi
+                            echo -e "  ${GREEN}[✓] Active Driver Detected: ${detected_variant} (${file_size} bytes)${RESET}"
+
+                            echo -e "\n  ${YELLOW}[⚠] Active ${detected_variant} Driver overrides detected.${RESET}"
+                            if confirm "Would you like to safely remove the existing ${detected_variant} overrides before proceeding?"; then
+                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+                                sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                                echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
+                            fi
+                        fi
+
+                        # --- EXECUTING EXPRESS DEPLOYMENT ROUTE ---
+                        echo -e "\n${GREEN}[+] Initializing Express Route Prebuilt Binary Deployment...${RESET}"
+                        if confirm "Instantly deploy the pre-compiled (Navi10) performance driver asset?"; then
+                            sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
+                            echo -e "${GREEN}[+] Pulling optimized ${bin_size_text} pre-baked graphics binary...${RESET}"
+
+                            # Hardcoded directly to link 1 to avoid variable drift bugs entirely
+                            if ! sudo wget -qO /opt/bc250-gfx1013/lib64/libvulkan_radeon.so "$bin_url1"; then
+                                echo -e "${RED}❌ ERROR: Prebuilt binary asset not found at GitHub repository destination.${RESET}"
+                                read -rp "Press [Enter] to return back to sub-menu..." dummy; continue
+                            fi
+                            sudo bash <<'EOF'
 cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 { "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
 INNER_EOF
 EOF
-                    echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                    print_success "Pre-compiled performance driver deployed and mapped successfully!"
-                    play_success_chime; prompt_reboot; continue
-                fi
-                ;;
-          4)
-                # --- AUTOMATIC DRIVER DETECT VIA FILE SIZE ---
-                local current_driver="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                local detected_variant="Custom Mesa"
-                local bin_url="$bin_url2"
-                local bin_size_text="20.9MB"
+                            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+                            print_success "Pre-compiled performance driver deployed and mapped successfully!"
+                            play_success_chime; prompt_reboot; continue
+                        fi
+                        ;;
 
-                if [[ -f "$current_driver" ]]; then
-                    # Check file size in bytes to identify what is currently installed
-                    local file_size
-                    file_size=$(stat -c%s "$current_driver" 2>/dev/null || echo 0)
+                    b|B)
+                        # --- AUTOMATIC DRIVER DETECT VIA FILE SIZE ---
+                        local current_driver="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
+                        local detected_variant="Custom Mesa"
+                        local bin_size_text="20.9MB" # Locked strictly for Navi14 deployment logs
 
-                    # Adjust size thresholds to match your Navi 14 vs Navi 10 binaries
-                    if (( file_size > 0 && file_size < 21400000 )); then
-                        detected_variant="Navi 14 Prebuilt"
-                        bin_url="$bin_url2"
-                        bin_size_text="20.5MB"
-                        echo -e "  ${GREEN}[✓] Active Driver Detected: ${detected_variant} (${file_size} bytes)${RESET}"
-                    else
-                        detected_variant="Navi 10 Prebuilt"
-                        bin_url="$bin_url1"
-                        bin_size_text="20.6MB"
-                        echo -e "  ${GREEN}[✓] Active Driver Detected: ${detected_variant} (${file_size} bytes)${RESET}"
-                    fi
+                        if [[ -f "$current_driver" ]]; then
+                            # Check file size in bytes to identify what is currently installed
+                            local file_size; file_size=$(stat -c%s "$current_driver" 2>/dev/null || echo 0)
 
-                    echo -e "\n  ${YELLOW}[⚠] Active ${detected_variant} Driver overrides detected.${RESET}"
-                    if confirm "Would you like to safely remove the existing ${detected_variant} overrides before proceeding?"; then
-                        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                        sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                        sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-                        echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
-                    fi
-                fi
+                            # Identify the old driver purely for the warning message
+                            if (( file_size > 0 && file_size < 21700000 )); then
+                                detected_variant="Navi 10 Prebuilt"
+                            else
+                                detected_variant="Navi 14 Prebuilt"
+                            fi
+                            echo -e "  ${GREEN}[✓] Active Driver Detected: ${detected_variant} (${file_size} bytes)${RESET}"
 
-                # --- EXECUTING EXPRESS DEPLOYMENT ROUTE ---
-                echo -e "\n${GREEN}[+] Initializing Express Route Prebuilt Binary Deployment...${RESET}"
-                if confirm "Instantly deploy the pre-compiled (Navi14) performance driver asset?"; then
-                    sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
-                    echo -e "${GREEN}[+] Pulling optimized ${bin_size_text} pre-baked graphics binary...${RESET}"
+                            echo -e "\n  ${YELLOW}[⚠] Active ${detected_variant} Driver overrides detected.${RESET}"
+                            if confirm "Would you like to safely remove the existing ${detected_variant} overrides before proceeding?"; then
+                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+                                sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                                echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
+                            fi
+                        fi
 
-                    # Dynamically passes the matching target URL
-                    if ! sudo wget -qO /opt/bc250-gfx1013/lib64/libvulkan_radeon.so "$bin_url"; then
-                        echo -e "${RED}❌ ERROR: Prebuilt binary asset not found at GitHub repository destination.${RESET}"
-                        read -rp "Press [Enter] to return back to sub-menu..." dummy; continue
-                    fi
-                    sudo bash <<'EOF'
+                        # --- EXECUTING EXPRESS DEPLOYMENT ROUTE ---
+                        echo -e "\n${GREEN}[+] Initializing Express Route Prebuilt Binary Deployment...${RESET}"
+                        if confirm "Instantly deploy the pre-compiled (Navi14) performance driver asset?"; then
+                            sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
+                            echo -e "${GREEN}[+] Pulling optimized ${bin_size_text} pre-baked graphics binary...${RESET}"
+
+                            # Hardcoded directly to link 2 to avoid variable drift bugs entirely
+                            if ! sudo wget -qO /opt/bc250-gfx1013/lib64/libvulkan_radeon.so "$bin_url2"; then
+                                echo -e "${RED}❌ ERROR: Prebuilt binary asset not found at GitHub repository destination.${RESET}"
+                                read -rp "Press [Enter] to return back to sub-menu..." dummy; continue
+                            fi
+                            sudo bash <<'EOF'
 cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 { "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
 INNER_EOF
 EOF
-                    echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                    print_success "Pre-compiled performance driver deployed and mapped successfully!"
-                    play_success_chime; prompt_reboot; continue
-                fi
-                ;;
-            5)
+                            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+                            print_success "Pre-compiled performance driver deployed and mapped successfully!"
+                            play_success_chime; prompt_reboot; continue
+                        fi
+                        ;;
+
+                    *)
+                        echo -e "${RED}Invalid choice.${RESET}"
+                        ;;
+                esac
+                ;; # Closes main option 2
+            3)
                 local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                 local active_profile="Factory Stock Driver (No active overrides detected)"
 
                 if [[ -f "$target_lib" ]]; then
-                    # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Automatically reads bytes on disk to name the active hardware profile
                     local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
                     if (( file_bytes > 21700000 )); then
                         active_profile="CHIP_NAVI14 (Unified Performance Layout)"
@@ -1882,18 +1886,16 @@ EOF
                     sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
                     sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
 
-                    # 🧼 ENFORCED DEEP REGISTRY CLEANING: Drops both toolchain containers and cached background images
                     echo -e "${GREEN}[+] Purging sandboxed toolchain registries and background build cache...${RESET}"
-                    podman rm -f bc250-navi10-box bc250-navi14-box &>/dev/null || true
-                    podman rmi -f registry.fedoraproject.org/fedora:43 &>/dev/null || true
+                    podman rm -f bc250-navi10-box bc250-build-box &>/dev/null || true
+                    podman rmi -f registry.fedoraproject.org/fedora:43 registry.fedoraproject.org/fedora:44 &>/dev/null || true
                     podman image prune -f &>/dev/null || true
 
                     print_success "Async Compute Queue patches successfully uninstalled and sandbox storage reclaimed!"
                     prompt_reboot; return 0
                 fi
                 ;;
-
-            6)
+            4)
                 echo -e "\n${CYAN}[ℹ] Verifying Active Hardware Pipeline Status Profiles...${RESET}"
                 local stock_ver; stock_ver=$(rpm -q mesa-dri-drivers --qf "%{VERSION}\n" 2>/dev/null | head -n1 || echo "Unknown")
                 echo -e "  Stock System Driver Version:  ${YELLOW}${stock_ver}${RESET}"
@@ -1902,15 +1904,20 @@ EOF
                 if [[ -f "/etc/environment.d/99-bc250-gfx1013.conf" ]] || (grep -q "VK_DRIVER_FILES" /etc/environment 2>/dev/null); then
                     echo -e "  Custom ICD Configuration Layer: ${GREEN}ACTIVE (Using Custom Mod Override)${RESET}"
 
-                    # 🎯 AUTOMATIC FILE SIZE DETECTION ENGINE: Identifies silicon profile target strictly by binary byte footprint
                     if [[ -f "$target_lib" ]]; then
                         local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
-                        echo -e "  Compiled Binary Size Footprint: ${CYAN}$((file_bytes / 1024 / 1024)).$((file_bytes / 1024 % 1024 / 100)) MB ($file_bytes bytes)${RESET}"
+
+                        # --- SAFE DECIMAL MATH CALCULATOR ---
+                        local mb=$(( file_bytes / 1024 / 1024 ))
+                        local decimal=$(( (file_bytes % (1024 * 1024)) * 100 / (1024 * 1024) ))
+                        local decimal_formatted; printf -v decimal_formatted "%02d" "$decimal"
+
+                        echo -e "  Compiled Binary Size Footprint: ${CYAN}${mb}.${decimal_formatted} MB ($file_bytes bytes)${RESET}"
 
                         if (( file_bytes > 21700000 )); then
-                            echo -e "  Detected Loaded Driver Profile: ${GREEN}CHIP_NAVI14 (Unified Performance Layout)${RESET}"
+                            echo -e "  Detected Loaded Driver Profile: ${GREEN}CHIP_NAVI14 (Unified Performance Layout - 24 CUs)${RESET}"
                         else
-                            echo -e "  Detected Loaded Driver Profile: ${GREEN}CHIP_NAVI10 (Dedicated High-Tier Layout)${RESET}"
+                            echo -e "  Detected Loaded Driver Profile: ${GREEN}CHIP_NAVI10 (Dedicated High-Tier Layout - 40 CUs)${RESET}"
                         fi
                     fi
                 else
@@ -1926,7 +1933,6 @@ EOF
                 echo ""
                 read -rp "Press [Enter] to return back to sub-menu..." dummy
                 ;;
-
             *)
                 echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
                 sleep 1
