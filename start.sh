@@ -1534,6 +1534,104 @@ play_success_chime() {
         fi
     }
 
+deploy_gfx1013_fsr4_engine() {
+    # 🎯 LOCAL THEME HARDENING PASS: Seals color metrics inside function bounds safely
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local B_RED='\033[1;31m' local RESET='\033[0m'
+
+    local cache_dir="/tmp/bc250_fsr4_staging"
+    local dl_url="https://github.com/daniel-h-0/bc250-fsr4-fork/releases/download/v4.0.0-rc9/bc250-fsr4-dll-4.0.0-rc9-docs2.zip"
+    local dll_name="amd_fidelityfx_upscaler_dx12.dll"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 GFX1013 FSR 4.1.1 AUTOMATED DEPLOYMENT ENGINE (RC9 PACK)      "
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "  This tool deploys the hand-tuned INT8 Winograd Optimized FSR4 DLL"
+    echo -e "  explicitly compiled to push maximum frame ceilings on the BC-250."
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # 🧼 CLEAN STAGING PHASE
+    rm -rf "$cache_dir" && mkdir -p "$cache_dir"
+    echo -e "${GREEN}[+] Pulling optimized FSR 4.1.1r9 release assets from GitHub...${RESET}"
+
+    if ! wget --no-check-certificate --timeout=15 -qO "$cache_dir/fsr4_pack.zip" "$dl_url"; then
+        echo -e "${RED}❌ ERROR: Failed to download the upscaler package from GitHub.${RESET}"
+        read -rp "Press [Enter] to return back to toolkit menu..." dummy; return 1
+    fi
+
+    echo -e "${GREEN}[+] Extracting payload blueprints to temporary workspace...${RESET}"
+    if ! unzip -qo "$cache_dir/fsr4_pack.zip" -d "$cache_dir"; then
+        echo -e "${RED}❌ ERROR: Unzip utility failed to extract package metrics.${RESET}"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    # Locate the target DLL inside the extracted folder topology
+    local source_dll; source_dll=$(find "$cache_dir" -type f -name "$dll_name" | head -n 1)
+    if [[ -z "$source_dll" ]]; then
+        echo -e "${RED}❌ ERROR: amd_fidelityfx_upscaler_dx12.dll not found in archive bounds.${RESET}"
+        read -rp "Press [Enter] to exit window..." dummy; return 1
+    fi
+
+
+    echo -e "\n${YELLOW}[ℹ] CHOOSE INJECTION TARGET METHOD:${RESET}"
+    echo -e "  1) Track A: Overwrite an existing OptiScaler folder location"
+    echo -e "  2) Track B: Overwrite a Native FidelityFX game engine DLL file"
+    echo -n "  Select deployment path choice [1-2]: "
+    local target_track; read -r target_track
+
+    echo -e "\n${CYAN}[➡] Enter the ABSOLUTE path directory to your target game folder:${RESET}"
+    echo -e "    Example: /home/bsystem/.local/share/Steam/steamapps/common/Control"
+    echo -n "    Path: "
+    local game_path; read -r game_path
+
+    # Clean trailing slashes or loose space variables
+    game_path=$(echo "$game_path" | sed 's|/$||g')
+
+    if [[ ! -d "$game_path" ]]; then
+        echo -e "${RED}❌ ERROR: Provided directory path track does not exist on disk.${RESET}"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    local destination_file=""
+    if [[ "$target_track" == "1" ]]; then
+        destination_file="${game_path}/OptiScaler/${dll_name}"
+    else
+        destination_file="${game_path}/${dll_name}"
+    fi
+
+    echo -e "\n${YELLOW}[⚠] PRE-FLIGHT DEPLOYMENT AUDIT:${RESET}"
+    echo -e "    Source Mod  :  FSR 4.1.1r9 INT8 Winograd Layout"
+    echo -e "    Target File :  ${destination_file}"
+
+    if confirm "Inject this custom upscaler binary payload into your game directory tracks now?"; then
+        # Handle directory creation for Track A if not yet completely initialized
+        [[ "$target_track" == "1" ]] && mkdir -p "${game_path}/OptiScaler"
+
+        # Safe backup tracking step before replacing active assets
+        if [[ -f "$destination_file" ]]; then
+            echo -e "${CYAN}[+] Staging factory original driver fallback backup tracking...${RESET}"
+            cp "$destination_file" "${destination_file}.bak" 2>/dev/null
+        fi
+
+        cp "$source_dll" "$destination_file"
+        echo -e "${GREEN}[✓] Character-perfect injection loop complete! Mod deployed.${RESET}"
+
+        echo -e "\n${B_RED}====================================================================${RESET}"
+        echo -e "  ⚠️ CRITICAL FIRST-LAUNCH SYSTEM SHADER WARNING                     "
+        echo -e "====================================================================${RESET}"
+        echo -e "  The first time you boot this title, the screen will look completely"
+        echo -e "  FROZEN or UNRESPONSIVE for up to 60+ seconds. DO NOT FORCE CLOSE IT!"
+        echo -e "  The driver and Proton must compile all 348 background upscaler    "
+        echo -e "  shaders from scratch. Future launches will load instantly.      "
+        echo -e "${B_RED}====================================================================${RESET}"
+
+        # 🧼 RECLAIM TEMP DISK CACHE BLOCKS
+        rm -rf "$cache_dir"
+        read -rp "Press [Enter] to safely clear warning and return to menu dashboard..." dummy
+    fi
+}
+
 toggle_compute_queue_fix() {
     # 🚀 LOCAL ENVIRONMENT INSULATION: Hardcode tracking parameters securely
     local mesa_build_log="/var/log/bc250_toolbox.log"
@@ -1551,15 +1649,18 @@ toggle_compute_queue_fix() {
         echo -e "${CYAN}====================================================================${RESET}"
         echo -e "   1) Custom Route: Compile & Install Custom Mesa Driver Natively"
         echo -e "   2) Express Route: Download & Install Pre-Compiled Performance Driver"
-        echo -e "   3) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
+                echo -e "   3) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
         echo -e "   4) Check Driver Activation & Hardware Extension Telemetry Status"
+        # 🎯 OPTION 5 REGISTERED: Seamlessly extending the toolkit menu for your upscaler fork
+        echo -e "   5) Inject Custom GFX1013 FSR 4.1.1 (INT8 Winograd RC9) Upscaler Engine"
         echo ""
         echo -e "   ↵) Hit [Enter] to return back to the main menu"
         echo -e "${CYAN}====================================================================${RESET}"
-        echo -n "  Select an option [1-4]: "
+        echo -n "  Select an option [1-5]: "
 
         local sub_opt; read -r sub_opt
         case "$sub_opt" in
+
             1)
                 echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
                 echo -e "      a) Custom Route (Navi10): Compile Custom Driver Natively (High-Tier)"
@@ -1627,10 +1728,15 @@ toggle_compute_queue_fix() {
                             [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v /opt/bc250-gfx1013/lib64/libvulkan_radeon.so &>/dev/null
                             podman rm -f bc250-navi10-box --force &>/dev/null || true
 
-                            # 🚀 FRAME RATE PERFORMANCE ACCELERATOR PACK INTRODUCED
-                            sudo dnf install -y numactl &>/dev/null || true
+                            # 🎯 OPEN-STREAM ATOMIC PROVISIONING LAYER: Restores tracking lines so host layering finishes flawlessly [1.11]
+                            if ! command -v numactl &>/dev/null; then
+                                echo -e "${YELLOW}[ℹ] Provisioning system memory allocator matrix via native host layering...${RESET}"
+                                echo -e "    -> Initializing atomic transaction pool. Please stand by..."
+                                sudo rpm-ostree install -y --allow-inactive numactl
+                            fi
+
                             sudo bash -c "cat << 'EOF' > $perf_conf
-# 🚀 BC-250 INTENSE FRAME RATE ENHANCEMENT MATRIX
+# 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
 RADV_PERF_HACKS=ngg_streamout
 RADV_DEBUG=nooutoforder
 EOF"
@@ -1654,6 +1760,7 @@ EOF
                             play_success_chime; prompt_reboot; continue
                         fi
                         ;;
+
                     b|B)
                         local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                         if [[ -f "$target_lib" ]]; then
@@ -1707,36 +1814,50 @@ EOF
                             podman exec bc250-build-box sed -i 's/info->family == CHIP_TONGA;/info->family == CHIP_TONGA || ((info->family == CHIP_NAVI10 || info->family == CHIP_NAVI14) \&\& info->gfx_level == GFX10);/g' /root/mesa/src/amd/common/ac_gpu_info.c
 
                             echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
-                            podman exec bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
-                            podman exec bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$mesa_build_log" 2>&1
+                        podman exec bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
+                        podman exec bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$mesa_build_log" 2>&1
 
-                            if ! podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
-                                echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
-                                podman rm -f bc250-build-box --force &>/dev/null || true
-                                read -rp "Press [Enter] to return back to main menu..." dummy; continue
-                            fi
-
-                            echo -e "${GREEN}[+] Step 5/5: Exporting custom library objects to host space...${RESET}"
-                            sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
-                            podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
-
-                            # === FIXED: SELINUX PRIVILEGE RESTORATION ===
-                            if command -v restorecon &>/dev/null; then
-                                sudo restorecon -v /opt/bc250-gfx1013/lib64/libvulkan_radeon.so &>/dev/null || true
-                            fi
-
+                        if ! podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
+                            echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
                             podman rm -f bc250-build-box --force &>/dev/null || true
+                            read -rp "Press [Enter] to return back to main menu..." dummy; continue
+                        fi
 
-                            sudo bash <<'EOF'
+                        echo -e "${GREEN}[+] Step 5/5: Exporting custom library objects to host space...${RESET}"
+                        sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
+                        podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
+                        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v /opt/bc250-gfx1013/lib64/libvulkan_radeon.so &>/dev/null
+                        podman rm -f bc250-build-box --force &>/dev/null || true
+
+                        # 🎯 OPEN-STREAM ATOMIC PROVISIONING LAYER: Replicated flawlessly on Navi14 compilation tracks [1.11]
+                        if ! command -v numactl &>/dev/null; then
+                            echo -e "${YELLOW}[ℹ] Provisioning system memory allocator matrix via native host layering...${RESET}"
+                            echo -e "    -> Initializing atomic transaction pool. Please stand by..."
+                            sudo rpm-ostree install -y --allow-inactive numactl
+                        fi
+
+                        sudo bash -c "cat << 'EOF' > $perf_conf
+# 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+                        sudo bash -c "cat << 'EOF' > $wrapper_bin
+#!/usr/bin/env bash
+if command -v numactl &>/dev/null; then exec numactl --interleave=all \"\$@\"; else exec \"\$@\"; fi
+EOF"
+                        sudo chmod +x "$wrapper_bin"
+
+                        sudo bash <<'EOF'
 cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 { "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
 INNER_EOF
 EOF
-                            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                            print_success "Custom graphics driver compiled and linked successfully!"
-                            play_success_chime; prompt_reboot; continue
+                        echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+                        print_success "Custom Navi14 graphics driver and frame rate boost variables successfully initialized!"
+                        play_success_chime; prompt_reboot; continue
                         fi
                         ;;
+
                     *)
                         echo -e "${RED}Invalid choice.${RESET}"
                         ;;
@@ -1745,118 +1866,97 @@ EOF
             2)
                 # 🎮 RESTORED SUB-MENU INTEGRATION
                 echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
-                echo -e "      a) Express Route (Navi10): Download & Install Pre-Compiled Performance Driver (High-Tier - 40 CUs)"
-                echo -e "      b) Express Route (Navi14): Download & Install Pre-Compiled Performance Driver (Low-Tier - 24 CUs)"
-
-
+                echo -e "      a) Express Route (Navi10): Download & Install Pre-Compiled Performance Driver (High-Tier)"
+                echo -e "      b) Express Route (Navi14): Download & Install Pre-Compiled Performance Driver (Low-Tier)"
                 local ACTION_CHOICE
                 read -rp "$(echo -e "  ${CYAN}Select an option [a-b]: ${RESET}")" ACTION_CHOICE
 
-                # Nested case statement to handle the sub-menu selection
                 case "$ACTION_CHOICE" in
                     a|A)
-                        # --- AUTOMATIC DRIVER DETECT VIA FILE SIZE ---
                         local current_driver="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                        local detected_variant="Custom Mesa"
-                        local bin_size_text="20.6MB" # Locked strictly for Navi10 deployment logs
-
+                        local detected_variant="Custom Mesa" local bin_size_text="20.6MB"
                         if [[ -f "$current_driver" ]]; then
-                            # Check file size in bytes to identify what is currently installed
                             local file_size; file_size=$(stat -c%s "$current_driver" 2>/dev/null || echo 0)
-
-                            # Identify the old driver purely for the warning message
-                            if (( file_size > 0 && file_size < 21700000 )); then
-                                detected_variant="Navi 10 Prebuilt"
-                            else
-                                detected_variant="Navi 14 Prebuilt"
-                            fi
+                            if (( file_size > 0 && file_size < 21700000 )); then detected_variant="Navi 10 Prebuilt"; else detected_variant="Navi 14 Prebuilt"; fi
                             echo -e "  ${GREEN}[✓] Active Driver Detected: ${detected_variant} (${file_size} bytes)${RESET}"
-
-                            echo -e "\n  ${YELLOW}[⚠] Active ${detected_variant} Driver overrides detected.${RESET}"
-                            if confirm "Would you like to safely remove the existing ${detected_variant} overrides before proceeding?"; then
-                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                                sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-                                echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
+                            if confirm "Would you like to safely remove the existing ${detected_variant} overrides?"; then
+                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true; sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
                             fi
                         fi
-
-                        # --- EXECUTING EXPRESS DEPLOYMENT ROUTE ---
                         echo -e "\n${GREEN}[+] Initializing Express Route Prebuilt Binary Deployment...${RESET}"
                         if confirm "Instantly deploy the pre-compiled (Navi10) performance driver asset?"; then
                             sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
                             echo -e "${GREEN}[+] Pulling optimized ${bin_size_text} pre-baked graphics binary...${RESET}"
-
-                            # Hardcoded directly to link 1 to avoid variable drift bugs entirely
-                            if ! sudo wget -qO /opt/bc250-gfx1013/lib64/libvulkan_radeon.so "$bin_url1"; then
-                                echo -e "${RED}❌ ERROR: Prebuilt binary asset not found at GitHub repository destination.${RESET}"
-                                read -rp "Press [Enter] to return back to sub-menu..." dummy; continue
+                            if ! sudo wget --no-check-certificate --timeout=15 -qO /opt/bc250-gfx1013/lib64/libvulkan_radeon.so "${bin_url1}" 2>/dev/null; then
+                                echo -e "${RED}❌ ERROR: Download failed or timed out.${RESET}"; read -rp "Press [Enter]..." dummy; continue
                             fi
-                            sudo bash <<'EOF'
-cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
+                            if ! command -v numactl &>/dev/null; then
+                                echo -e "${YELLOW}[ℹ] Provisioning system memory allocator matrix via native host layering...${RESET}"
+                                sudo rpm-ostree install -y --allow-inactive numactl
+                            fi
+                            sudo bash -c "cat << 'EOF' > $perf_conf
+# 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+                            sudo bash -c "cat << 'EOF' > $wrapper_bin
+#!/usr/bin/env bash
+if command -v numactl &>/dev/null; then exec numactl --interleave=all \"\$@\"; else exec \"\$@\"; fi
+EOF"
+                            sudo chmod +x "$wrapper_bin"
+                            sudo bash -c 'cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 { "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
-INNER_EOF
-EOF
+INNER_EOF'
                             echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                            print_success "Pre-compiled performance driver deployed and mapped successfully!"
+                            print_success "Pre-compiled Navi10 performance driver and boost variables successfully initialized!"
                             play_success_chime; prompt_reboot; continue
                         fi
                         ;;
-
                     b|B)
-                        # --- AUTOMATIC DRIVER DETECT VIA FILE SIZE ---
                         local current_driver="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                        local detected_variant="Custom Mesa"
-                        local bin_size_text="20.9MB" # Locked strictly for Navi14 deployment logs
-
+                        local detected_variant="Custom Mesa" local bin_size_text="20.9MB"
                         if [[ -f "$current_driver" ]]; then
-                            # Check file size in bytes to identify what is currently installed
                             local file_size; file_size=$(stat -c%s "$current_driver" 2>/dev/null || echo 0)
-
-                            # Identify the old driver purely for the warning message
-                            if (( file_size > 0 && file_size < 21700000 )); then
-                                detected_variant="Navi 10 Prebuilt"
-                            else
-                                detected_variant="Navi 14 Prebuilt"
-                            fi
+                            if (( file_size > 0 && file_size < 21700000 )); then detected_variant="Navi 10 Prebuilt"; else detected_variant="Navi 14 Prebuilt"; fi
                             echo -e "  ${GREEN}[✓] Active Driver Detected: ${detected_variant} (${file_size} bytes)${RESET}"
-
-                            echo -e "\n  ${YELLOW}[⚠] Active ${detected_variant} Driver overrides detected.${RESET}"
-                            if confirm "Would you like to safely remove the existing ${detected_variant} overrides before proceeding?"; then
-                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                                sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-                                echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
+                            if confirm "Would you like to safely remove the existing ${detected_variant} overrides?"; then
+                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true; sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
                             fi
                         fi
-
-                        # --- EXECUTING EXPRESS DEPLOYMENT ROUTE ---
                         echo -e "\n${GREEN}[+] Initializing Express Route Prebuilt Binary Deployment...${RESET}"
                         if confirm "Instantly deploy the pre-compiled (Navi14) performance driver asset?"; then
                             sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
                             echo -e "${GREEN}[+] Pulling optimized ${bin_size_text} pre-baked graphics binary...${RESET}"
-
-                            # Hardcoded directly to link 2 to avoid variable drift bugs entirely
-                            if ! sudo wget -qO /opt/bc250-gfx1013/lib64/libvulkan_radeon.so "$bin_url2"; then
-                                echo -e "${RED}❌ ERROR: Prebuilt binary asset not found at GitHub repository destination.${RESET}"
-                                read -rp "Press [Enter] to return back to sub-menu..." dummy; continue
+                            if ! sudo wget --no-check-certificate --timeout=15 -qO /opt/bc250-gfx1013/lib64/libvulkan_radeon.so "${bin_url2}" 2>/dev/null; then
+                                echo -e "${RED}❌ ERROR: Download failed or timed out.${RESET}"; read -rp "Press [Enter]..." dummy; continue
                             fi
-                            sudo bash <<'EOF'
-cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
+                            if ! command -v numactl &>/dev/null; then
+                                echo -e "${YELLOW}[ℹ] Provisioning system memory allocator matrix via native host layering...${RESET}"
+                                sudo rpm-ostree install -y --allow-inactive numactl
+                            fi
+                            sudo bash -c "cat << 'EOF' > $perf_conf
+# 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+                            sudo bash -c "cat << 'EOF' > $wrapper_bin
+#!/usr/bin/env bash
+if command -v numactl &>/dev/null; then exec numactl --interleave=all \"\$@\"; else exec \"\$@\"; fi
+EOF"
+                            sudo chmod +x "$wrapper_bin"
+                            sudo bash -c 'cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 { "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
-INNER_EOF
-EOF
+INNER_EOF'
                             echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                            print_success "Pre-compiled performance driver deployed and mapped successfully!"
+                            print_success "Pre-compiled Navi14 performance driver and boost variables successfully initialized!"
                             play_success_chime; prompt_reboot; continue
                         fi
                         ;;
-
-                    *)
-                        echo -e "${RED}Invalid choice.${RESET}"
-                        ;;
+                    *) echo -e "${RED}Invalid choice.${RESET}" ;;
                 esac
-                ;; # Closes main option 2
+                ;;
 
             3)
                 # Option 3 uninstaller sweeps the environment completely clean
@@ -1918,9 +2018,14 @@ EOF
                 echo ""
                 read -rp "Press [Enter] to return back to sub-menu..." dummy
                 ;;
+            5)
+                # 🚀 ROUTING ENGINE HOOK: Calls the standalone FSR4 installation engine pass
+                deploy_gfx1013_fsr4_engine
+                ;;
             *)
                 echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
                 sleep 1 ; return 0 ;;
+
         esac
     done
 }
