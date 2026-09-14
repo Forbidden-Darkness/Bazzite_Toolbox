@@ -148,7 +148,7 @@ blink_cursor() {
     local prompt_text="$1"
     echo -ne "$prompt_text"
 
-    if [ "$SKIP_ANIMATION" = true ]; then
+    if [ "${SKIP_ANIMATION:-false}" = true ]; then
         echo ""
         return 0
     fi
@@ -160,22 +160,26 @@ blink_cursor() {
         for s in {1..5}; do
             if read -t 0.1 -n 1 2>/dev/null; then
                 SKIP_ANIMATION=true
-                echo -ne "\b \b"
-                echo ""
+                echo -ne "\b \n"
+                read -t 0.1 -N 255 _ || true
                 return 0
             fi
         done
-        echo -ne "\b \b"
+
+        # 🎯 TYP0 RUNTIME OFFSET RESTORED: Matches your single-backspace line crawl movement exactly
+        echo -ne "\b "
 
         for s in {1..5}; do
             if read -t 0.1 -n 1 2>/dev/null; then
                 SKIP_ANIMATION=true
-                echo ""
+                echo -e "\n"
+                read -t 0.1 -N 255 _ || true
                 return 0
             fi
         done
     done
     echo ""
+    read -t 0.1 -N 255 _ || true
 }
 
 draw_progress_bar() {
@@ -1537,7 +1541,10 @@ toggle_compute_queue_fix() {
     local bin_url1="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/option-1/libvulkan_radeon.so"
     local bin_url2="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/option-2/libvulkan_radeon.so"
 
-while true; do
+    local perf_conf="/etc/environment.d/99-bc250-perf.conf"
+    local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+
+    while true; do
         clear
         echo -e "${CYAN}====================================================================${RESET}"
         echo -e "    🎮 BC-250 HARDWARE PERFORMANCE TOOLKIT — BAZZITE RE-ENGINEERED  "
@@ -1549,202 +1556,187 @@ while true; do
         echo ""
         echo -e "   ↵) Hit [Enter] to return back to the main menu"
         echo -e "${CYAN}====================================================================${RESET}"
-        echo -n "  Select an option [1-5]: "
+        echo -n "  Select an option [1-4]: "
 
         local sub_opt; read -r sub_opt
         case "$sub_opt" in
-
             1)
-                # 🎮 RESTORED SUB-MENU INTEGRATION
                 echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
-                echo -e "      a) Custom Route (Navi10): Compile Custom Driver Natively (High-Tier Mid-Range Architecture - 40 CUs - Recommended)"
-                echo -e "      b) Custom Route (Navi14): Compile Custom Driver Natively (Low-Tier Budget Entry-Level Architecture - 24 CUs)"
-
-
+                echo -e "      a) Custom Route (Navi10): Compile Custom Driver Natively (High-Tier)"
+                echo -e "      b) Custom Route (Navi14): Compile Custom Driver Natively (Low-Tier)"
                 local ACTION_CHOICE
                 read -rp "$(echo -e "  ${CYAN}Select an option [a-b]: ${RESET}")" ACTION_CHOICE
 
-                # Nested case statement to handle the sub-menu selection
                 case "$ACTION_CHOICE" in
                     a|A)
                         local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                if [[ -f "$target_lib" ]]; then
-                    # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Automatically reads bytes on disk to name the active hardware profile [1.11]
-                    local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
-                    local active_profile="CHIP_NAVI10 (Dedicated High-Tier Layout)"
-                    if (( file_bytes > 21700000 )); then
-                        active_profile="CHIP_NAVI14 (Unified Performance Layout)"
-                    fi
+                        if [[ -f "$target_lib" ]]; then
+                            local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
+                            local active_profile="CHIP_NAVI10 (Dedicated High-Tier Layout)"
+                            [[ $file_bytes -gt 21700000 ]] && active_profile="CHIP_NAVI14 (Unified Performance Layout)"
+                            echo -e "\n  ${YELLOW}[⚠] Active overrides detected: Currently running $active_profile.${RESET}"
+                            if confirm "Would you like to safely remove this existing driver override layer before proceeding?"; then
+                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+                                sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                            fi
+                        fi
 
-                    echo -e "\n  ${YELLOW}[⚠] Active overrides detected: Currently running $active_profile.${RESET}"
-                    if confirm "Would you like to safely remove this existing driver override layer before proceeding?"; then
-                        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                        sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                        sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-                        echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
-                    fi
-                fi
-                        local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                if [[ -f "$target_lib" ]]; then
-                    # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Automatically reads bytes on disk to name the active hardware profile [1.11]
-                    local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
-                    local active_profile="CHIP_NAVI10 (Dedicated High-Tier Layout)"
-                    if (( file_bytes > 21700000 )); then
-                        active_profile="CHIP_NAVI14 (Unified Performance Layout)"
-                    fi
+                        echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled compute queues.${RESET}"
+                        if confirm "Proceed with Custom Navi10 Async Compute Queue native installation?"; then
+                            local log_dir; log_dir=$(dirname "$mesa_build_log")
+                            [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
+                            sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
+                            podman rm -f bc250-navi10-box &>/dev/null || true
 
-                    echo -e "\n  ${YELLOW}[⚠] Active overrides detected: Currently running $active_profile.${RESET}"
-                    if confirm "Would you like to safely remove this existing driver override layer before proceeding?"; then
-                        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                        sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                        sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-                        echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
-                    fi
-                fi
+                            echo -e "\n${GREEN}[+] Step 1/6: Spawning clean virtual toolchain environment (Navi10 Box)...${RESET}"
+                            podman run -d --pull=always --name bc250-navi10-box registry.fedoraproject.org/fedora:43 sleep infinity >> "$mesa_build_log" 2>&1
+                            echo -e "${GREEN}[+] Step 2/6: Provisioning compiler dependencies inside sandbox...${RESET}"
+                            podman exec bc250-navi10-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1
+                            echo -e "${GREEN}[+] Step 3/6: Downloading stable Mesa ${mesa_compile_ver} source from official Git mirror...${RESET}"
+                            podman exec bc250-navi10-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa >> "$mesa_build_log" 2>&1
+                            podman exec bc250-navi10-box mkdir -p /root/patches
+                            echo -e "${GREEN}[+] Step 4/6: Pulling pristine, un-corrupted patch assets directly from GitHub...${RESET}"
+                            podman exec bc250-navi10-box wget -qO /root/patches/0001.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0001-gfx1013-compute-queue.patch" >> "$mesa_build_log" 2>&1
+                            podman exec bc250-navi10-box wget -qO /root/patches/0002.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0002-gfx1013-mesh-task-shaders.patch" >> "$mesa_build_log" 2>&1
+                            podman exec bc250-navi10-box wget -qO /root/patches/0003.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0003-gfx1013-taskmesh-queries.patch" >> "$mesa_build_log" 2>&1
 
-                echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled compute queues.${RESET}"
-                if confirm "Proceed with Custom Navi10 Async Compute Queue native installation?"; then
-                    sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
-                    podman rm -f bc250-navi10-box &>/dev/null || true
+                            echo -e "${GREEN}[+] Step 5/6: Injecting hardware performance patches and compiling custom driver...${RESET}"
+                            podman exec bc250-navi10-box sed -i 's/info->has_user_fence = info->gfx_level >= GFX10;/info->has_user_fence = info->gfx_level >= GFX10;\n   info->has_async_compute_queue = info->family == CHIP_NAVI10 || info->family == CHIP_GFX1013;/g' /root/mesa/src/amd/common/ac_gpu_info.c 2>/dev/null
+                            podman exec bc250-navi10-box sed -i 's/device->physical_device->radv_meta_ops;/device->physical_device->radv_meta_ops;\n   info->has_async_compute_queue = true;/g' /root/mesa/src/amd/vulkan/radv_physical_device.c 2>/dev/null
+                            podman exec bc250-navi10-box sed -i 's/bool has_async_compute_queue;/bool has_async_compute_queue;\n   bool has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.h 2>/dev/null
+                            podman exec bc250-navi10-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_bug_info.c 2>/dev/null || podman exec bc250-navi10-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.c
+                            podman exec bc250-navi10-box sed -i '/bool has_taskmesh_indirect0_bug;/a \   bool has_gfx1013_mesh_shading;\n   bool has_gfx1013_task_shading;' /root/mesa/src/amd/common/ac_gpu_info.h
+                            podman exec bc250-navi10-box sed -i '/bool record_stats;/a \   bool has_mesh_shading;' /root/mesa/src/amd/compiler/aco_shader_info.h
+                            podman exec bc250-navi10-box sed -i 's/assert(!mesh_shading || ctx.program->gfx_level >= GFX10_3);/assert(!mesh_shading || options->has_mesh_shading);/g' /root/mesa/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
+                            podman exec bc250-navi10-box sed -i 's/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_VGT_PRIM_STATE;/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VGT_PRIM_STATE;\n      if (pdev->info.gfx_level >= GFX10_3) cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;/g' /root/mesa/src/amd/vulkan/radv_cmd_buffer.c
+                            podman exec bc250-navi10-box sed -i 's/info->family == CHIP_TONGA;/info->family == CHIP_TONGA || ((info->family == CHIP_NAVI10) \&\& info->gfx_level == GFX10);/g' /root/mesa/src/amd/common/ac_gpu_info.c
 
-                    echo -e "\n${GREEN}[+] Step 1/6: Spawning clean virtual toolchain environment (Navi10 Box)...${RESET}"
-                    # 🚀 PRODUCTION STABILIZATION ENGINE: Pinned to clean F43 rails with --pull=always to clear out corrupted caches and Python 3.14 breaks completely
-                    podman run -d --pull=always --name bc250-navi10-box registry.fedoraproject.org/fedora:43 sleep infinity >> "$mesa_build_log" 2>&1
+                            echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
+                            podman exec bc250-navi10-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
+                            podman exec bc250-navi10-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$mesa_build_log" 2>&1
+                            if ! podman exec bc250-navi10-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
+                                echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
+                                podman rm -f bc250-navi10-box --force &>/dev/null || true
+                                read -rp "Press [Enter] to return back to main menu..." dummy; continue
+                            fi
 
-                    echo -e "${GREEN}[+] Step 2/6: Provisioning compiler dependencies inside sandbox...${RESET}"
-                    podman exec bc250-navi10-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1
+                            echo -e "${GREEN}[+] Step 6/6: Exporting custom library objects to host space...${RESET}"
+                            sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
+                            podman cp bc250-navi10-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
+                            [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v /opt/bc250-gfx1013/lib64/libvulkan_radeon.so &>/dev/null
+                            podman rm -f bc250-navi10-box --force &>/dev/null || true
 
-                    echo -e "${GREEN}[+] Step 3/6: Downloading stable Mesa ${mesa_compile_ver} source from official Git mirror...${RESET}"
-                    podman exec bc250-navi10-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa >> "$mesa_build_log" 2>&1
-                    podman exec bc250-navi10-box mkdir -p /root/patches
+                            # 🚀 FRAME RATE PERFORMANCE ACCELERATOR PACK INTRODUCED
+                            sudo dnf install -y numactl &>/dev/null || true
+                            sudo bash -c "cat << 'EOF' > $perf_conf
+# 🚀 BC-250 INTENSE FRAME RATE ENHANCEMENT MATRIX
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+                            sudo bash -c "cat << 'EOF' > $wrapper_bin
+#!/usr/bin/env bash
+if command -v numactl &>/dev/null; then
+    exec numactl --interleave=all \"\$@\"
+else
+    exec \"\$@\"
+fi
+EOF"
+                            sudo chmod +x "$wrapper_bin"
 
-                    echo -e "${GREEN}[+] Step 4/6: Pulling pristine, un-corrupted patch assets directly from GitHub...${RESET}"
-                    podman exec bc250-navi10-box wget -qO /root/patches/0001.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0001-gfx1013-compute-queue.patch" >> "$mesa_build_log" 2>&1
-                    podman exec bc250-navi10-box wget -qO /root/patches/0002.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0002-gfx1013-mesh-task-shaders.patch" >> "$mesa_build_log" 2>&1
-                    podman exec bc250-navi10-box wget -qO /root/patches/0003.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0003-gfx1013-taskmesh-queries.patch" >> "$mesa_build_log" 2>&1
-
-                    echo -e "${GREEN}[+] Step 5/6: Injecting hardware performance patches and compiling custom driver...${RESET}"
-                    podman exec bc250-navi10-box sh -c "cd /root/mesa && git apply --whitespace=nowarn --recount /root/patches/0001.patch" >> "$mesa_build_log" 2>&1
-                    podman exec bc250-navi10-box sh -c "cd /root/mesa && git apply --whitespace=nowarn --recount /root/patches/0003.patch" >> "$mesa_build_log" 2>&1
-
-                    podman exec bc250-navi10-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_bug_info.c 2>/dev/null || podman exec bc250-navi10-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.c
-                    podman exec bc250-navi10-box sed -i '/bool has_taskmesh_indirect0_bug;/a \   bool has_gfx1013_mesh_shading;\n   bool has_gfx1013_task_shading;' /root/mesa/src/amd/common/ac_gpu_info.h
-                    podman exec bc250-navi10-box sed -i '/bool record_stats;/a \   bool has_mesh_shading;' /root/mesa/src/amd/compiler/aco_shader_info.h
-                    podman exec bc250-navi10-box sed -i 's/assert(!mesh_shading || ctx.program->gfx_level >= GFX10_3);/assert(!mesh_shading || options->has_mesh_shading);/g' /root/mesa/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
-                    podman exec bc250-navi10-box sed -i 's/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_VGT_PRIM_STATE;/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VGT_PRIM_STATE;\n      if (pdev->info.gfx_level >= GFX10_3) cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;/g' /root/mesa/src/amd/vulkan/radv_cmd_buffer.c
-
-                    # 🎯 FIXED HARDCODED HIGH-TIER ROUTE: Hardcoded strictly to CHIP_NAVI10 configurations inside local source boundaries safely
-                    podman exec bc250-navi10-box sed -i 's/info->family == CHIP_TONGA;/info->family == CHIP_TONGA || ((info->family == CHIP_NAVI10) \&\& info->gfx_level == GFX10);/g' /root/mesa/src/amd/common/ac_gpu_info.c
-
-                    echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
-                    podman exec bc250-navi10-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
-                    podman exec bc250-navi10-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$mesa_build_log" 2>&1
-
-                    if ! podman exec bc250-navi10-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
-                        echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
-                        podman rm -f bc250-navi10-box --force &>/dev/null || true
-                        read -rp "Press [Enter] to return back to main menu..." dummy; continue
-                    fi
-
-                    echo -e "${GREEN}[+] Step 6/6: Exporting custom library objects to host space...${RESET}"
-                    sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
-                    podman cp bc250-navi10-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
-                    podman rm -f bc250-navi10-box --force &>/dev/null || true
-
-                    sudo bash <<'EOF'
+                            sudo bash <<'EOF'
 cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 { "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
 INNER_EOF
 EOF
-                    echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                    print_success "Custom graphics driver compiled and linked successfully!"
-                    play_success_chime; prompt_reboot; continue
-                fi
-                ;;
+                            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+                            print_success "Custom graphics driver and frame rate boost variables successfully initialized!"
+                            play_success_chime; prompt_reboot; continue
+                        fi
+                        ;;
                     b|B)
                         local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                if [[ -f "$target_lib" ]]; then
-                    # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Automatically reads bytes on disk to name the active hardware profile [1.11]
-                    local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
-                    local active_profile="CHIP_NAVI10 (Dedicated High-Tier Layout)"
-                    if (( file_bytes > 21700000 )); then
-                        active_profile="CHIP_NAVI14 (Unified Performance Layout)"
-                    fi
+                        if [[ -f "$target_lib" ]]; then
+                            # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Reads bytes on disk to name the active hardware profile
+                            local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
+                            local active_profile="CHIP_NAVI10 (Dedicated High-Tier Layout)"
+                            if (( file_bytes > 21700000 )); then
+                                active_profile="CHIP_NAVI14 (Unified Performance Layout)"
+                            fi
 
-                    echo -e "\n  ${YELLOW}[⚠] Active overrides detected: Currently running $active_profile.${RESET}"
-                    if confirm "Would you like to safely remove this existing driver override layer before proceeding?"; then
-                        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                        sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                        sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-                        echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
-                    fi
-                fi
+                            echo -e "\n  ${YELLOW}[⚠] Active overrides detected: Currently running $active_profile.${RESET}"
+                            if confirm "Would you like to safely remove this existing driver override layer before proceeding?"; then
+                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+                                sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                                echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
+                            fi
+                        fi
 
-                echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled compute queues.${RESET}"
-                if confirm "Proceed with Custom Navi14 Async Compute Queue native installation?"; then
-                    sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
+                        echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled compute queues.${RESET}"
+                        if confirm "Proceed with Custom Navi14 Async Compute Queue native installation?"; then
 
-                    echo -e "\n${GREEN}[+] Step 1/5: Spawning clean virtual toolchain environment (Navi14 Box)...${RESET}"
-                    podman rm -f bc250-build-box &>/dev/null || true
-                    podman run -d --name bc250-build-box registry.fedoraproject.org/fedora:44 sleep infinity >> "$mesa_build_log" 2>&1
+                            # === FIXED: SAFE PATH INSULATION GATE ===
+                            local log_dir; log_dir=$(dirname "$mesa_build_log")
+                            if [[ ! -d "$log_dir" ]]; then sudo mkdir -p "$log_dir" 2>/dev/null || true; fi
 
-                    echo -e "${GREEN}[+] Step 2/5: Provisioning compiler dependencies inside sandbox...${RESET}"
-                    podman exec bc250-build-box dnf install -y --nogpgcheck @development-tools >> "$mesa_build_log" 2>&1
-                    podman exec bc250-build-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1
+                            sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
+                            podman rm -f bc250-build-box &>/dev/null || true
 
-                    echo -e "${GREEN}[+] Step 3/5: Downloading stable Mesa ${mesa_compile_ver} source from official code servers...${RESET}"
-                    podman exec bc250-build-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa >> "$mesa_build_log" 2>&1
-                    podman exec bc250-build-box mkdir -p /root/patches
+                            echo -e "\n${GREEN}[+] Step 1/5: Spawning clean virtual toolchain environment (Navi14 Box)...${RESET}"
+                            podman run -d --name bc250-build-box registry.fedoraproject.org/fedora:44 sleep infinity >> "$mesa_build_log" 2>&1
 
-                    echo -e "${GREEN}[+] Step 4/5: Pulling pristine, un-corrupted patch assets directly from GitHub...${RESET}"
-                    podman exec bc250-build-box wget -qO /root/patches/0001.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0001-gfx1013-compute-queue.patch" >> "$mesa_build_log" 2>&1
-                    podman exec bc250-build-box wget -qO /root/patches/0002.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0002-gfx1013-mesh-task-shaders.patch" >> "$mesa_build_log" 2>&1
-                    podman exec bc250-build-box wget -qO /root/patches/0003.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0003-gfx1013-taskmesh-queries.patch" >> "$mesa_build_log" 2>&1
+                            echo -e "${GREEN}[+] Step 2/5: Provisioning compiler dependencies inside sandbox...${RESET}"
+                            podman exec bc250-build-box dnf install -y --nogpgcheck @development-tools >> "$mesa_build_log" 2>&1
+                            podman exec bc250-build-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1
 
-                    echo -e "${GREEN}[+] Step 5/5: Injecting hardware performance patches and compiling custom driver...${RESET}"
-                    podman exec bc250-build-box sh -c "cd /root/mesa && git apply --whitespace=nowarn --recount /root/patches/0001.patch" >> "$mesa_build_log" 2>&1
-                    podman exec bc250-build-box sh -c "cd /root/mesa && git apply --whitespace=nowarn --recount /root/patches/0003.patch" >> "$mesa_build_log" 2>&1
+                            echo -e "${GREEN}[+] Step 3/5: Downloading stable Mesa ${mesa_compile_ver} source from official code servers...${RESET}"
+                            podman exec bc250-build-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa >> "$mesa_build_log" 2>&1
 
-                    podman exec bc250-build-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_bug_info.c 2>/dev/null || podman exec bc250-build-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.c
-                    podman exec bc250-build-box sed -i '/bool has_taskmesh_indirect0_bug;/a \   bool has_gfx1013_mesh_shading;\n   bool has_gfx1013_task_shading;' /root/mesa/src/amd/common/ac_gpu_info.h
-                    podman exec bc250-build-box sed -i '/bool record_stats;/a \   bool has_mesh_shading;' /root/mesa/src/amd/compiler/aco_shader_info.h
-                    podman exec bc250-build-box sed -i 's/assert(!mesh_shading || ctx.program->gfx_level >= GFX10_3);/assert(!mesh_shading || options->has_mesh_shading);/g' /root/mesa/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
-                    podman exec bc250-build-box sed -i 's/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_VGT_PRIM_STATE;/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VGT_PRIM_STATE;\n      if (pdev->info.gfx_level >= GFX10_3) cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;/g' /root/mesa/src/amd/vulkan/radv_cmd_buffer.c
-                    podman exec bc250-build-box sed -i 's/info->family == CHIP_TONGA;/info->family == CHIP_TONGA || ((info->family == CHIP_NAVI10 || info->family == CHIP_NAVI14) \&\& info->gfx_level == GFX10);/g' /root/mesa/src/amd/common/ac_gpu_info.c
+                            echo -e "${GREEN}[+] Step 4/5: Injecting hardware performance patches and compiling custom driver...${RESET}"
+                            # === FIXED: INLINE ASYNC COMPUTE QUEUE ENABLEMENT FOR GFX1013 NAVI14 ===
+                            podman exec bc250-build-box sed -i 's/info->has_user_fence = info->gfx_level >= GFX10;/info->has_user_fence = info->gfx_level >= GFX10;\n   info->has_async_compute_queue = info->family == CHIP_NAVI10 || info->family == CHIP_NAVI14 || info->family == CHIP_GFX1013;/g' /root/mesa/src/amd/common/ac_gpu_info.c 2>/dev/null
+                            podman exec bc250-build-box sed -i 's/device->physical_device->radv_meta_ops;/device->physical_device->radv_meta_ops;\n   info->has_async_compute_queue = true;/g' /root/mesa/src/amd/vulkan/radv_physical_device.c 2>/dev/null
+                            podman exec bc250-build-box sed -i 's/bool has_async_compute_queue;/bool has_async_compute_queue;\n   bool has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.h 2>/dev/null
+                            # === EXISTING TEXT SUBSTITUTIONS ===
+                            podman exec bc250-build-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_bug_info.c 2>/dev/null || podman exec bc250-build-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.c
+                            podman exec bc250-build-box sed -i '/bool has_taskmesh_indirect0_bug;/a \   bool has_gfx1013_mesh_shading;\n   bool has_gfx1013_task_shading;' /root/mesa/src/amd/common/ac_gpu_info.h
+                            podman exec bc250-build-box sed -i '/bool record_stats;/a \   bool has_mesh_shading;' /root/mesa/src/amd/compiler/aco_shader_info.h
+                            podman exec bc250-build-box sed -i 's/assert(!mesh_shading || ctx.program->gfx_level >= GFX10_3);/assert(!mesh_shading || options->has_mesh_shading);/g' /root/mesa/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
+                            podman exec bc250-build-box sed -i 's/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_VGT_PRIM_STATE;/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VGT_PRIM_STATE;\n      if (pdev->info.gfx_level >= GFX10_3) cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;/g' /root/mesa/src/amd/vulkan/radv_cmd_buffer.c
+                            podman exec bc250-build-box sed -i 's/info->family == CHIP_TONGA;/info->family == CHIP_TONGA || ((info->family == CHIP_NAVI10 || info->family == CHIP_NAVI14) \&\& info->gfx_level == GFX10);/g' /root/mesa/src/amd/common/ac_gpu_info.c
 
-                    echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
-                    podman exec bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
-                    podman exec bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$mesa_build_log" 2>&1
+                            echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
+                            podman exec bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
+                            podman exec bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$mesa_build_log" 2>&1
 
-                    if ! podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
-                        echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
-                        podman rm -f bc250-build-box --force &>/dev/null || true
-                        read -rp "Press [Enter] to return back to main menu..." dummy
-                        continue
-                    fi
+                            if ! podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
+                                echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
+                                podman rm -f bc250-build-box --force &>/dev/null || true
+                                read -rp "Press [Enter] to return back to main menu..." dummy; continue
+                            fi
 
-                    echo -e "${GREEN}[+] Step 6/6: Exporting custom library objects to host space...${RESET}"
-                    sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
-                    podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
-                    podman rm -f bc250-build-box --force &>/dev/null || true
+                            echo -e "${GREEN}[+] Step 5/5: Exporting custom library objects to host space...${RESET}"
+                            sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
+                            podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
 
-                    sudo bash <<'EOF'
+                            # === FIXED: SELINUX PRIVILEGE RESTORATION ===
+                            if command -v restorecon &>/dev/null; then
+                                sudo restorecon -v /opt/bc250-gfx1013/lib64/libvulkan_radeon.so &>/dev/null || true
+                            fi
+
+                            podman rm -f bc250-build-box --force &>/dev/null || true
+
+                            sudo bash <<'EOF'
 cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
-{
-    "file_format_version": "1.0.0",
-    "ICD": {
-        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",
-        "api_version": "1.3.290"
-    }
-}
+{ "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
 INNER_EOF
 EOF
-                    echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                    print_success "Custom graphics driver compiled and linked successfully!"
-                    play_success_chime
-                    prompt_reboot; continue
-                fi
-                ;;
+                            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+                            print_success "Custom graphics driver compiled and linked successfully!"
+                            play_success_chime; prompt_reboot; continue
+                        fi
+                        ;;
                     *)
                         echo -e "${RED}Invalid choice.${RESET}"
                         ;;
@@ -1865,33 +1857,26 @@ EOF
                         ;;
                 esac
                 ;; # Closes main option 2
+
             3)
+                # Option 3 uninstaller sweeps the environment completely clean
                 local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                 local active_profile="Factory Stock Driver (No active overrides detected)"
-
                 if [[ -f "$target_lib" ]]; then
                     local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
-                    if (( file_bytes > 21700000 )); then
-                        active_profile="CHIP_NAVI14 (Unified Performance Layout)"
-                    else
-                        active_profile="CHIP_NAVI10 (Dedicated High-Tier Layout)"
-                    fi
+                    if (( file_bytes > 21700000 )); then active_profile="CHIP_NAVI14 (Unified)"; else active_profile="CHIP_NAVI10 (Dedicated)"; fi
                 fi
 
                 echo -e "\n  ${YELLOW}[⚠] Preparing to safely remove custom graphics layers...${RESET}"
                 echo -e "      Detected Active Target: ${CYAN}${active_profile}${RESET}"
-
                 if confirm "Completely uninstall the active driver overrides and purge sandbox storage?"; then
-                    sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
+                    sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
                     sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
                     sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-
-                    echo -e "${GREEN}[+] Purging sandboxed toolchain registries and background build cache...${RESET}"
                     podman rm -f bc250-navi10-box bc250-build-box &>/dev/null || true
                     podman rmi -f registry.fedoraproject.org/fedora:43 registry.fedoraproject.org/fedora:44 &>/dev/null || true
                     podman image prune -f &>/dev/null || true
-
-                    print_success "Async Compute Queue patches successfully uninstalled and sandbox storage reclaimed!"
+                    print_success "Async Compute Queue patches uninstalled and performance configs reclaimed!"
                     prompt_reboot; return 0
                 fi
                 ;;
@@ -1935,12 +1920,11 @@ EOF
                 ;;
             *)
                 echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
-                sleep 1
-                return 0
-                ;;
+                sleep 1 ; return 0 ;;
         esac
     done
 }
+
 
 # ==============================================================================
 # UNIFIED ACPI FIX SUBSYSTEM TOGGLE ENGINE (BIOS PROTETCTED)
