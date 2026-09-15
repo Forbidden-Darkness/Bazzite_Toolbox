@@ -108,11 +108,14 @@ The toolbox acts as an intelligent abstraction layer over Bazzite's immutable, t
 ------------------------------
 ## Special Thanks to the following:
 
-* **Development of Blue/Red Pill Script for Bazzite:** [@NexGen-3D](https://github.com/NexGen-3D-Printing)
-* **Development of cyan-skillfish-governor:** [@FilippoR](https://github.com/filippor)
-* **Development of bc250-cu-live-manager:** [@WinnieLV](https://github.com/WinnieLV)
-* **Development of CPU Overclocking Tools for AMD BC-250:** [@bc250-collective](https://github.com/bc25)
-* **Development of bc250_memcfg (CMOS BIOS Utility):** [@fanoush](https://github.com/fanoush/bc250_memcfg)
+* **Development of Blue/Red Pill Script for Bazzite:** [@NexGen-3D](https://github.com)
+* **Development of cyan-skillfish-governor:** [@FilippoR](https://github.com)
+* **Development of bc250-cu-live-manager:** [@WinnieLV](https://github.com)
+* **Development of CPU Overclocking Tools for AMD BC-250:** [@bc250-collective](https://github.com)
+* **Development of bc250_memcfg (CMOS BIOS Utility):** [@fanoush](https://github.com)
+* **Development of BC250 FSR4 INT8 Re-Ordered Compilations:** [@daniel-h-0](https://github.com/daniel-h-0/bc250-fsr4-fork)
+* **Development of Upstream OptiScaler Hook Proxy Core Layers:** [@optiscaler](https://github.com/optiscaler/OptiScaler)
+* **Development of GFX1013 Async Compute Queue Firmware Patches:** [@DryhoppedIPA](https://github.com/DryhoppedIPA/bc250-gfx1013-fix)
 
 ------------------------------
 
