@@ -105,6 +105,18 @@ The toolbox acts as an intelligent abstraction layer over Bazzite's immutable, t
 * **Network Card Profiling:** Interrogates active network interface ports via the native NetworkManager CLI engine (`nmcli`). It completely replaces complicated network configuration loops with a simple, safe choice menu.
 * **Magic Packet Authorization:** Pushes strict, automated instruction strings directly to the target network card firmware, ensuring magic packet wakeup parameters stay perfectly enabled and active even after sudden system re-deployments or updates.
 
+### 10. GFX1013 FSR 4.1.1 Automated Deployment Core (Option 5 Engine)
+* **Touch-Free Multi-File Injection:** Automatically provisions both the hand-tuned FSR 4.1.1 INT8 Winograd upscaler core (`amd_fidelityfx_upscaler_dx12.dll`) and the missing master proxy bridge loader (`dxgi.dll`) simultaneously into target game directories.
+* **Input-Lag Mitigation:** By forcing a migration from un-optimized Float32 vectors down to tight INT8 parallel execution loops, the upscaler frees up critical graphics compute pipelines, maintaining a flat frame pacing ceiling at your locked 60 FPS target.
+* **Universal Wildcard Extraction Handling:** Implements case-insensitive recursive 7-Zip path queries (`-ir!`) to find and unpack critical files regardless of nested directory structures inside upstream repository archives, stripping away folder wrappers cleanly.
+* **Self-Healing Permission Recovery Pass:** Overcomes root extraction locks applied during standard `sudo` script runs. The module automatically drops system privileges post-flight, forcefully returning ownership of the custom game folders back to the local `bsystem` user account so Proton can safely execute the hooks on game boot.
+
+### 11. Architectural Silicon Compute Tier Performance Profiles
+* **Navi 10 Performance Bottleneck Constraints:** While Navi 10 is physically a larger die with up to 40 Compute Units (CUs), it hits power limits and thermal throttling thresholds early under heavy split memory profiles, resulting in micro-stuttering across its wide 256-bit memory bus interface.
+* **Navi 14 Fast Clock Optimization Advantage:** Navi 14 features a smaller, highly efficient die architecture (24 CUs) designed natively to run within narrow 128-bit bus boundaries. Free from power starvation, its internal L1/L2 caches keep the cores saturated with data. This results in significantly better cache locality and allows it to sustain much higher core clock speeds than a split-memory Navi 10 setup.
+* **Live System Dashboard Validation:** Integrates an automated file size footprint interrogator directly into your `run_status()` panel layout, checking the compiled byte configurations of your custom graphics driver (`libvulkan_radeon.so`) to determine if the active runtime profile is running a Navi 10 or Navi 14 performance layout loop.
+
+
 ------------------------------
 ## Special Thanks to the following:
 
