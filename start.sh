@@ -552,46 +552,75 @@ check_system_health() {
 
 
 # ==============================================================================
-# RE-ORDERED CORE ENGINE: SYSTEM STATUS VISUALIZATION DASHBOARD (PART 1)
+# RE-ORDERED CORE ENGINE: SYSTEM STATUS VISUALIZATION DASHBOARD
 # ==============================================================================
 run_status() {
     print_banner
+    # SYSTEM STATUS
     print_section "System Status"
 
-    local ICON_OK="✓"
-    local ICON_WARN="⚠"
-    local ICON_ERR="✗"
+    local ICON_OK="✓" local ICON_WARN="⚠" local ICON_ERR="✗"
     local DIM="${DIM:-}" local RESET="${RESET:-}" local GREEN="${GREEN:-}"
     local YELLOW="${YELLOW:-}" local RED="${RED:-}" local CYAN="${CYAN:-}"
     local BOLD="${BOLD:-}" local WHITE="${WHITE:-}" local B_BLUE="${B_BLUE:-}"
-    local ICON_OK="${GREEN}✓${RESET}"
-    local ICON_WARN="${YELLOW}⚠${RESET}"
-    local ICON_ERR="${RED}✗${RESET}"
+    local ICON_OK="${GREEN}✓${RESET}" local ICON_WARN="${YELLOW}⚠${RESET}" local ICON_ERR="${RED}✗${RESET}"
 
     local CPU_CONF="/etc/bc250-smu-oc.conf"
     local GPU_CONF="/etc/cyan-skillfish-governor-smu/config.toml"
 
-        # 🧬 DYNAMIC OSTREE LAYER PIN STATE DETECTOR (CORRECTED BASH DECLARATION)
+    # 🧬 DYNAMIC OSTREE LAYER PIN STATE DETECTOR
     local pin_status="$ICON_WARN" pin_lable="${RED}unpinned${RESET}"
     if ostree admin pin 2>/dev/null | grep -q "Pinned" || rpm-ostree status 2>/dev/null | grep -qi "pinned"; then
         pin_status="$ICON_OK" pin_lable="${GREEN}pinned (frozen)${RESET}"
     fi
 
-        # 🧬 DYNAMIC ASYNC COMPUTE QUEUE FIX STATUS DETECTOR (DYNAMIC DESCRIPTION EXTENSION)
+    # 🧬 DYNAMIC ASYNC COMPUTE QUEUE FIX STATUS DETECTOR
     local async_icon="$ICON_WARN" async_lable="${RED}deactivated${RESET}"
     local async_desc="${DIM}(ACE engine queues locked; system loses up to ~25% async gaming performance)${RESET}"
-
     if [[ -f /etc/environment.d/99-bc250-gfx1013.conf ]] && [[ -f /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
         async_icon="$ICON_OK" async_lable="${GREEN}activated${RESET}"
         async_desc="${DIM}(ACE engine queues unlocked for up to +25% gaming FPS)${RESET}"
     fi
 
+    # 🧬 DYNAMIC ASIC SILICON PROBE (VERIFIED COMPILED BINARY SIZE TRACKER)
+    local profile_lbl=""
+    local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
+
+    if [[ -f "/etc/environment.d/99-bc250-gfx1013.conf" ]] || grep -q "VK_DRIVER_FILES" /etc/environment 2>/dev/null; then
+        if [[ -f "$target_lib" ]]; then
+            local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
+
+            # 🎯 COMBINED MATRIX LOOKUP: Blends your native hardware label with your active driver profile tier
+            if (( file_bytes > 21700000 )); then
+                profile_lbl=" — ${BOLD}${YELLOW}NAVI 14${RESET} ${DIM}(GFX1012 Active — Fast Clock Meta)${RESET}"
+            else
+                profile_lbl=" — ${BOLD}${YELLOW}NAVI 10${RESET} ${DIM}(GFX1010 Active)${RESET}"
+            fi
+        fi
+    fi
+    local detected_asic="${YELLOW}AMD Custom RDNA1 Silicon${RESET}${profile_lbl}"
+
+    # 🧬 DYNAMIC FSR 4.1.1 FRAMEWORK DETECTOR
+    local fsr4_state="${RED}deactivated${RESET} ${DIM}(System missing boot proxy hook — upscaler inactive)${RESET}"
+    local fsr4_icon="$ICON_WARN"
+    if find /var/home/bsystem/.local/share/Steam/steamapps/common /run/media/bsystem -type f -name "dxgi.dll" 2>/dev/null | grep -q "dxgi.dll"; then
+        fsr4_icon="$ICON_OK"
+        fsr4_state="${GREEN}activated${RESET} ${DIM}(FSR 4.1.1 INT8 Winograd Loop Override Engine Online)${RESET}"
+    fi
+
+
+    # 🧬 DYNAMIC FSR 4.1.1 FRAMEWORK DETECTOR
+    local fsr4_state="${RED}deactivated${RESET} ${DIM}(System missing boot proxy hook — upscaler inactive)${RESET}"
+    local fsr4_icon="$ICON_WARN"
+    if find /var/home/bsystem/.local/share/Steam/steamapps/common /run/media/bsystem -type f -name "dxgi.dll" 2>/dev/null | grep -q "dxgi.dll"; then
+        fsr4_icon="$ICON_OK"
+        fsr4_state="${GREEN}activated${RESET} ${DIM}(FSR 4.1.1 INT8 Winograd Loop Override Engine Online)${RESET}"
+    fi
+
     echo -e "  ${BOLD}${YELLOW}System${RESET}"
     echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
 
-    local boot_session="gamescope"
-    local boot_relogin="true"
-
+    local boot_session="gamescope" local boot_relogin="true"
     if systemctl get-default 2>/dev/null | grep -q "graphical.target"; then
         if [[ -f /var/lib/AccountsService/users/$USER ]]; then
             grep -q "XSession=plasma" "/var/lib/AccountsService/users/$USER" && boot_session="plasma"
@@ -599,11 +628,7 @@ run_status() {
     fi
 
     local boot_mode boot_login
-    if [[ "$boot_session" == "gamescope" ]]; then
-        boot_mode="${BOLD}${GREEN}Game Mode${RESET}"
-    else
-        boot_mode="${BOLD}${CYAN}Desktop Mode${RESET}"
-    fi
+    if [[ "$boot_session" == "gamescope" ]]; then boot_mode="${BOLD}${GREEN}Game Mode${RESET}"; else boot_mode="${BOLD}${CYAN}Desktop Mode${RESET}"; fi
     boot_login=$([[ "$boot_relogin" == "false" ]] && echo "${DIM}password required${RESET}" || echo "${DIM}no password${RESET}")
 
     local wol_icon="$ICON_WARN" local wol_label="${YELLOW}deactivated${RESET}"
@@ -611,46 +636,31 @@ run_status() {
     while IFS= read -r conn; do
         [[ -z "$conn" ]] && continue
         wol_setting=$(nmcli -g 802-3-ethernet.wake-on-lan connection show "$conn" 2>/dev/null | tr '[:upper:]' '[:lower:]')
-        if [[ "$wol_setting" == *magic* ]]; then
-            wol_enabled=true
-            break
-        fi
+        if [[ "$wol_setting" == *magic* ]]; then wol_enabled=true; break; fi
     done < <(nmcli -t -f NAME connection show 2>/dev/null)
-
-    if $wol_enabled; then
-        wol_icon="$ICON_OK"; wol_label="${GREEN}activated${RESET}"
-    else
-        wol_icon="$ICON_WARN"; wol_label="${YELLOW}deactivated${RESET}"
-    fi
+    if $wol_enabled; then wol_icon="$ICON_OK"; wol_label="${GREEN}activated${RESET}"; else wol_icon="$ICON_WARN"; wol_label="${RED}deactivated${RESET}"; fi
 
     echo -e "  ${CYAN}Boot Mode${RESET}             ${boot_mode}  ${boot_login}"
     echo -e "  ${CYAN}OS${RESET}                    $(cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '"')"
     echo -e "  ${CYAN}Version${RESET}               $(cat /etc/os-release | grep -E '^(VERSION)=' | cut -d= -f2 | tr -d '"')"
     echo -e "  ${CYAN}Kernel${RESET}                $(uname -r)"
-    # 📊 WAKE-ON-LAN DATA ROW (UPDATED WITH COMPACT DESCRIPTIVE METRICS)
+    echo -e "  ${CYAN}Detected Silicon${RESET}      ${ICON_OK} ${detected_asic}"
+    echo -e "  ${CYAN}FSR 4.1.1 Framework${RESET}   ${fsr4_icon} ${fsr4_state}"
     echo -e "  ${CYAN}Wake-on-LAN${RESET}           ${wol_icon} ${wol_label} ${DIM}(Allows remote power plane activation triggers over network)${RESET}"
-
-    # 📊 DYNAMIC DEPLOYMENT DATA ROW (UPDATED WITH COMPACT DESCRIPTIVE METRICS)
     echo -e "  ${CYAN}Atomic Deployment${RESET}     ${pin_status} ${pin_lable} ${DIM}(System layers frozen to block unwanted updates)${RESET}"
-
-    # 📊 DYNAMIC ASYNC COMPUTE FIX DATA ROW (DYNAMIC DESCRIPTION UPGRADE)
     echo -e "  ${CYAN}Async GPU Compute${RESET}     ${async_icon} ${async_lable} ${async_desc}"
     echo ""
-
+# ==============================================================================
+# RE-ORDERED CORE ENGINE: SYSTEM STATUS VISUALIZATION DASHBOARD (PART 2 OF 3)
+# ==============================================================================
+    # OVERCLOCK
     print_section "Overclock"
-
     local cpu_preset="None" local cpu_profile="No Active Config"
-    if [[ -f "$CPU_CONF" ]]; then
-        cpu_preset=$(oc_match_preset 2>/dev/null || echo "Custom")
-        cpu_profile=$(oc_active_profile 2>/dev/null || echo "Active Profile")
-    fi
+    if [[ -f "$CPU_CONF" ]]; then cpu_preset=$(oc_match_preset 2>/dev/null || echo "Custom"); cpu_profile=$(oc_active_profile 2>/dev/null || echo "Active Profile"); fi
     echo -e "  ${DIM}CPU Active: ${cpu_preset} — ${cpu_profile}${RESET}"
 
     local gpu_preset="None" local gpu_profile="No Active Config"
-    if [[ -f "$GPU_CONF" ]]; then
-        gpu_preset=$(gpu_match_preset 2>/dev/null || echo "Custom")
-        gpu_profile=$(gpu_active_profile 2>/dev/null || echo "Active Profile")
-    fi
+    if [[ -f "$GPU_CONF" ]]; then gpu_preset=$(gpu_match_preset 2>/dev/null || echo "Custom"); gpu_profile=$(gpu_active_profile 2>/dev/null || echo "Active Profile"); fi
     echo -e "  ${DIM}GPU Active: ${gpu_preset} — ${gpu_profile}${RESET}"
     echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
 
@@ -659,13 +669,9 @@ run_status() {
     cpu_svc_result=$(systemctl show bc250-smu-oc.service --property=ExecMainStatus --value 2>/dev/null || echo "0")
 
     local cpu_icon cpu_label
-    if [[ "$cpu_svc_enabled" == "enabled" && "$cpu_svc_result" == "0" ]]; then
-        cpu_icon="$ICON_OK"; cpu_label="${GREEN}activated (applied successfully)${RESET}"
-    elif [[ "$cpu_svc_enabled" == "enabled" ]]; then
-        cpu_icon="$ICON_WARN"; cpu_label="${YELLOW}activated (exit code: ${cpu_svc_result})${RESET}"
-    else
-        cpu_icon="$ICON_WARN"; cpu_label="${YELLOW}deactivated${RESET}"
-    fi
+    if [[ "$cpu_svc_enabled" == "enabled" && "$cpu_svc_result" == "0" ]]; then cpu_icon="$ICON_OK"; cpu_label="${GREEN}activated (applied successfully)${RESET}"
+    elif [[ "$cpu_svc_enabled" == "enabled" ]]; then cpu_icon="$ICON_WARN"; cpu_label="${YELLOW}activated (exit code: ${cpu_svc_result})${RESET}"
+    else cpu_icon="$ICON_WARN"; cpu_label="${RED}deactivated${RESET}"; fi
     echo -e "  ${CYAN}CPU Service${RESET}           ${cpu_icon} ${cpu_label}"
 
     if [[ -f "$CPU_CONF" ]]; then
@@ -674,16 +680,11 @@ run_status() {
         cpu_scale=$(awk -F'= ' '/^scale/{sub(/#.*/, "", $2); print $2}' "$CPU_CONF" | tr -d ' ')
         cpu_temp=$(awk -F'= ' '/^max_temperature/{sub(/#.*/, "", $2); print $2}' "$CPU_CONF" | tr -d ' ')
         echo -e "  ${CYAN}CPU Profile${RESET}           ${ICON_OK} ${cpu_freq}MHz  scale ${cpu_scale}  max ${cpu_temp}°C"
-    else
-        echo -e "  ${CYAN}CPU Profile${RESET}           ${ICON_WARN} ${DIM}config not found${RESET}"
-    fi
+    else echo -e "  ${CYAN}CPU Profile${RESET}           ${ICON_WARN} ${DIM}config not found${RESET}"; fi
 
     local gpu_icon gpu_label
-    if systemctl is-active --quiet cyan-skillfish-governor-smu.service 2>/dev/null; then
-        gpu_icon="$ICON_OK"; gpu_label="${GREEN}activated${RESET}"
-    else
-        gpu_icon="$ICON_WARN"; gpu_label="${YELLOW}deactivated${RESET}"
-    fi
+    if systemctl is-active --quiet cyan-skillfish-governor-smu.service 2>/dev/null; then gpu_icon="$ICON_OK"; gpu_label="${GREEN}activated${RESET}"
+    else gpu_icon="$ICON_WARN"; gpu_label="${RED}deactivated${RESET}"; fi
     echo -e "  ${B_BLUE}GPU Service${RESET}           ${gpu_icon} ${gpu_label}"
 
     if [[ -f "$GPU_CONF" ]]; then
@@ -691,241 +692,154 @@ run_status() {
         gpu_freq=$(awk -F'= ' '/^frequency/{sub(/#.*/, "", $2); print $2}' "$GPU_CONF" | tr -d ' ' | tail -1)
         gpu_throttle=$(awk -F'= ' '/^throttling /{sub(/#.*/, "", $2); print $2}' "$GPU_CONF" | tr -d ' ')
         echo -e "  ${B_BLUE}GPU Profile${RESET}           ${ICON_OK} ${gpu_freq}MHz  throttle ${gpu_throttle}°C"
-    else
-        echo -e "  ${B_BLUE}GPU Profile${RESET}           ${ICON_WARN} ${DIM}config not found${RESET}"
-    fi
+    else echo -e "  ${B_BLUE}GPU Profile${RESET}           ${ICON_WARN} ${DIM}config not found${RESET}"; fi
     echo ""
 
+    # HARDWARE UNLOCKS
     print_section "Hardware Unlocks"
-
-    if rpm-ostree kargs 2>/dev/null | grep -q "mitigations=off"; then
-        echo -e "  ${CYAN}CPU Mitigations${RESET}       ${ICON_OK} ${YELLOW}disabled${RESET} (mitigations=off active via rpm-ostree kargs)"
-    else
-        echo -e "  ${CYAN}CPU Mitigations${RESET}       ${ICON_WARN} ${GREEN}enabled${RESET} (default — disable for max performance)"
-    fi
+    if rpm-ostree kargs 2>/dev/null | grep -q "mitigations=off"; then echo -e "  ${CYAN}CPU Mitigations${RESET}       ${ICON_OK} ${YELLOW}disabled${RESET} (mitigations=off active via rpm-ostree kargs)"
+    else echo -e "  ${CYAN}CPU Mitigations${RESET}       ${ICON_WARN} ${GREEN}enabled${RESET} (default — disable for max performance)"; fi
 
     local active_threads; active_threads=$(nproc 2>/dev/null || echo "12")
-    # 🧬 DYNAMIC SILICON CALCULATION: Divide threads by 2 to extract the physical core count
     local calc_cores=$(( active_threads / 2 ))
-
     if [[ "$active_threads" -eq 16 ]]; then
         if [ -f "$REAL_HOME/CPU_Unlock/.installed" ] || systemctl is-active --quiet bc250-cpu-unlock 2>/dev/null; then
             echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${GREEN}activated via systemd boot hooks (${calc_cores} Cores / ${active_threads} Threads)${RESET}"
-        else
-            echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${GREEN}activated natively via permanent BIOS tables (${calc_cores} Cores / ${active_threads} Threads)${RESET}"
-        fi
-    else
-        # 🧬 CORRECTED FACTORY STANDARD BASELINE: Accurately flags the true 6-Core / 12-Thread default if disabled
-        echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${YELLOW}disabled (Factory stock 6-core / 12-thread scaling architecture)${RESET}"
-    fi
+        else echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${GREEN}activated natively via permanent BIOS tables (${calc_cores} Cores / ${active_threads} Threads)${RESET}"; fi
+    else echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${YELLOW}disabled (Factory stock 6-core / 12-thread scaling architecture)${RESET}"; fi
 
-    # 🧬 UNIFIED HARDWARE DECODER: Queries registers directly via UMR or parses the active systemd boot profile table
+    # 🧬 UNIFIED HARDWARE DECODER
     local true_cu_count=24
     if command -v umr &>/dev/null; then
-        # Query the exact hardware register configuration block matching your activation script targets
         local raw_bits; raw_bits=$(sudo umr -O bits -r amdgpu0.gfx1013.mmSPI_PG_ENABLE_STATIC_WGP_MASK 2>/dev/null | awk '{print $2}' | tr -d '[:space:]' || echo "")
-        if [[ -z "$raw_bits" ]]; then
-            raw_bits=$(sudo umr -O bits -r amdgpu0.gfx1030.mmSPI_SHADER_PG_CONFIG_CU 2>/dev/null | awk '{print $2}' | tr -d '[:space:]' || echo "")
-        fi
-
+        if [[ -z "$raw_bits" ]]; then raw_bits=$(sudo umr -O bits -r amdgpu0.gfx1030.mmSPI_SHADER_PG_CONFIG_CU 2>/dev/null | awk '{print $2}' | tr -d '[:space:]' || echo ""); fi
         if [[ -n "$raw_bits" ]]; then
             local hex_val; hex_val=$(printf "%d" "$raw_bits" 2>/dev/null || echo "0")
             if (( hex_val > 0 )); then
-                # Dynamically convert the register bitmap count straight to active CUs
-                local masked_wgps; masked_wgps=$(printf "%d" "$hex_val")
-                # Count total active bits from the 5-bit WGP array layout mask
-                local active_count=0
-                for wgp in {0..4}; do
-                    if (( (masked_wgps & (1 << wgp)) != 0 )); then
-                        active_count=$((active_count + 2))
-                    fi
-                done
-                # If bits return valid variations, we assign them, otherwise scale globally
+                local masked_wgps; masked_wgps=$(printf "%d" "$hex_val") local active_count=0
+                for wgp in {0..4}; do if (( (masked_wgps & (1 << wgp)) != 0 )); then active_count=$((active_count + 2)); fi; done
                 if (( active_count > 0 )); then true_cu_count=$(( active_count * 4 )); fi
             fi
         fi
     fi
 
-    # Fallback Option: If UMR pathing blocks out or drops, pull the active status table from your live manager config
     if [[ "$true_cu_count" -eq 24 ]] && [[ -f "/etc/bc250-cu-live-manager.conf" ]]; then
         local saved_masks; saved_masks=$(grep "BC250_WGP_MASKS=" /etc/bc250-cu-live-manager.conf | cut -d= -f2 | tr -d '"' || echo "")
         if [[ -n "$saved_masks" ]]; then
-            # Calculate totals based on your saved profile allocations
             local total_cus=0
             IFS=',' read -ra masks_array <<< "$saved_masks"
             for mask in "${masks_array[@]}"; do
                 local val=$((mask))
-                for wgp in {0..4}; do
-                    if (( (val & (1 << wgp)) != 0 )); then
-                        total_cus=$((total_cus + 2))
-                    fi
-                done
+                for wgp in {0..4}; do if (( (val & (1 << wgp)) != 0 )); then total_cus=$((total_cus + 2)); fi; done
             done
             if (( total_cus > 24 )); then true_cu_count="$total_cus"; fi
         fi
     fi
-
-    # Final safety clamp to protect UI boundaries if hardware configurations report blank data lines
-    if [[ -z "$true_cu_count" || "$true_cu_count" -eq 0 || "$true_cu_count" -lt 24 ]]; then
-        true_cu_count=24
-    fi
+    if [[ -z "$true_cu_count" || "$true_cu_count" -eq 0 || "$true_cu_count" -lt 24 ]]; then true_cu_count=24; fi
 
     local cu_icon="$ICON_OK" local cu_color="${GREEN}" local cu_warn_msg=""
-    if [ "$true_cu_count" -gt 24 ]; then
-        cu_icon="$ICON_WARN"
-        cu_color="${YELLOW}"
-        # 🚀 REPAIRED: Uses your high-contrast ICON_WARN token and uniform script colors cleanly
-        cu_warn_msg=" ${ICON_WARN} ${GREEN}Unlocked${RESET} — ${RED}verify power/cooling${RESET}"
-    fi
-
+    if [ "$true_cu_count" -gt 24 ]; then cu_icon="$ICON_WARN" cu_color="${YELLOW}"; cu_warn_msg=" ${ICON_WARN} ${GREEN}Unlocked${RESET} — ${RED}verify power/cooling${RESET}"; fi
     echo -e "  ${CYAN}Active CUs${RESET}            ${ICON_WARN} 38/40  ${DIM}(default 24, max 40)${RESET} ${ICON_WARN} ${GREEN}Unlocked${RESET} — ${RED}verify power/cooling${RESET}"
+# ==============================================================================
+# RE-ORDERED CORE ENGINE: SYSTEM STATUS VISUALIZATION DASHBOARD (PART 3 OF 3)
+# ==============================================================================
+    # 🔒 ENVIRONMENT ISOLATION GATE
+    if [ -f /.dockerenv ] || grep -qiE '(docker|lxc|containerd|podman|kubepods)' /proc/1/cgroup 2>/dev/null; then
+        echo -e "  ${RED}❌ ENVIRONMENT ERROR:${RESET} Containerized deployment detected.\n"; return 1 2>/dev/null || exit 1
+    fi
 
-    # ==============================================================================
-    # UPDATED CONFIGURATION INTERROGATOR ROW: HARDWARE UNLOCKS STATUS PANEL
-    # ==============================================================================
-    # 🔒 ENVIRONMENT ISOLATION GATE: Abort cleanly if running inside a container engine
-if [ -f /.dockerenv ] || grep -qiE '(docker|lxc|containerd|podman|kubepods)' /proc/1/cgroup 2>/dev/null; then
-    echo -e "  ${RED}❌ ENVIRONMENT ERROR:${RESET} Containerized deployment detected."
-    echo -e "     Kernel sysfs memory configuration handles are read-only inside isolated engines."
+    if ram_split_installed; then
+        local cmd_line; cmd_line=$(cat /proc/cmdline 2>/dev/null || echo "")
+        local cmd_pages; cmd_pages=$(echo "$cmd_line" | grep -o 'ttm.pages_limit=[0-9]*' | cut -d= -f2 || echo "")
+        local cmd_pool; cmd_pool=$(echo "$cmd_line" | grep -o 'ttm.page_pool_size=[0-9]*' | cut -d= -f2 || echo "")
+        if [[ -z "$cmd_pages" && -f /etc/modprobe.d/bc250-mem.conf ]]; then
+            cmd_pages=$(awk -F'[ =]' '/pages_limit/ {print $3}' /etc/modprobe.d/bc250-mem.conf 2>/dev/null || echo "")
+            cmd_pool=$(awk -F'[ =]' '/page_pool_size/ {print $3}' /etc/modprobe.d/bc250-mem.conf 2>/dev/null || echo "")
+        fi
+
+        if [[ -n "$cmd_pages" && "$cmd_pages" -gt 0 ]]; then
+            local pool_size_mb=$(( cmd_pages / 256 ))
+            local calc_ram_gb=$(echo "scale=0; ($pool_size_mb + 512) / 1024" | bc 2>/dev/null || echo "8")
+            local calc_vram_gb=$(( 16 - calc_ram_gb ))
+            if (( calc_vram_gb < 0 )); then calc_vram_gb=0; fi
+
+            local profile_lbl="Custom Layout Split"
+            case "$cmd_pages" in
+                "1572864") profile_lbl="Extreme VRAM Split (~6G System / ~10G VRAM)" ;;
+                "1835008") profile_lbl="High VRAM Split (~7G System / ~9G VRAM)" ;;
+                "2097152") profile_lbl="Stock Layout Split (~8G System / ~8G VRAM)" ;;
+                "2621440") profile_lbl="Balanced Allocation (~10G System / ~6G VRAM)" ;;
+                "3145728") profile_lbl="Entry VRAM Split (~12G System / ~4G VRAM)" ;;
+                "3932160") profile_lbl="Native 512MB Split (~15G System / ~512M VRAM)" ;;
+            esac
+            echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${ICON_OK} ${GREEN}activated (${profile_lbl})${RESET}"
+            echo -e "                        ${BIBlack}↳ Current Allocation : ~${calc_ram_gb}G System RAM / ~${calc_vram_gb}G Dedicated VRAM${RESET}"
+            echo -e "                        ${BIBlack}↳ Parameter Metrics  : Ceiling: ${cmd_pages} pages | Pool: ${pool_size_mb}MB${RESET}"
+        else
+            local hw_mem_kb; hw_mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo "0")
+            local hw_mem_gb=$(echo "scale=0; ($hw_mem_kb + 524288) / 1024 / 1024" | bc 2>/dev/null || echo "8")
+            local implied_vram=$(( 16 - hw_mem_gb ))
+            if (( implied_vram < 0 )); then implied_vram=0; fi
+            echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${ICON_OK} ${GREEN}activated${RESET} (Natively partitioned via BIOS — ~${hw_mem_gb}G System RAM / ~${implied_vram}G Dedicated VRAM)"
+        fi
+    else echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${DIM}– not installed (Stock 8G/8G memory split blueprint)${RESET}"; fi
     echo ""
-    return 1 2>/dev/null || exit 1
-fi
 
-if ram_split_installed; then
-    # Read both target variables out of the kernel arguments table
-    local cmd_line; cmd_line=$(cat /proc/cmdline 2>/dev/null || echo "")
-    local cmd_pages; cmd_pages=$(echo "$cmd_line" | grep -o 'ttm.pages_limit=[0-9]*' | cut -d= -f2 || echo "")
-    local cmd_pool; cmd_pool=$(echo "$cmd_line" | grep -o 'ttm.page_pool_size=[0-9]*' | cut -d= -f2 || echo "")
-
-    # Fallback check: Read the modprobe configuration table file directly if cmdline is cached
-    if [[ -z "$cmd_pages" && -f /etc/modprobe.d/bc250-mem.conf ]]; then
-        cmd_pages=$(awk -F'[ =]' '/pages_limit/ {print $3}' /etc/modprobe.d/bc250-mem.conf 2>/dev/null || echo "")
-        cmd_pool=$(awk -F'[ =]' '/page_pool_size/ {print $3}' /etc/modprobe.d/bc250-mem.conf 2>/dev/null || echo "")
-    fi
-
-    # Handle active layout structures
-    if [[ -n "$cmd_pages" && "$cmd_pages" -gt 0 ]]; then
-        # 🧬 DYNAMIC MATHEMATICAL CONVERTER: Converts raw kernel pages cleanly back to Megabytes
-        local pool_size_mb=$(( cmd_pages / 256 ))
-
-        # Round cleanly to the nearest Gigabyte boundary block via system offsets
-        local calc_ram_gb=$(echo "scale=0; ($pool_size_mb + 512) / 1024" | bc 2>/dev/null || echo "8")
-
-        # The AMD BC-250 relies on a strict 16GB total pool of unified GDDR6 memory.
-        # Subtracting the active system RAM from 16 exposes the true VRAM allocation map.
-        local calc_vram_gb=$(( 16 - calc_ram_gb ))
-        if (( calc_vram_gb < 0 )); then calc_vram_gb=0; fi
-
-        # Identify the active profile name cleanly based on your installer page milestones
-        local profile_lbl="Custom Layout Split"
-        case "$cmd_pages" in
-            "1572864") profile_lbl="Extreme VRAM Split (~6G System / ~10G VRAM)" ;;
-            "1835008") profile_lbl="High VRAM Split (~7G System / ~9G VRAM)" ;;
-            "2097152") profile_lbl="Stock Layout Split (~8G System / ~8G VRAM)" ;;
-            "2621440") profile_lbl="Balanced Allocation (~10G System / ~6G VRAM)" ;;
-            "3145728") profile_lbl="Entry VRAM Split (~12G System / ~4G VRAM)" ;;
-            "3932160") profile_lbl="Native 512MB Split (~15G System / ~512M VRAM)" ;;
-        esac
-
-        echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${ICON_OK} ${GREEN}activated (${profile_lbl})${RESET}"
-        echo -e "                        ${BIBlack}↳ Current Allocation : ~${calc_ram_gb}G System RAM / ~${calc_vram_gb}G Dedicated VRAM${RESET}"
-        echo -e "                        ${BIBlack}↳ Parameter Metrics  : Ceiling: ${cmd_pages} pages | Pool: ${pool_size_mb}MB${RESET}"
-    else
-        # Native hardware BIOS profile allocation fallbacks
-        local hw_mem_kb; hw_mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo "0")
-        local hw_mem_gb=$(echo "scale=0; ($hw_mem_kb + 524288) / 1024 / 1024" | bc 2>/dev/null || echo "8")
-        local implied_vram=$(( 16 - hw_mem_gb ))
-        if (( implied_vram < 0 )); then implied_vram=0; fi
-
-        echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${ICON_OK} ${GREEN}activated${RESET} (Natively partitioned via BIOS — ~${hw_mem_gb}G System RAM / ~${implied_vram}G Dedicated VRAM)"
-    fi
-else
-    echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${DIM}– not installed (Stock 8G/8G memory split blueprint)${RESET}"
-fi
-echo ""
-
-### Seprate
-
-        print_section "Swap & ZRAM/ZSWAP"
-
+    # SWAP & ZRAM/ZSWAP
+    print_section "Swap & ZRAM/ZSWAP"
     local swap_mb; swap_mb=$(swapfile_size_mb 2>/dev/null || echo "0")
-    if (( swap_mb > 0 )); then
-        echo -e "  ${CYAN}Swapfile${RESET}              ${ICON_OK} ${GREEN}$(( swap_mb / 1024 ))G${RESET} at ${SWAPFILE_PATH:-/var/swap/swapfile}"
-    else
-        echo -e "  ${CYAN}Swapfile${RESET}              ${DIM}managed by OS layers${RESET}"
-    fi
+    if (( swap_mb > 0 )); then echo -e "  ${CYAN}Swapfile${RESET}              ${ICON_OK} ${GREEN}$(( swap_mb / 1024 ))G${RESET} at ${SWAPFILE_PATH:-/var/swap/swapfile}"
+    else echo -e "  ${CYAN}Swapfile${RESET}              ${DIM}managed by OS layers${RESET}"; fi
 
-    if systemctl is-active --quiet zram-generator@zram0.service 2>/dev/null || grep -qE "zram" /proc/swaps; then
-        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM activated${RESET} / ZSWAP managed"
-    elif zram_currently_disabled && zswap_currently_on; then
-        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM deactivated / ZSWAP activated${RESET} (lz4)"
-    elif zram_currently_disabled; then
-        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_WARN} ${YELLOW}ZRAM deactivated / ZSWAP configured but idle${RESET}"
-    else
-        echo -e "  ${CYAN}RAM/ZSWAP${RESET}            ${DIM}ZRAM activated / ZSWAP deactivated${RESET}"
-    fi
+    if systemctl is-active --quiet zram-generator@zram0.service 2>/dev/null || grep -qE "zram" /proc/swaps; then echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM activated${RESET} / ZSWAP managed"
+    elif zram_currently_disabled && zswap_currently_on; then echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM deactivated / ZSWAP activated${RESET} (lz4)"
+    elif zram_currently_disabled; then echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_WARN} ${YELLOW}ZRAM deactivated / ZSWAP configured but idle${RESET}"
+    else echo -e "  ${CYAN}RAM/ZSWAP${RESET}            ${DIM}ZRAM activated / ZSWAP deactivated${RESET}"; fi
     echo ""
 
+    # SENSOR & FAN CONTROL
     print_section "Sensors & Fan Control"
-
     local sens_driver sens_icon sens_color
     sens_driver="$(sensors_active_driver 2>/dev/null || echo "none")"
     case "$sens_driver" in
-        nct6687) sens_icon="$ICON_OK";   sens_color="$GREEN";  sens_driver="nct6687 (loaded — full PWM control)" ;;
+        nct6687) sens_icon="$ICON_OK"; sens_color="$GREEN"; sens_driver="nct6687 (loaded — full PWM control)" ;;
         nct6683) sens_icon="$ICON_WARN"; sens_color="$YELLOW"; sens_driver="nct6683 (loaded — read-only)" ;;
-        *)       sens_icon="$ICON_WARN"; sens_color="$YELLOW"; sens_driver="not loaded" ;;
+        *) sens_icon="$ICON_WARN"; sens_color="$YELLOW"; sens_driver="not loaded" ;;
     esac
     echo -e "  ${CYAN}Sensor Driver${RESET}         ${sens_icon} ${sens_color}${sens_driver}${RESET}"
 
     local cc_svc_state cc_icon cc_color
-    if systemctl is-active --quiet coolercontrol-daemon.service 2>/dev/null || \
-       systemctl is-active --quiet coolercontrol.service 2>/dev/null || \
-       systemctl is-active --quiet coolercontrold.service 2>/dev/null || \
-       systemctl --user -M "$REAL_USER@" is-active --quiet coolercontrol.service 2>/dev/null || \
-       systemctl --user -M "$REAL_USER@" is-active --quiet coolercontrol-daemon.service 2>/dev/null; then
-        cc_svc_state="activated"; cc_icon="$ICON_OK"; cc_color="$GREEN"
-    else
-        cc_svc_state="deactivated"; cc_icon="$ICON_WARN"; cc_color="$YELLOW"
-    fi
+    if systemctl is-active --quiet coolercontrol-daemon.service 2>/dev/null || systemctl is-active --quiet coolercontrol.service 2>/dev/null || systemctl is-active --quiet coolercontrold.service 2>/dev/null || systemctl --user -M "$REAL_USER@" is-active --quiet coolercontrol.service 2>/dev/null || systemctl --user -M "$REAL_USER@" is-active --quiet coolercontrol-daemon.service 2>/dev/null; then cc_svc_state="activated"; cc_icon="$ICON_OK"; cc_color="$GREEN"
+    else cc_svc_state="deactivated"; cc_icon="$ICON_WARN"; cc_color="$YELLOW"; fi
     echo -e "  ${CYAN}CoolerControl${RESET}         ${cc_icon} ${cc_color}${cc_svc_state}${RESET}"
 
     local xbox_icon xbox_color xbox_label
     xbox_label="$(xbox_adapter_status_label 2>/dev/null)"
     case "$xbox_label" in
-        "loaded")                 xbox_icon="$ICON_OK";   xbox_color="$GREEN";  xbox_label="activated" ;;
+        "loaded") xbox_icon="$ICON_OK"; xbox_color="$GREEN"; xbox_label="activated" ;;
         "installed (not loaded)") xbox_icon="$ICON_WARN"; xbox_color="$YELLOW"; xbox_label="installed (deactivated)" ;;
-        "not installed"|*)        xbox_icon="$ICON_WARN"; xbox_color="$YELLOW"; xbox_label="not installed" ;;
+        "not installed"|*) xbox_icon="$ICON_WARN"; xbox_color="$YELLOW"; xbox_label="not installed" ;;
     esac
     echo -e "  ${CYAN}Xbox Wireless Adapter${RESET} ${xbox_icon} ${xbox_color}${xbox_label}${RESET}"
     echo ""
 
+    # COMMUNITY FIXES
     print_section "Community Fixes"
-
     local acpi_icon acpi_color acpi_label
     if acpi_fix_installed; then
-        if [[ -d "/sys/firmware/acpi/tables" ]] && [[ -d "/sys/devices/system/cpu/cpu7/cpufreq" ]] && ! grep -q "GRUB_EARLY_INITRD_LINUX_CUSTOM" /etc/default/grub 2>/dev/null; then
-            acpi_icon="$ICON_OK"; acpi_color="$GREEN"; acpi_label="activated (Natively injected via permanent BIOS hardware tables)"
-        elif compgen -G /sys/devices/system/cpu/cpu0/cpufreq >/dev/null; then
-            acpi_icon="$ICON_OK"; acpi_color="$GREEN"; acpi_label="activated (Loaded via OS-level early boot initrd override)"
-        else
-            acpi_icon="$ICON_WARN"; acpi_color="$YELLOW"; acpi_label="installed configuration detected — reboot pending"
-        fi
-    else
-        acpi_icon="$ICON_WARN"; acpi_color="$DIM"; acpi_label="not installed"
-    fi
+        if [[ -d "/sys/firmware/acpi/tables" ]] && [[ -d "/sys/devices/system/cpu/cpu7/cpufreq" ]] && ! grep -q "GRUB_EARLY_INITRD_LINUX_CUSTOM" /etc/default/grub 2>/dev/null; then acpi_icon="$ICON_OK"; acpi_color="$GREEN"; acpi_label="activated (Natively injected via permanent BIOS hardware tables)"
+        elif compgen -G /sys/devices/system/cpu/cpu0/cpufreq >/dev/null; then acpi_icon="$ICON_OK"; acpi_color="$GREEN"; acpi_label="activated (Loaded via OS-level early boot initrd override)"
+        else acpi_icon="$ICON_WARN"; acpi_color="$YELLOW"; acpi_label="installed configuration detected — reboot pending"; fi
+    else acpi_icon="$ICON_WARN"; acpi_color="$DIM"; acpi_label="not installed"; fi
     echo -e "  ${B_RED}ACPI Fix${RESET}              ${acpi_icon} ${acpi_color}${acpi_label}${RESET}"
 
     local audio_icon audio_color audio_label resolved_amdgpu
     resolved_amdgpu=$(modinfo -F filename amdgpu 2>/dev/null || echo "")
-    if [[ "$resolved_amdgpu" == *"/updates/"* ]]; then
-        audio_icon="$ICON_OK"; audio_color="$GREEN"; audio_label="patched module activated"
-    else
-        audio_icon="$ICON_WARN"; audio_color="$YELLOW"; audio_label="stock hardware module activated"
-    fi
+    if [[ "$resolved_amdgpu" == *"/updates/"* ]]; then audio_icon="$ICON_OK"; audio_color="$GREEN"; audio_label="patched module activated"
+    else audio_icon="$ICON_WARN"; audio_color="$YELLOW"; audio_label="stock hardware module activated"; fi
     echo -e "  ${CYAN}Audio Patch${RESET}           ${audio_icon} ${audio_color}${audio_label}${RESET}"
     echo ""
 
-    # 🧬 INJECTED PRE-FLIGHT COMPLIANCE ENGINE HERE:
     check_system_health
 }
 
@@ -1038,7 +952,7 @@ echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
-local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 # 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
@@ -1206,7 +1120,7 @@ uninstall_blue_pill() {
 
     echo -e "${GREEN}\n[✓] Safe Removal Scheduled Successfully!${NC}"
     echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer.\n"
-    play_success_chime; prompt_reboot
+    play_success_chime; prompt_reboot; continue
 }
 
 # Unified Wrapper handling the Intelligent Toggle Switch selection logic
@@ -1271,7 +1185,7 @@ install_blue_pill() {
 
     chmod +x Setup-16GB.sh && sudo ./Setup-16GB.sh
     touch "$tracking_dir/.installed"
-    play_success_chime; prompt_reboot
+    play_success_chime; prompt_reboot; continue
 }
 
 # Complete, Deep-Clean Removal Logic for the Red Pill
@@ -1319,7 +1233,7 @@ uninstall_red_pill() {
 
     echo -e "${GREEN}\n[✓] Safe Removal Scheduled Successfully!${NC}"
     echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer.\n"
-    play_success_chime; prompt_reboot
+    play_success_chime; prompt_reboot; continue
 }
 
 # Unified Wrapper handling the Intelligent Toggle Switch selection logic
@@ -1384,7 +1298,7 @@ install_red_pill() {
 
     chmod +x Setup-32GB.sh && sudo ./Setup-32GB.sh
     touch "$tracking_dir/.installed"
-    play_success_chime; prompt_reboot
+    play_success_chime; prompt_reboot; continue
 }
 
 # Function to Launch Overclock
@@ -1517,7 +1431,7 @@ update_cyan-skillfish() {
         fi
 
         print_success "Cyan-Skillfish governor tracking parameters upgraded successfully!"
-        prompt_reboot
+        play_success_chime; prompt_reboot; continue
         return 0
     else
         echo -e "${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
@@ -1534,102 +1448,143 @@ play_success_chime() {
         fi
     }
 
-deploy_gfx1013_fsr4_engine() {
-    # 🎯 LOCAL THEME HARDENING PASS: Seals color metrics inside function bounds safely
+toggle_gfx1013_fsr4_engine() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
     local RED='\033[0;31m' local B_RED='\033[1;31m' local RESET='\033[0m'
 
     local cache_dir="/tmp/bc250_fsr4_staging"
-    local dl_url="https://github.com/daniel-h-0/bc250-fsr4-fork/releases/download/v4.0.0-rc9/bc250-fsr4-dll-4.0.0-rc9-docs2.zip"
+    local dl_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250-fsr4-dll-4.0.0-rc11.7z"
     local dll_name="amd_fidelityfx_upscaler_dx12.dll"
+    local local_src="/home/bsystem/Downloads/bc250-fsr4-dll-4.0.0-rc11"
 
     clear
     echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "   🚀 GFX1013 FSR 4.1.1 AUTOMATED DEPLOYMENT ENGINE (RC9 PACK)      "
-    echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "  This tool deploys the hand-tuned INT8 Winograd Optimized FSR4 DLL"
-    echo -e "  explicitly compiled to push maximum frame ceilings on the BC-250."
+    echo -e "   🚀 GFX1013 FSR 4.1.1 UTILITY AUTOMATED SMART TOGGLE ENGINE        "
     echo -e "${CYAN}====================================================================${RESET}"
 
-    # 🧼 CLEAN STAGING PHASE
-    rm -rf "$cache_dir" && mkdir -p "$cache_dir"
-    echo -e "${GREEN}[+] Pulling optimized FSR 4.1.1r9 release assets from GitHub...${RESET}"
-
-    if ! wget --no-check-certificate --timeout=15 -qO "$cache_dir/fsr4_pack.zip" "$dl_url"; then
-        echo -e "${RED}❌ ERROR: Failed to download the upscaler package from GitHub.${RESET}"
-        read -rp "Press [Enter] to return back to toolkit menu..." dummy; return 1
-    fi
-
-    echo -e "${GREEN}[+] Extracting payload blueprints to temporary workspace...${RESET}"
-    if ! unzip -qo "$cache_dir/fsr4_pack.zip" -d "$cache_dir"; then
-        echo -e "${RED}❌ ERROR: Unzip utility failed to extract package metrics.${RESET}"
-        read -rp "Press [Enter] to return..." dummy; return 1
-    fi
-
-    # Locate the target DLL inside the extracted folder topology
-    local source_dll; source_dll=$(find "$cache_dir" -type f -name "$dll_name" | head -n 1)
-    if [[ -z "$source_dll" ]]; then
-        echo -e "${RED}❌ ERROR: amd_fidelityfx_upscaler_dx12.dll not found in archive bounds.${RESET}"
-        read -rp "Press [Enter] to exit window..." dummy; return 1
-    fi
-
-
-    echo -e "\n${YELLOW}[ℹ] CHOOSE INJECTION TARGET METHOD:${RESET}"
-    echo -e "  1) Track A: Overwrite an existing OptiScaler folder location"
-    echo -e "  2) Track B: Overwrite a Native FidelityFX game engine DLL file"
-    echo -n "  Select deployment path choice [1-2]: "
-    local target_track; read -r target_track
-
-    echo -e "\n${CYAN}[➡] Enter the ABSOLUTE path directory to your target game folder:${RESET}"
-    echo -e "    Example: /home/bsystem/.local/share/Steam/steamapps/common/Control"
+    echo -e "${CYAN}[➡] Enter the ABSOLUTE path directory to your target game folder:${RESET}"
     echo -n "    Path: "
     local game_path; read -r game_path
-
-    # Clean trailing slashes or loose space variables
-    game_path=$(echo "$game_path" | sed 's|/$||g')
+    game_path=$(echo "$game_path" | sed -e 's/[[:space:]]*$//' -e 's|/*$||')
 
     if [[ ! -d "$game_path" ]]; then
         echo -e "${RED}❌ ERROR: Provided directory path track does not exist on disk.${RESET}"
         read -rp "Press [Enter] to return..." dummy; return 1
     fi
 
-    local destination_file=""
-    if [[ "$target_track" == "1" ]]; then
-        destination_file="${game_path}/OptiScaler/${dll_name}"
-    else
-        destination_file="${game_path}/${dll_name}"
-    fi
+    # 🧬 SMART STATE DETECTOR: Monitors modern profile layers to trigger clean uninstalls
+    if [[ -f "${game_path}/OptiScaler.ini" || -f "${game_path}/dxgi.dll" || -f "${game_path}/nvngx.ini" ]]; then
+        echo -e "\n${YELLOW}[ℹ] Existing FSR Mod framework detected inside this directory!${RESET}"
+        echo -n "👉 Remove the active upscaler mod and restore factory binaries? (y/N): "
+        local ans_un; read -r ans_un
+        if [[ "$ans_un" =~ ^[Yy]$ ]]; then
+            echo -e "\n${YELLOW}[ℹ] Purging deployed mod files and configurations...${RESET}"
+            rm -f "${game_path}/dxgi.dll" "${game_path}/winmm.dll" "${game_path}/version.dll" "${game_path}/nvngx.ini" "${game_path}/${dll_name}"
+            rm -f "${game_path}/fakenvapi.dll" "${game_path}/fakenvapi.ini" "${game_path}/dlssg_to_fsr3_amd_is_better.dll"
+            rm -f "${game_path}/OptiScaler.log" "${game_path}/OptiScaler.ini" "${game_path}/fakenvapi.log" "${game_path}/dlssg_to_fsr3.log" "${game_path}/remove_optiscaler.sh"
+            rm -rf "${game_path}/plugins" "${game_path}/OptiScaler"
 
-    echo -e "\n${YELLOW}[⚠] PRE-FLIGHT DEPLOYMENT AUDIT:${RESET}"
-    echo -e "    Source Mod  :  FSR 4.1.1r9 INT8 Winograd Layout"
-    echo -e "    Target File :  ${destination_file}"
+            if [[ -f "${game_path}/dxgi.dll.bak" ]]; then mv "${game_path}/dxgi.dll.bak" "${game_path}/dxgi.dll"; fi
+            if [[ -f "${game_path}/${dll_name}.bak" ]]; then mv "${game_path}/${dll_name}.bak" "${game_path}/${dll_name}"; fi
 
-    if confirm "Inject this custom upscaler binary payload into your game directory tracks now?"; then
-        # Handle directory creation for Track A if not yet completely initialized
-        [[ "$target_track" == "1" ]] && mkdir -p "${game_path}/OptiScaler"
-
-        # Safe backup tracking step before replacing active assets
-        if [[ -f "$destination_file" ]]; then
-            echo -e "${CYAN}[+] Staging factory original driver fallback backup tracking...${RESET}"
-            cp "$destination_file" "${destination_file}.bak" 2>/dev/null
+            chown -R bsystem:bsystem "$game_path" 2>/dev/null
+            echo -e "${GREEN}[✓] Existing environment successfully returned to factory defaults.${RESET}"
+            echo -e "${CYAN}====================================================================${RESET}"
+            echo -e "${GREEN}[+] Transitioning straight to clean deployment engine tracks...${RESET}"
+        else
+            return 0
         fi
-
-        cp "$source_dll" "$destination_file"
-        echo -e "${GREEN}[✓] Character-perfect injection loop complete! Mod deployed.${RESET}"
-
-        echo -e "\n${B_RED}====================================================================${RESET}"
-        echo -e "  ⚠️ CRITICAL FIRST-LAUNCH SYSTEM SHADER WARNING                     "
-        echo -e "====================================================================${RESET}"
-        echo -e "  The first time you boot this title, the screen will look completely"
-        echo -e "  FROZEN or UNRESPONSIVE for up to 60+ seconds. DO NOT FORCE CLOSE IT!"
-        echo -e "  The driver and Proton must compile all 348 background upscaler    "
-        echo -e "  shaders from scratch. Future launches will load instantly.      "
-        echo -e "${B_RED}====================================================================${RESET}"
-
-        # 🧼 RECLAIM TEMP DISK CACHE BLOCKS
-        rm -rf "$cache_dir"
-        read -rp "Press [Enter] to safely clear warning and return to menu dashboard..." dummy
+    else
+        echo -e "\n${GREEN}[+] No existing mod wrappers found. Initializing installer pass...${RESET}"
+        echo -n "👉 Inject custom upscaler binary payload and proxy hook? (y/N): "
+        local ans_in; read -r ans_in
+        if [[ ! "$ans_in" =~ ^[Yy]$ ]]; then return 0; fi
     fi
+
+    echo -e "\n${YELLOW}[ℹ] SELECT ENGINE-SPECIFIC PRESET OPTIMIZER:${RESET}"
+    echo -e "  1) Standard Profile : Baseline RDNA1 Setup (Spider-Man, Cyberpunk, General Titles)"
+    echo -e "  2) Capcom RE Engine : Fixes mesh stretching & broken graphics textures (RE4, Dead Rising)"
+    echo -e "  3) Anti-Flicker     : Forces Non-Linear Color Maps to block sky/menu flashing"
+    echo -n "  Select game profile target [1-3]: "
+    local engine_preset; read -r engine_preset
+
+    local destination_dir="${game_path}/OptiScaler"
+    local plugin_dir="${game_path}/plugins"
+    mkdir -p "$destination_dir" "$plugin_dir"
+
+    if [[ -f "${game_path}/dxgi.dll" && ! -f "${game_path}/dxgi.dll.bak" ]]; then cp "${game_path}/dxgi.dll" "${game_path}/dxgi.dll.bak"; fi
+    if [[ -f "${game_path}/${dll_name}" && ! -f "${game_path}/${dll_name}.bak" ]]; then cp "${game_path}/${dll_name}" "${game_path}/${dll_name}.bak"; fi
+
+    if [[ -d "$local_src" ]]; then
+        echo -e "\n${GREEN}[✓] Local full-payload workspace directory found! Running folder-stripping flat injection sync...${RESET}"
+        cp -rT "$local_src" "$game_path" 2>/dev/null
+        cp -f "${local_src}/${dll_name}" "$destination_dir" 2>/dev/null
+        cp -f "${local_src}/OptiPatcher.asi" "$plugin_dir" 2>/dev/null
+    else
+        echo -e "\n${YELLOW}[ℹ] Local assets missing. Initializing fallback internet download server...${RESET}"
+        rm -rf "$cache_dir" && mkdir -p "$cache_dir"
+        if wget --no-check-certificate --timeout=15 -qO "$cache_dir/fsr4_pack.7z" "${dl_url}"; then
+            echo -e "${GREEN}[+] Deploying release payload objects from remote repository...${RESET}"
+            7z e -aoa "$cache_dir/fsr4_pack.7z" "-o$game_path" "*"
+            7z e -aoa "$cache_dir/fsr4_pack.7z" "-o$destination_dir" "*${dll_name}" &>/dev/null
+            7z e -aoa "$cache_dir/fsr4_pack.7z" "-o$plugin_dir" "*OptiPatcher.asi" &>/dev/null
+            rm -rf "$cache_dir"
+        else
+            echo -e "${RED}❌ ERROR: Failed to download the package from GitHub server channels.${RESET}"
+            read -rp "Press [Enter] to return..." dummy; return 1
+        fi
+    fi
+
+    rm -f "${game_path}/setup_windows.bat" "${game_path}/setup_linux.sh" 2>/dev/null
+
+    if [[ ! -f "${game_path}/dxgi.dll" && ! -f "${game_path}/OptiScaler.dll" ]]; then
+        echo -e "${RED}❌ ERROR: Extraction layer check failed. Core settings templates missing.${RESET}"
+        rm -rf "$destination_dir" "$plugin_dir"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    chown -R bsystem:bsystem "$game_path" 2>/dev/null
+
+    local config_file="${game_path}/OptiScaler.ini"
+    rm -f "${game_path}/nvngx.ini"
+    echo -e "${GREEN}[+] Structuring tailored FSR configuration engine profiles...${RESET}"
+    {
+        echo "[Global]"
+        echo "LogLevel = info"
+        echo "LogToFile = false"
+        echo "LoadAsiPlugins = true"
+        echo "[Upscalers]"
+        echo "Dx12Upscaler = fsr31"
+        echo "[FSR]"
+        echo "Fsr4EnableWatermark = true"
+        # 🚀 THE MEMORY GATE OVERRIDE: Stabilizes heap allocations to prevent out-of-memory game crashes
+        echo "PreAllocateBuffers = true"
+
+        if [[ "$engine_preset" == "2" ]]; then
+            echo "[RootSignatures]"
+            echo "RestoreComputeRootSignature = true"
+        elif [[ "$engine_preset" == "3" ]]; then
+            echo "[Color]"
+            echo "ColorResourceBarrier = 4"
+            echo "NonLinearSRGBInput = true"
+        fi
+    } > "$config_file"
+    chown bsystem:bsystem "$config_file" 2>/dev/null
+
+    echo -e "${GREEN}[✓] Character-perfect injection loop complete! Full mod matrix deployed flat.${RESET}"
+
+    echo -e "\n${B_RED}====================================================================${RESET}"
+    echo -e "  ⚠️ REQUIRED GAME LAUNCH OPTIONS INFRASTRUCTURE                      "
+    echo -e "====================================================================${RESET}"
+    echo -e "  🎮 FOR STEAM TITLES (Add directly to Launch Options):"
+    echo -e "  ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}=${GREEN}true${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${YELLOW}%command%${RESET}"
+    echo -e "                                                                    "
+    echo -e "  📦 FOR NON-STEAM TITLES (Lutris/Heroic Env Variables panel):"
+    echo -e "  Key: ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}   Value: ${GREEN}true${RESET}"
+    echo -e "  Key: ${CYAN}WINEDLLOVERRIDES${RESET}          Value: ${GREEN}dxgi=n,b${RESET}"
+    echo -e "${B_RED}====================================================================${RESET}"
+
+    read -rp "Press [Enter] to return to menu dashboard..." dummy
 }
 
 toggle_compute_queue_fix() {
@@ -1651,8 +1606,7 @@ toggle_compute_queue_fix() {
         echo -e "   2) Express Route: Download & Install Pre-Compiled Performance Driver"
                 echo -e "   3) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
         echo -e "   4) Check Driver Activation & Hardware Extension Telemetry Status"
-        # 🎯 OPTION 5 REGISTERED: Seamlessly extending the toolkit menu for your upscaler fork
-        echo -e "   5) Inject Custom GFX1013 FSR 4.1.1 (INT8 Winograd RC9) Upscaler Engine"
+        echo -e "   5) Toggle Custom GFX1013 FSR 4.1.1 (INT8 Vector RC11 PROD) Smart Engine Suite"
         echo ""
         echo -e "   ↵) Hit [Enter] to return back to the main menu"
         echo -e "${CYAN}====================================================================${RESET}"
@@ -1670,6 +1624,8 @@ toggle_compute_queue_fix() {
 
                 case "$ACTION_CHOICE" in
                     a|A)
+                        sudo rpm-ostree cleanup -m || true
+                        sudo rpm-ostree cleanup -p || true
                         local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                         if [[ -f "$target_lib" ]]; then
                             local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
@@ -1762,6 +1718,8 @@ EOF
                         ;;
 
                     b|B)
+                        sudo rpm-ostree cleanup -m || true
+                        sudo rpm-ostree cleanup -p || true
                         local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                         if [[ -f "$target_lib" ]]; then
                             # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Reads bytes on disk to name the active hardware profile
@@ -1873,6 +1831,8 @@ EOF
 
                 case "$ACTION_CHOICE" in
                     a|A)
+                        sudo rpm-ostree cleanup -m || true
+                        sudo rpm-ostree cleanup -p || true
                         local current_driver="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                         local detected_variant="Custom Mesa" local bin_size_text="20.6MB"
                         if [[ -f "$current_driver" ]]; then
@@ -1914,6 +1874,8 @@ INNER_EOF'
                         fi
                         ;;
                     b|B)
+                        sudo rpm-ostree cleanup -m || true
+                        sudo rpm-ostree cleanup -p || true
                         local current_driver="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                         local detected_variant="Custom Mesa" local bin_size_text="20.9MB"
                         if [[ -f "$current_driver" ]]; then
@@ -1970,14 +1932,23 @@ INNER_EOF'
                 echo -e "\n  ${YELLOW}[⚠] Preparing to safely remove custom graphics layers...${RESET}"
                 echo -e "      Detected Active Target: ${CYAN}${active_profile}${RESET}"
                 if confirm "Completely uninstall the active driver overrides and purge sandbox storage?"; then
+                    echo -e "\n  \033[1;33m[⚙] Purging atomic cache and dropping pending transaction layers...\033[0m"
+                    sudo rpm-ostree cleanup -m || true
+                    sudo rpm-ostree cleanup -p || true
+
+                    echo -e "  \033[1;33m[⚙] Reclaiming host directory structures...\033[0m"
                     sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
                     sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
                     sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+
+                    echo -e "  \033[1;33m[⚙] Flushing virtual compilation sandboxes and container layers...\033[0m"
                     podman rm -f bc250-navi10-box bc250-build-box &>/dev/null || true
                     podman rmi -f registry.fedoraproject.org/fedora:43 registry.fedoraproject.org/fedora:44 &>/dev/null || true
+                    podman container prune -f &>/dev/null || true
                     podman image prune -f &>/dev/null || true
+
                     print_success "Async Compute Queue patches uninstalled and performance configs reclaimed!"
-                    prompt_reboot; return 0
+                    play_success_chime; prompt_reboot; continue
                 fi
                 ;;
             4)
@@ -2020,7 +1991,7 @@ INNER_EOF'
                 ;;
             5)
                 # 🚀 ROUTING ENGINE HOOK: Calls the standalone FSR4 installation engine pass
-                deploy_gfx1013_fsr4_engine
+                toggle_gfx1013_fsr4_engine
                 ;;
             *)
                 echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
@@ -2132,7 +2103,7 @@ apply_acpi_fix() {
     fi
 
     print_success "Custom ACPI firmware tables successfully injected into boot sector!"
-    prompt_reboot
+    play_success_chime; prompt_reboot; continue
 }
 
 # Function to handle ACPI Override Removal (Uninstaller)
@@ -2169,7 +2140,7 @@ remove_acpi_fix() {
     print_info "Cleaning up temporary build directories..."
     rm -rf /tmp/acpi_tables /tmp/bc250-acpi-fix-updated-8c /tmp/bc250-acpi-fix
     print_info "ACPI Fix successfully uninstalled!"
-    prompt_reboot
+    play_success_chime; prompt_reboot; continue
 }
 
 # ==============================================================================
@@ -2230,7 +2201,7 @@ toggle_ram_split() {
             # lock down the pristine stock image layer before background states can desync.
             echo -e "${YELLOW}[●] Rebooting device to finalize stock recovery handles...${NC}"
             sleep 2
-            sudo systemctl reboot
+            play_success_chime; prompt_reboot; continue
         else
             echo -e "${CYAN}[-] Rollback cancelled. Returning cleanly to main menu...${NC}"
             sleep 1.5
@@ -2304,7 +2275,7 @@ toggle_ram_split() {
             fi
 
             print_success "RAM/VRAM memory split targets successfully written to hardware tree!"
-            prompt_reboot
+            play_success_chime; prompt_reboot; continue
         else
             echo -e "${RED}[-❌-] Partitioning aborted. No changes made.${NC}"
             sleep 1.5
@@ -2560,7 +2531,7 @@ toggle_xbox_adapter() {
                 sudo rpm-ostree uninstall xone kmod-xone >> /var/log/bc250_oc_install.log 2>&1 || true
             fi
             print_success "Xbox Wireless Adapter driver uninstalled successfully!"
-            prompt_reboot
+            play_success_chime; prompt_reboot; continue
         else
             echo -e "${CYAN}[-] Removal cancelled. Returning cleanly to main menu...${NC}"
             sleep 1.5
@@ -2579,7 +2550,7 @@ toggle_xbox_adapter() {
             fi
 
             print_success "Driver successfully staged! A system reboot is required to load the modules."
-            prompt_reboot
+            play_success_chime; prompt_reboot; continue
         else
             echo -e "${RED}[-❌-] Installation aborted. No changes made.${NC}"
             sleep 1.5
@@ -3370,12 +3341,12 @@ show_menu() {
         # --- SECTION 2: GPU OVERCLOCK CONTROLS ---
         echo -e "  ${BOLD}${BLUE}GPU Overclock Governor Settings${RESET}"
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-        echo -e "    ${CYAN}[A] Enable Governor Now${RESET}    ${DIM}(Until Next Reboot)${RESET}  ${YELLOW}[D] Disable Governor Now${RESET}   ${DIM}(Stop Immediately)${RESET}"
-        echo -e "    ${CYAN}[B] Enable Auto-Start${RESET}      ${DIM}(Turn On Every Boot)${RESET} ${YELLOW}[E] Disable Auto-Start${RESET}     ${DIM}(Keep Off on Boot)${RESET}"
-        echo -e "    ${BLUE}[C] Restart Governor${RESET}        ${DIM}(Refresh Tweaks)${RESET}    ${BLUE}[F] Monitor Governor Live Logs${RESET}   ${DIM}(Press [Enter] to Exit)${RESET}"
-        echo -e "    ${MAGENTA}[G] Check Governor Version${RESET}                      ${CYAN}[H] Upgrade Governor Track${RESET} ${DIM}  (Fetch Latest Stable COPR Build)${RESET}"
-        echo -e "              ${BOLD}${CYAN}• Silicon Governor & Performance Tuning Profile Manager:${RESET}"
-        echo -e "                     ${CYAN}[I]${RESET}  Modify Governor Performance Profile     ${DIM}(Hardware Spec Audit Wizard)${RESET}"
+        echo -e "    ${B_BLUE}[A] Enable Governor Now${RESET}    ${DIM}(Until Next Reboot)${RESET}  ${RED}[D] Disable Governor Now${RESET}   ${DIM}(Stop Immediately)${RESET}"
+        echo -e "    ${B_BLUE}[B] Enable Auto-Start${RESET}      ${DIM}(Turn On Every Boot)${RESET} ${RED}[E] Disable Auto-Start${RESET}     ${DIM}(Keep Off on Boot)${RESET}"
+        echo -e "    ${YELLOW}[C] Restart Governor${RESET}        ${DIM}(Refresh Tweaks)${RESET}    ${YELLOW}[F] Monitor Governor Live Logs${RESET}   ${DIM}(Press [Enter] to Exit)${RESET}"
+        echo -e "    ${MAGENTA}[G] Check Governor Version${RESET}                      ${MAGENTA}[H] Upgrade Governor Track${RESET} ${DIM}  (Fetch Latest Stable COPR Build)${RESET}"
+        echo -e "              ${BOLD}${BLUE}• Silicon Governor & Performance Tuning Profile Manager:${RESET}"
+        echo -e "                     ${CYAN}[I]  Modify Governor Performance Profile${RESET}    ${DIM}(Hardware Spec Audit Wizard)${RESET}"
         echo ""
 
         # --- CONFIG NOTICES ---
@@ -3389,10 +3360,10 @@ show_menu() {
         # 🧬 SECTION 3: HARDWARE UNLOCKS & CORE OPTIMIZATIONS
         echo -e "  ${BOLD}${YELLOW}Hardware Unlocks & Core Optimizations${RESET}"
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
-        echo -e "    ${CYAN}[3] ACPI Table Fix${RESET}  ${DIM}(Install/Uni)${RESET}    ${CYAN}[4] RAM/VRAM Split${RESET}  ${DIM}(Dynamic Split)${RESET}"
-        echo -e "    ${CYAN}[X] Xbox Adapter${RESET}    ${DIM}(Xone Driver)${RESET}    ${CYAN}[5] CPU OC & CU Suite${RESET} ${DIM}(Live SMU Manager)${RESET}"
-        echo -e "    ${CYAN}[6] Wake-on-LAN${RESET}     ${DIM}(Port Selector)${RESET}  ${CYAN}[P] Pin Stable Layer${RESET}   ${DIM}(OSTree Backup)${RESET}"
-        echo -e "    ${CYAN}[7] GFX1013 Fix${RESET}     ${DIM}(Async Tweak)${RESET}    ${CYAN}[M] CU Map Matrix${RESET}    ${DIM}(Harvest Map)${RESET}"
+        echo -e "    ${CYAN}[3] ACPI Table Fix${RESET}  ${DIM}(Install/Uni)${RESET}       ${CYAN}[4] RAM/VRAM Split${RESET}  ${DIM}(Dynamic Split)${RESET}"
+        echo -e "    ${CYAN}[X] Xbox Adapter${RESET}    ${DIM}(Xone Driver)${RESET}       ${CYAN}[5] CPU OC & CU Suite${RESET} ${DIM}(Live SMU Manager)${RESET}"
+        echo -e "    ${CYAN}[6] Wake-on-LAN${RESET}     ${DIM}(Port Selector)${RESET}     ${CYAN}[P] Pin Stable Layer${RESET}   ${DIM}(OSTree Backup)${RESET}"
+        echo -e "    ${CYAN}[7] GFX1013 / FSR 4.1.1${RESET} ${DIM}(Async Tweak)${RESET}   ${CYAN}[M] CU Map Matrix${RESET}    ${DIM}(Harvest Map)${RESET}"
         echo -e "    ${CYAN}[O] CU Harvest Maps${RESET} ${DIM}(Web Browser)${RESET}"
         echo ""
 
@@ -3410,7 +3381,7 @@ show_menu() {
 
 
         # Safe Prompt Parser (Instant Typing Response Keystroke Engine)
-        type_prompt "  Select an option [0-7, A-G, H, O, P, R, S, X]: " 0.03
+        type_prompt "  Select an option [0-7, A-I, O, P, Q, R, S, X]: " 0.03
         choice=""
         read -n 1 -s choice || true
         echo ""
@@ -3420,26 +3391,9 @@ show_menu() {
             2) install_red_pill ;;
             3) toggle_acpi_fix ;;
             4) toggle_ram_split ;;
-
-            # 🧬 CONNECT THE CODE ENTRY TO THE EXECUTION SWITCH HERE:
-            x|X) toggle_xbox_adapter ;;
-
             5) install_overclock ;;
             6) install_wake_on_lan ;;
             7) toggle_compute_queue_fix ;;
-
-            # 🚀 UPDATED CORRESPONDING SWITCH ENGINES NATIVELY
-            g|G)
-                clear
-                echo -e "${CYAN}Displaying Cyan Skillfish Governor SMU Version...${NC}"
-                echo ""
-                sudo cyan-skillfish-governor-smu --version
-                echo ""
-                read -rp "Press [Enter] to return to the main menu..."
-                ;;
-            h|H) update_cyan-skillfish ;; # Captures your new Section 2 choice cleanly
-            i|I) configure_governor_profile ;;
-            m|M) view_cu_map ;; # Moved from lower case H to preserve loop safety mappings
 
             a|A)
                 echo -e "${GREEN}Executing Temporary Start...${NC}"
@@ -3467,24 +3421,46 @@ show_menu() {
                 sleep 2
                 ;;
             f|F)
+                # 🧬 LOCAL SIGNAL GATE: Temporarily redirects Ctrl+C straight to a graceful menu return
+            trap 'echo -e "\nReturning safely to menu..."; break' SIGINT
+
+            clear
+            echo -e "${CYAN}Displaying Service Status...${NC}"
+            # 🎯 FIX: --no-pager forces the text to drop cleanly into your script without freezing the terminal viewer
+            sudo systemctl status cyan-skillfish-governor-smu -l --no-pager
+            echo ""
+            read -rp "Press [Enter] to return to the main menu..." dummy
+
+            # 🧼 REMOVE THE TRAP: Restores default script execution behavior before returning to your loops
+            trap - SIGINT
+            ;;
+            g|G)
                 clear
-                echo -e "${CYAN}Displaying Service Status...${NC}"
-                sudo systemctl status cyan-skillfish-governor-smu
+                echo -e "${CYAN}Displaying Cyan Skillfish Governor SMU Version...${NC}"
+                echo ""
+                sudo cyan-skillfish-governor-smu --version
                 echo ""
                 read -rp "Press [Enter] to return to the main menu..."
+                ;;
+            h|H) update_cyan-skillfish ;; # Captures your new Section 2 choice cleanly
+            i|I) configure_governor_profile ;;
+
+            # 🚀 UPDATED CORRESPONDING SWITCH ENGINES NATIVELY
+            m|M) view_cu_map ;; # Moved from lower case H to preserve loop safety mappings
+            o|O) launch_html_dashboard ;;
+            p|P) pin_active_image_layer ;;         # Locks down your verified v1.5 deployment via ostree pin
+            r|R)
+                print_info "Reinitializing toolkit memory tracking blocks..."
+                sleep 0.5
+                exec bash "$SCRIPT_PATH" "$@"
                 ;;
             s|S)
                 run_status
                 type_prompt "  Press [any key] to return to the toolkit main menu... " 0.03
                 read -n 1 -s -r || true
                 ;;
-            r|R)
-                print_info "Reinitializing toolkit memory tracking blocks..."
-                sleep 0.5
-                exec bash "$SCRIPT_PATH" "$@"
-                ;;
-            p|P) pin_active_image_layer ;;         # Locks down your verified v1.5 deployment via ostree pin
-            o|O) launch_html_dashboard ;;
+            # 🧬 CONNECT THE CODE ENTRY TO THE EXECUTION SWITCH HERE:
+            x|X) toggle_xbox_adapter ;;
 
             # 🧬 REDIRECTED TO THE NEW INTERACTIVE CLOSURE SYSTEM:
             0)
