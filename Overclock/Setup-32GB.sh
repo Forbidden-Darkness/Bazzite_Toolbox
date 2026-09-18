@@ -8,7 +8,8 @@ DIM='\033[38;2;110;110;110m' local NC='\033[0m' local GREEN='\033[0;32m'
 B_GREEN='\033[1;32m' local MAGENTA="\033[1;95m" local BOLD='\033[1m'
 
 echo ""
-echo -e "  ${RED}RED Pill Suite Active Deployment Profile [●]${NC}"
+# 🎯 VERSION BUMP LOG: Explicitly registers the new modernization suite profile
+echo -e "  ${RED}RED Pill Suite Active Deployment Profile v2.0 [●]${NC}"
 echo -e "  ${YELLOW}[●] NOTICE: This deployment process takes approximately 25 minutes from start to finish.${NC}"
 echo -e "      ${DIM}Please hold steady and let the background transaction compiler finish completely.${NC}"
 echo ""
@@ -87,7 +88,6 @@ echo -e "${B_GREEN}Setup Complete${NC}"
 echo -e "Please reboot your system using the following command: ${B_BLUE}systemctl reboot${NC}"
 echo ""
 
-# 🎯 FULLY RESTORED USER CAUTION & OVERCLOCKING INFRASTRUCTURE WARNING BANNER
 echo -e "\033[5m${RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${RED}║${NC}  ${BOLD}${YELLOW}[⚠] CRITICAL POST-REBOOT CONFIGURATION REQUIRED${NC}                                            ${RED}║${NC}"
 echo -e "${RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
