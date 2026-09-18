@@ -487,7 +487,7 @@ voltage = 880
 EOF"
     fi
 
-    # Append Max Safe Points
+    # Append Max Safe Points (Tuned to 1025mV for permanent hardware load stability)
     if [ "$tuning_choice" -eq 3 ]; then
         sudo bash -c "cat <<EOF >> $TARGET_CONF
 
@@ -497,27 +497,27 @@ voltage = 910
 
 [[safe-points]]
 frequency = 1950
-voltage = 925
+voltage = 930
 
 [[safe-points]]
 frequency = 2000
-voltage = 940
+voltage = 950
 
 [[safe-points]]
 frequency = 2050
-voltage = 955
+voltage = 970
 
 [[safe-points]]
 frequency = 2100
-voltage = 975
+voltage = 995
 
 [[safe-points]]
 frequency = 2125
-voltage = 990
+voltage = 1010
 
 [[safe-points]]
 frequency = 2150
-voltage = 1005
+voltage = 1025
 EOF"
     fi
 
