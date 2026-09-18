@@ -6,10 +6,11 @@
 YELLOW='\033[1;33m' local B_BLUE='\033[1;34m' local RED='\033[0;31m'
 DIM='\033[38;2;110;110;110m' local NC='\033[0m' local GREEN='\033[0;32m'
 B_GREEN='\033[1;32m' local MAGENTA="\033[1;95m" local BOLD='\033[1m'
+local CYAN='\033[0;36m' local B_RED='\033[1;31m' local RESET='\033[0m'
 
 echo ""
-# 🎯 VERSION BUMP LOG: Explicitly registers the new v2.0 Blue Pill Suite
-echo -e "  ${B_BLUE}[●] BLUE Pill Suite Active Deployment Profile v2.0${NC}"
+# 🎨 COLORIZED VERSION LOG: Highlights the active v2.0 suite deployment trail in Cyan and Green
+echo -e "  ${B_BLUE}[●] BLUE Pill Suite Active Deployment Profile${RESET} │ ${CYAN}Version:${RESET} ${GREEN}v2.0${RESET}"
 echo -e "  ${YELLOW}[●] NOTICE: This deployment process takes approximately 25 minutes from start to finish.${NC}"
 echo -e "      ${DIM}Please hold steady and let the background transaction compiler finish completely.${NC}"
 echo ""
@@ -57,7 +58,6 @@ EOF' 2>/dev/null || true) &>/dev/null
 fi
 
 echo "[●] Step 5/8: Injecting performance flags into atomic kernel args (kargs)..."
-# Wipe out legacy conflicting kargs tracking footprints completely
 (rpm-ostree kargs --delete=zswap.enabled=1 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --delete=zswap.max_pool_percent=25 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --delete=zswap.compressor=lz4 2>/dev/null || true) &>/dev/null
@@ -77,7 +77,6 @@ echo "[●] Step 7/8: Finalizing ZRAM allocation targets and tuning virtual memo
 (sudo tee /etc/sysctl.d/99-swappiness.conf <<< "vm.swappiness = 100" 2>/dev/null || true) &>/dev/null
 (sudo bash -c 'cat << "EOF" > /etc/systemd/zram-generator.conf
 [zram0]
-# 🚀 TUNED: 16GB ZRAM Allocation Target for the Blue Pill Environment Cushion
 zram-size = 16384
 compression-algorithm = lz4
 EOF' 2>/dev/null || true) &>/dev/null
@@ -90,10 +89,10 @@ echo -e "${B_GREEN}Setup Complete${NC}"
 echo -e "Please reboot your system using the following command: ${B_BLUE}systemctl reboot${NC}"
 echo ""
 
-# 🎯 FULLY PRESERVED IDENTITY CRITICAL WARNINGS OVERLAY
-echo -e "\033[5m${RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${RED}║${NC}  ${BOLD}${YELLOW}[⚠] CRITICAL POST-REBOOT CONFIGURATION REQUIRED${NC}                                            ${RED}║${NC}"
-echo -e "\033[5m${RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+# 🎯 CRITICAL ACCELERATION UPDATE: Flashes a vibrant, bright bold Red warning message shell loop layout!
+echo -e "\033[5m${B_RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${RESET}"
+echo -e "\033[5m${B_RED}║  [⚠] CRITICAL POST-REBOOT CONFIGURATION REQUIRED                                            ║${RESET}"
+echo -e "\033[5m${B_RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${RESET}"
 echo -e "    ${BOLD}${B_GREEN}● STEP 1:${NC} Do ${BOLD}${RED}NOT${NC} activate the Governor immediately upon rebooting."
 echo -e "    ${BOLD}${B_GREEN}● STEP 2:${NC} You ${BOLD}${YELLOW}MUST${NC} customize your hardware profiles to prevent instability targets."
 echo -e "    ${BOLD}${B_GREEN}● STEP 3:${NC} Open and modify your custom parameters using a text editor at this path:"
