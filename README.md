@@ -70,11 +70,24 @@ The toolbox acts as an intelligent abstraction layer over Bazzite's immutable, t
 * Real-time Asynchronous Mapping: Reads the raw mathematical hardware configuration matrix values to dynamically track active Compute Units (CUs), programmatically tracking uniform vs. harvested variations across Shader Engines (SE) and Shader Arrays (SH).
 * Lottery Identification Script: Evaluates register bitmasks to determine if the host silicon is a 40/40 CU lottery winner, automatically outputting dynamic template parameter recommendations to cleanly mask layout disruptions and rebase active cores up to their maximum performance boundaries.
 
-## 3. Isolated Performance Suit Customization (Blue & Red Pills)
+## 3. Isolated Performance Suite Customization (Blue & Red Pills)
 
-* Storage Optimization: Deploys an un-layered, fine-tuned BTRFS file-level storage architecture, wiping away default ZRAM swap spaces to make room for dedicated 16GB (Blue Pill) or 32GB (Red Pill) continuous disk storage structures.
-* Virtual Caching Adjustments: Forces the Linux Virtual Memory Subsystem parameters (vm.swappiness=180) to trigger aggressive memory tracking behavior, swapping background processes into the disk cache while reserving real-time system RAM for critical application operations.
-* ZSWAP Core Enhancements: Injects customized system flags to automate high-speed ZSWAP caches, locking in optimal memory data pools using light-weight lz4 compression loops.
+While the default community approach for the AMD BC-250 chip relies heavily on legacy disk-based ZSWAP profiles, this toolkit intentionally shifts the entire virtual memory caching pipeline to native, hardware-level **ZRAM drive channels**. 
+
+* **The Physical RAM Bottleneck:** Operating on an aggressive enthusiast layout split (**7GB System RAM / 9GB VRAM**) leaves an incredibly tight 7GB ceiling for background system tasks and Proton containers. Modern AAA titles easily request 12GB+ of system memory workspace.
+* **The Problem with ZSWAP (Disk Thrashing):** ZSWAP is a compressed cache layer that sits *in front* of a physical storage drive. When you overflow your tight 7GB RAM limit, ZSWAP is forced to aggressively dump data blocks down onto your storage disk. Because solid-state drives (SSDs) are thousands of times slower than raw RAM, your system enters a state of *Disk Thrashing*—dropping your gameplay into an unplayable, single-digit frame stutter crawl.
+* **The ZRAM Solution (In-Memory Acceleration):** ZRAM creates a completely isolated, virtual block device residing *entirely inside your actual RAM*. It compresses overflow files on the fly at a hardware level using high-speed **LZ4 kernel compression modules**. 
+
+By bypassing the slow physical storage drive entirely, ZRAM creates an unbottlenecked, ultra-fast **39GB total execution workspace** (7GB physical + 32GB virtual for Red Pill, or 7GB physical + 16GB virtual for Blue Pill). This completely eliminates asset streaming micro-stutters, stabilizes frame pacing, and keeps your camera pans buttery smooth right at your **60 FPS target**!
+## ❓ Frequently Asked Questions (FAQ)
+
+### What is the functional difference between the "Blue Pill" and "Red Pill" configurations?
+The distinct suite selections alter system memory paging constraints entirely inside a virtual ramdisk based on your underlying hardware allocation priorities:
+* **Blue Pill (16GB Optimization Profile):** This mode provisions an ultra-high-speed 16GB virtual ZRAM cache loop natively in your system RAM. It is meticulously configured for stock memory layouts (such as 12GB System / 4GB VRAM splits) to provide a lightweight, balanced memory cushion without reserving extensive background compression tables.
+* **Red Pill (32GB Optimization Profile):** This profile provisions a heavy-duty 32GB virtual ZRAM device block entirely inside your system RAM. It is custom-tailored specifically for extreme enthusiast layouts (such as the 7GB System / 9GB VRAM High Split) to deliver a massive compressed safe space, completely absorbing vast computational pages when running dense dynamic memory configurations.
+
+### Why is an explicit compressed RAM cache required for custom VRAM splits?
+The AMD BC-250 chip operates on a hard fixed 16GB total pool of unified GDDR6 memory. Dropping the default operating system allocation parameters down to narrow thresholds (leaving only 6GB or 7GB under the Extreme and High splits) leaves inadequate space for standard Bazzite game launchers and runtime desktop containers. By displacing volatile system data pools into an unbottlenecked, ultra-fast LZ4 ZRAM memory cushion rather than letting them hit a slow, fragmented physical drive swapfile, your architecture completely mitigates application crashes and maintains high computing throughput despite physical RAM restrictions.
 
 ## 4. Bazzite Core Graphical Splash Screen Shield
 
@@ -178,7 +191,7 @@ The Bazzite Toolbox manipulates the physical layout of the system registers by d
 |---|---|---|---|
 | RAM/VRAM Partitioner | Maps system modifications into physical motherboard NVRAM blocks through the low-level kernel driver interface /dev/nvram. | Manipulates the Linux Virtual Memory Translation Table Manager (ttm.pages_limit and ttm.page_pool_size). Configures custom hardware shared caching pools via amdgpu.gttsize. | CMOS Safety Gate: Restores a factory 8GB hardware buffer floor natively via an compiled C module before dropping OS kernel keys, preventing Out-Of-Memory display server lockups. |
 | Silicon Harvest Matrix | Directly interrogates active GFX render nodes (/dev/dri/renderD128) using direct low-level binding blocks against libdrm_amdgpu.so.1. | Decodes raw hardware register arrays to isolate uniform vs. harvested variations across Shader Engines (SE) and Shader Arrays (SH). | Atomic Isolation: Operates strictly as an un-layered, read-only system probe. It forces zero permanent file changes, letting non-Linux users map layouts safely. |
-| Blue/Red Pill Suites | Displaces hardware volatile caches out of memory registers. | Completely disables default system ZRAM blocks. Deploys a dedicated, continuous BTRFS file-level storage architecture via /var/swap/swapfile. | Swappiness Ceiling: Injects explicit rules (vm.swappiness=180) that aggressively shift inactive application data blocks onto disk storage, preserving system RAM for processing frames. |
+| Blue/Red Pill Suites | Displaces hardware volatile caches out of memory registers. | Completely disables default disk-throttling swapfiles. Deploys a dedicated, high-speed virtual ZRAM device block architecture natively in system RAM. | Swappiness Clamping: Injects explicit rules (vm.swappiness=100) that forcefully prioritize raw physical memory allocation, shifting inactive background processes into compressed RAM drives. |
 | ACPI Firmware Fix | Injects custom 8-core CPU hardware management layout tables natively into the live system ACPI parsing tree. | Layers specific, split runtime power manager binaries (cpupower or kernel-tools) straight into the immutable image package base. | Dual-CPIO Mapping: Synchronizes custom tables simultaneously across /boot and /boot/efi directories, ensuring boot loader recovery options remain active if image trees shift. |
 
 ------------------------------
