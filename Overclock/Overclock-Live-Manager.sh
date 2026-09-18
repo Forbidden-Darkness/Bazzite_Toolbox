@@ -279,7 +279,7 @@ run_cpu_core_stress_test() {
 # 🧬 HARDWARE-AWARE PERFORMANCE PROFILE CONFIGURATION GENERATOR
 # ==============================================================================
 configure_governor_profile() {
-        clear
+    clear
     echo ""
     echo -e "  ${CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║               ${BOLD}${BICyan}BC-250 SILICON GOVERNOR & PERFORMANCE PROFILE MANAGER${NC}                         ${CYAN}║${NC}"
@@ -287,208 +287,115 @@ configure_governor_profile() {
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  ${CYAN}╔═ Dynamic Telemetry Scanner ═════════════════════════════════════════════════════════════════╗${NC}"
-    
-    # 🚀 ADVANCED HYBRID SILICON AUTODETECTOR LAYER
-    local detected_cus=24
 
-    # 🔍 WinnieLV WGP Mask Parser: Dynamically decodes active live config files
+    local detected_cus=24
     if [[ -f /etc/bc250-cu-live-manager.conf ]]; then
         local raw_masks
         raw_masks=$(grep "BC250_WGP_MASKS=" /etc/bc250-cu-live-manager.conf | cut -d= -f2)
         if [[ -n "$raw_masks" ]]; then
-            # Sum up bit elements across all four shader engine channels smoothly
             local total_bits=0
             IFS=',' read -r -a mask_array <<< "$raw_masks"
             for mask in "${mask_array[@]}"; do
                 local val=$((mask))
-                # Counts active binary bits to pull exact total routed WGPs
-                for ((i=0; i<32; i++)); do
-                    (( (val >> i) & 1 )) && ((total_bits++))
-                done
+                for ((i=0; i<32; i++)); do (( (val >> i) & 1 )) && ((total_bits++)); done
             done
-            # Each active bit represents 1 WGP which houses exactly 2 active CUs
             (( detected_cus = total_bits * 2 ))
         fi
     fi
 
-    # Fallback to direct kernel diagnostics query if manager profile config hasn't been written yet
     if (( detected_cus == 0 )) && command -v umr &> /dev/null; then
         detected_cus=$(umr -i 0 -g 2>/dev/null | grep -i "cu_per_sh" | awk '{print $3 * 4}')
     fi
-    if [[ ! "$detected_cus" =~ ^[0-9]+$ ]] || (( detected_cus <= 0 )); then
-        detected_cus=24
-    fi
+    if [[ ! "$detected_cus" =~ ^[0-9]+$ ]] || (( detected_cus <= 0 )); then detected_cus=24; fi
 
     local live_threads=$(nproc 2>/dev/null || echo "12")
     local detected_cores=$(( live_threads / 2 ))
-    
+
     echo -e "  ${CYAN}║${NC}   ${BOLD}${GREEN}✔ ACTIVE HARDWARE IDENTIFIED:${NC} ${detected_cus}/40 Compute Units  │  ${detected_cores} CPU Cores / ${live_threads} Threads            ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-        # 📋 AUDIT NO. 1: COOLING INFRASTRUCTURE
-    echo -e "  ${CYAN}╔═ [1/5] HARDWARE AUDIT: COOLING INFRASTRUCTURE ══════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║${NC}  Select the physical cooling system configuration currently active on this node:            ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}1)${NC} Stock / Factory OEM Basic Air Cooler                                                   ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}2)${NC} High-End Aftermarket Air Cooled (Heavy Fin Stack / High CFM Fans)                      ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}3)${NC} Liquid Cooled / AIO Closed Loop / Custom Water Block                                   ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    local cooling_choice=""
-    read -p "  Enter cooling profile option [1-3]: " cooling_choice
-
-    local THROTTLE_TEMP=72
-    local RECOVERY_TEMP=65
-    local COOLING_LABEL="Stock Air"
-
+    echo -e "  ${CYAN}╔═ HARDWARE AUDIT: COOLING SYSTEM AND ENVIRONMENT ════════════════════════════════════════════╗${NC}"
+    # 🎨 Visual Color Anchors: Choice 1 in Red, Choice 2 in Green, Choice 3 in Yellow
+    echo -e "   ${RED}1)${NC} Stock Air Cooler  │  ${GREEN}2)${NC} Premium Aftermarket Air  │  ${YELLOW}3)${NC} Liquid Cooled Core"
+    echo -n "  Enter cooling profile option [1-3]: "
+    local cooling_choice; read -r cooling_choice
+    local THROTTLE_TEMP=83 local RECOVERY_TEMP=75 local COOLING_LABEL="Stock Air"
     case "$cooling_choice" in
-        1) THROTTLE_TEMP=72; RECOVERY_TEMP=65; COOLING_LABEL="Stock Air (Restricted)";;
         2) THROTTLE_TEMP=84; RECOVERY_TEMP=75; COOLING_LABEL="Premium Air Cooled";;
         3) THROTTLE_TEMP=65; RECOVERY_TEMP=58; COOLING_LABEL="Liquid Cooled Core";;
-        *) echo -e "  ${RED}❌ Invalid choice. Falling back to safe Stock Air parameters.${NC}"; THROTTLE_TEMP=72;;
+        *) THROTTLE_TEMP=83; RECOVERY_TEMP=75; COOLING_LABEL="Stock Air (Optimized)";;
     esac
-    echo ""
 
-        # 📋 AUDIT NO. 2: POWER BUDGET (300W - 500W+ STRATA)
+    # 🚀 SMART INTERFACE DETECTOR: Dynamically manages DBus based on launch style to fix the Resume Mode bug
+    echo -e "\n  ${CYAN}╔═ SYSTEM INTERFACE AUDIT: BAZZITE EXECUTION ENVIRONMENT ═════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║${NC}  Are you primarily running this system inside Steam Gaming Mode (Big Picture interface)?    ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    # 🎯 FIX: Split echo -ne from the read trap to cleanly force color translation on the same line [1]
+    echo -ne "  Booting into Steam Gaming Mode interface? (${GREEN}y${NC}/${RED}N${NC}): "
+    local is_gaming_mode; read -r is_gaming_mode
+    local dbus_state="true"
+    if [[ "$is_gaming_mode" =~ ^[Yy]$ ]]; then dbus_state="false"; fi
+
+    # 📋 AUDIT NO. 2: POWER BUDGET
     echo -e "  ${CYAN}╔═ [2/5] HARDWARE AUDIT: POWER INFRASTRUCTURE overhead ═══════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Enter your physical Power Supply Unit (PSU) maximum continuous wattage rating:             ${CYAN}║${NC}"
     echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
     echo -e "  ${CYAN}║${NC}   ${DIM}* Platform registers custom profiles from a 300W baseline up to a 500W+ extreme ceiling * ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    local psu_wattage=""
-    read -p "  PSU Wattage Rating (e.g., 300, 450, 500): " psu_wattage
+    local psu_wattage; read -p "  PSU Wattage Rating (e.g., 300, 450, 500): " psu_wattage
+    [[ "$psu_wattage" =~ ^[0-9]+$ ]] || psu_wattage=300
 
-    if ! [[ "$psu_wattage" =~ ^[0-9]+$ ]]; then
-        echo -e "  ${RED}⚠ Invalid format. Defaulting power tracking to minimal 300W limits.${NC}"
-        psu_wattage=300
-    fi
-    echo ""
-
-            # 📋 AUDIT NO. 3: FUTURE TARGET COMPUTE UNITS (INTELLIGENT HYBRID CONFIRMATION)
-    echo -e "  ${CYAN}╔═ [3/5] HARDWARE AUDIT: GRAPHICS COMPUTE UNIT PROFILES ══════════════════════════════════════╗${NC}"
+    # 📋 AUDIT NO. 3: FUTURE TARGET COMPUTE UNITS
+    echo -e "\n  ${CYAN}╔═ [3/5] HARDWARE AUDIT: GRAPHICS COMPUTE UNIT PROFILES ══════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cus}/40 Compute Units (CUs) currently active on this core.         ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "  ${CYAN}║${NC}   Are you planning to change or target a different operational footprint?                   ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}                                                                                             ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}1)${NC} Target 36 CUs Active  ${DIM}(Down-binned / Maximum High-Efficiency Target Layout)${NC}            ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}2)${NC} Target 38 CUs Active  ${DIM}(Optimal Mid-Tier Custom Performance Curve Baseline)${NC}             ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}3)${NC} Target 40 CUs Active  ${DIM}(Absolute Full Die Silicon Array Matrix Unlocked)${NC}                ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    local cu_choice=""
-    read -p "  Select target CU configuration profile [1-3]: " cu_choice
-
+    # 🎨 Visual Color Anchors: Choice 1 in Red, Choice 2 in Green, Choice 3 in Yellow
+    echo -e "   ${RED}1)${NC} Target 36 CUs Active  │  ${GREEN}2)${NC} Target 38 CUs Active  │  ${YELLOW}3)${NC} Target 40 CUs Active"
+    echo -n "  Select target CU configuration profile [1-3]: "
+    local cu_choice; read -r cu_choice
     local ACTIVE_CUS=38
-    case "$cu_choice" in
-        1) ACTIVE_CUS=36;;
-        2) ACTIVE_CUS=38;;
-        3) ACTIVE_CUS=40;;
-        *) echo -e "  ${YELLOW}⚠ Unknown parameter. Defaulting profile curve to stable 38 CU footprint.${NC}"; ACTIVE_CUS=38;;
-    esac
-    echo ""
+    case "$cu_choice" in 1) ACTIVE_CUS=36;; 2) ACTIVE_CUS=38;; 3) ACTIVE_CUS=40;; esac
 
-        # 📋 AUDIT NO. 4: FUTURE TARGET CPU CORES
-    echo -e "  ${CYAN}╔═ [4/5] HARDWARE AUDIT: CPU CORE COMPLEX ALLOCATION ═════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cores} CPU Cores / ${live_threads} Threads currently active on this node.          ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "  ${CYAN}║${NC}   Select your target operational profile layout:                                            ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}                                                                                             ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}1)${NC} Target 6 Cores / 12 Threads  ${DIM}(Power-saving / High-Efficiency Sweet Spot)${NC}               ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}2)${NC} Target 8 Cores / 16 Threads  ${DIM}(Full Hardware Multithreading Unlocked)${NC}                   ${CYAN}║${NC}"
+    # 📋 AUDIT NO. 4: FUTURE TARGET CPU CORES
+    echo -e "\n  ${CYAN}╔═ [4/5] HARDWARE AUDIT: CPU CORE COMPLEX ALLOCATION ═════════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cores} CPU Cores / ${live_threads} Threads active on this node.               ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    local core_choice=""
-    read -p "  Select target CPU core complex [1-2]: " core_choice
-
-    local ACTIVE_CORES=8
-    local INTERVAL_SAMPLE=4000
-    case "$core_choice" in
-        1)
-            ACTIVE_CORES=6
-            INTERVAL_SAMPLE=6000   # Loosen to 6ms to protect a 12-thread pool from telemetry choke
-            ;;
-        2)
-            ACTIVE_CORES=8
-            INTERVAL_SAMPLE=4000   # Keep at ultra-fast 4ms for full 16-thread pools
-            ;;
-        *)
-            echo -e "  ${YELLOW}⚠ Defaulting to full 8 Core / 16 Thread complex matrices.${NC}"
-            ACTIVE_CORES=8
-            INTERVAL_SAMPLE=4000
-            ;;
-    esac
-    echo ""
+    # 🎨 Visual Color Anchors: Choice 1 in Green, Choice 2 in Yellow
+    echo -e "   ${GREEN}1)${NC} Target 6 Cores / 12 Threads (Balanced)  │  ${YELLOW}2)${NC} Target 8 Cores / 16 Threads (Maximum)"
+    echo -n "  Select target CPU core complex [1-2]: "
+    local core_choice; read -r core_choice
+    local ACTIVE_CORES=8 local INTERVAL_SAMPLE=4000
+    case "$core_choice" in 1) ACTIVE_CORES=6; INTERVAL_SAMPLE=6000;; *) ACTIVE_CORES=8; INTERVAL_SAMPLE=4000;; esac
 
     # 📋 SYSTEM TARGET TUNING LEVEL SELECTION
-    echo -e "  ${CYAN}╔═ [5/5] HARDWARE AUDIT: SYSTEM TUNING OPTIMIZATION PROFILE ══════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║${NC}  Select the desired optimization and frequency scaling profile layer for this host:         ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}1)${NC} Normal Computer Use  ${DIM}(Silent profile, low voltage, browser/desktop work)${NC}               ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}2)${NC} Standard Gaming      ${DIM}(Balanced high-efficiency foundation at 1800MHz)${NC}                  ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║${NC}   ${BIWhite}3)${NC} Heavy Overclocking   ${DIM}(Absolute Max Custom Curve: Up to 2150MHz @ 1020mV)${NC}               ${CYAN}║${NC}"
+    echo -e "\n  ${CYAN}╔═ [5/5] HARDWARE AUDIT: SYSTEM TUNING OPTIMIZATION PROFILE ══════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    local tuning_choice=""
-    read -p "  Select tuning profile [1-3]: " tuning_choice
-    echo ""
+    # 🎨 Visual Color Anchors: Choice 1 in Green, Choice 2 in Cyan, Choice 3 in Red
+    echo -e "   ${GREEN}1)${NC} Normal Computer Use  │  ${CYAN}2)${NC} Standard Gaming (1800MHz)  │  ${RED}3)${NC} Heavy Overclocking (2150MHz)"
+    echo -n "  Select tuning profile [1-3]: "
+    local tuning_choice; read -r tuning_choice
 
-    local PROFILE_LABEL=""
-    local RAMP_NORMAL=15
-    local RAMP_BURST=40
-    local FREQ_MAX=1400
-    local VOLT_MAX=780
-
+    local PROFILE_LABEL="NORMAL COMPUTER USE" local RAMP_NORMAL=5 local RAMP_BURST=15 local FREQ_MAX=1400 local VOLT_MAX=780
     case "$tuning_choice" in
-        1)
-            PROFILE_LABEL="NORMAL COMPUTER USE (LOW POWER)"
-            RAMP_NORMAL=5; RAMP_BURST=15; FREQ_MAX=1400; VOLT_MAX=780
-            ;;
-        2)
-            PROFILE_LABEL="STANDARD GAMING (BALANCED PERFORMANCE)"
-            RAMP_NORMAL=10; RAMP_BURST=50; FREQ_MAX=1800; VOLT_MAX=900
-            ;;
-        3)
-            PROFILE_LABEL="HEAVY OVERCLOCKING GAMEPLAY (MAX CEILING)"
-            RAMP_NORMAL=15; RAMP_BURST=80; FREQ_MAX=2150; VOLT_MAX=1020
-            ;;
-        *)
-            echo -e "  ${RED}❌ Invalid tuning layout selection. Aborting...${NC}"; sleep 1.5; return 1;;
+        2) PROFILE_LABEL="STANDARD GAMING"; RAMP_NORMAL=10; RAMP_BURST=50; FREQ_MAX=1800; VOLT_MAX=900;;
+        3) PROFILE_LABEL="HEAVY OVERCLOCKING"; RAMP_NORMAL=15; RAMP_BURST=80; FREQ_MAX=2150; VOLT_MAX=1005;;
+        *) tuning_choice=1;;
     esac
 
-    # 🧬 THE STEPPED INTERCEPT ENGINE: Automated downscaling enforcement rules based on PSU Strata
-    if (( psu_wattage >= 300 && psu_wattage < 400 )); then
-        echo -e "  ${RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${RED}║  [⚠] CRITICAL HARDWARE LOCKOUT: SEVERE PSU CONSTRAINT ENFORCED                              ║${NC}"
-        echo -e "  ${RED}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-        echo -e "  ${RED}║  Your reported ${psu_wattage}W power supply is below the minimum required headroom for 3D gaming.  ║${NC}"
-        echo -e "  ${RED}║  Toolkit has hardlocked profile to Normal Computer Use (1400MHz) to prevent OCP trips.      ║${NC}"
-        echo -e "  ${RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-        echo ""
-        PROFILE_LABEL="NORMAL COMPUTER USE (FORCED SAFETY CLAMP)"
-        FREQ_MAX=1400; VOLT_MAX=780; RAMP_NORMAL=5; RAMP_BURST=15; tuning_choice=1
-
-    elif (( psu_wattage >= 400 && psu_wattage < 500 )) && [ "$tuning_choice" -eq 3 ]; then
-        echo -e "  ${YELLOW}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${YELLOW}║  [⚠] MODERATE POWER HEADROOM DETECTED: AUTO-DOWN-SAMPLING PERFORMANCE ACTIVE                ║${NC}"
-        echo -e "  ${YELLOW}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-        echo -e "  ${YELLOW}║  Your reported ${psu_wattage}W PSU cannot safely protect against 2150MHz transient spikes.           ║${NC}"
-        echo -e "  ${YELLOW}║  Toolkit has safely scaled your target down to Standard Gaming mode (1800MHz @ 900mV).      ║${NC}"
-        echo -e "  ${YELLOW}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-        echo ""
-        PROFILE_LABEL="STANDARD GAMING (AUTO-DOWNSCALED FROM MAXIMUM CEILING)"
-        FREQ_MAX=1800; VOLT_MAX=900; RAMP_BURST=50; tuning_choice=2
+    # Power Safety Lockouts
+    if (( psu_wattage < 400 )); then
+        PROFILE_LABEL="NORMAL USE (FORCED_CLAMP)"; FREQ_MAX=1400; VOLT_MAX=780; tuning_choice=1
+    elif (( psu_wattage < 500 )) && [ "$tuning_choice" -eq 3 ]; then
+        PROFILE_LABEL="STANDARD GAMING (DOWNSCALED_PSU)"; FREQ_MAX=1800; VOLT_MAX=900; tuning_choice=2
     fi
-    echo -e "  ${YELLOW}[ℹ] Compiling target configurations using tailored hardware masks...${NC}"
+
     local TARGET_CONF="/etc/cyan-skillfish-governor-smu/config.toml"
     sudo mkdir -p /etc/cyan-skillfish-governor-smu 2>/dev/null
+    [[ -f "$TARGET_CONF" ]] && sudo cp "$TARGET_CONF" "${TARGET_CONF}.bak_$(date +%Y%m%d_%H%M%S)" 2>/dev/null
 
-    # 🚀 AUTO-BACKUP TRACE: Preserves existing setup properties cleanly before overwriting
-    if [[ -f "$TARGET_CONF" ]]; then
-        sudo cp "$TARGET_CONF" "${TARGET_CONF}.bak_$(date +%Y%m%d_%H%M%S)" 2>/dev/null
-    fi
-
+    # Write Master Template
     sudo bash -c "cat <<EOF > $TARGET_CONF
 # ==============================================================================
 # PROFILE TEMPLATE LAYOUT: $PROFILE_LABEL
@@ -498,58 +405,48 @@ configure_governor_profile() {
 # ==============================================================================
 
 [timing.intervals]
-sample = $INTERVAL_SAMPLE          # Auto-scaled based on targeted operational CPU core complex
-adjust = 30000         # 30ms loop ensures smooth clock stepping without micro-stutter
+sample = $INTERVAL_SAMPLE
+adjust = 30000
 
 [gpu-usage]
 fix-freq = true
 fix-metrics = true
-method = \"busy-flag\"   # Best compatibility mode for RDNA2 Cyan Skillfish architectures
-flush-every = 5        # Flushes frequently to completely eliminate micro-stutter
+method = \"busy-flag\"
+flush-every = 5
 
 [gpu]
-set-method = \"smu\"     # Direct SMU control for immediate frequency overrides
-target_card = \"card1\"  # Points directly to your active BC-250 hardware node
+set-method = \"smu\"
+target_card = \"card1\"
 
 [dbus]
-enabled = true         # Enables inter-process communication for system overlays
+enabled = $dbus_state
 
-# MHz/ms scaling rates
 [timing.ramp-rates]
-normal = $RAMP_NORMAL            # Tracking speed optimized for active profile limits
-burst = $RAMP_BURST             # Frequency jumps scaled dynamically to match your \${psu_wattage}W current allocation
+normal = $RAMP_NORMAL
+burst = $RAMP_BURST
 
-# Evaluation sampling parameters
 [timing]
-burst-samples = 3      # Allows fast response to heavy engine load spikes
-down-events = 20       # High filtration to aggressively prevent framerate drops
+burst-samples = 3
+down-events = 20
 
-# Control loop window boundaries (MHz)
 [frequency-thresholds]
-adjust = 5             # Tighter control loop window for precise stability
-upper = 0.94           # Lock peak frequencies until utilization drops significantly
-lower = 0.82           # Force higher clocks even during brief engine stalls or asset loading
+adjust = 5
+upper = 0.94
+lower = 0.82
 
-# Utilization target margins (%)
 [load-target]
-upper = 0.80           # Prevents aggressive downclocking during variable frame times
-lower = 0.60           # Forces high clock retention during geometry/draw call pipeline limits
+upper = 0.80
+lower = 0.60
 
-# °C Thermal tracking configurations
 [temperature]
-throttling = $THROTTLE_TEMP        # HARD CEILING: Scaled directly from your \$COOLING_LABEL spec option
-throttling_recovery = $RECOVERY_TEMP # Safe temperature buffer to prevent rapid thermal stutter loops
-
-# ==============================================================================
-# CLOCK & VOLTAGE FREQUENCY CURVE
-# Ceiling and exponential safe-points auto-scaled for active spec parameters.
-# ==============================================================================
+throttling = $THROTTLE_TEMP
+throttling_recovery = $RECOVERY_TEMP
 
 [frequency-range]
 min = 350
-max = $FREQ_MAX             # Dynamic performance ceiling applied securely
-min_voltage = 700      # Stabilized voltage floor for hardware system bus
-max_voltage = $VOLT_MAX     # Maximum voltage ceiling matching profile budget limit
+max = $FREQ_MAX
+min_voltage = 700
+max_voltage = $VOLT_MAX
 
 [[safe-points]]
 frequency = 350
@@ -561,74 +458,73 @@ voltage = 700
 
 [[safe-points]]
 frequency = 1000
-voltage = 740          # Raised low-state voltage to prevent hard-lock idling crashes
+voltage = 730
 
 [[safe-points]]
 frequency = 1400
-voltage = 780          # Adjusted mid-state baseline
+voltage = 765
 EOF"
-    # Appends extra safe points up to 1800MHz if option 2 or 3 is authorized
+
+    # Append Mid Safe Points
     if [ "$tuning_choice" -gt 1 ]; then
-    sudo bash -c "cat <<EOF >> $TARGET_CONF
+        sudo bash -c "cat <<EOF >> $TARGET_CONF
 
 [[safe-points]]
 frequency = 1500
-voltage = 810          # Exponential scaling begins here to combat silicon leakage
+voltage = 790
 
 [[safe-points]]
 frequency = 1600
-voltage = 840
+voltage = 820
 
 [[safe-points]]
 frequency = 1700
-voltage = 870
+voltage = 850
 
 [[safe-points]]
 frequency = 1800
-voltage = 900          # High-efficiency gaming foundation threshold
+voltage = 880
 EOF"
     fi
 
-    # Appends your exact extreme safe points up to 2150MHz ONLY if 500W+ overhead is verified
+    # Append Max Safe Points
     if [ "$tuning_choice" -eq 3 ]; then
-    sudo bash -c "cat <<EOF >> $TARGET_CONF
+        sudo bash -c "cat <<EOF >> $TARGET_CONF
 
 [[safe-points]]
 frequency = 1900
-voltage = 930
+voltage = 910
 
 [[safe-points]]
 frequency = 1950
-voltage = 945
+voltage = 925
 
 [[safe-points]]
 frequency = 2000
-voltage = 960          # 2GHz high-performance threshold
+voltage = 940
 
 [[safe-points]]
 frequency = 2050
-voltage = 975
+voltage = 955
 
 [[safe-points]]
 frequency = 2100
-voltage = 995          # Approaching high-stress limits (+20mV)
+voltage = 975
 
 [[safe-points]]
 frequency = 2125
-voltage = 1008         # High-leakage compensation step
+voltage = 990
 
 [[safe-points]]
 frequency = 2150
-voltage = 1020         # Maximum performance tier matching your exact --vid 1020 limit
+voltage = 1005
 EOF"
     fi
 
     echo -e "  ${GREEN}[✓] New config.toml compiled successfully using hardware constraints!${NC}"
     echo -e "  ${YELLOW}[⚙] Cycling changes into live governor service memory...${NC}"
-
     sudo systemctl daemon-reload 2>/dev/null || true
     sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null || true
-
     echo -e "  ${GREEN}[✓] Task complete! Active system profiles locked into memory space cleanly.${NC}\n"
     read -rp "  Press [Enter] to exit back to the main menu..."
 }
