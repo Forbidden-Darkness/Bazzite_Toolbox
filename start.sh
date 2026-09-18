@@ -3059,7 +3059,7 @@ voltage = 880
 EOF"
     fi
 
-    # Append Max Safe Points
+    # Append Max Safe Points (Tuned to 1015mV for high-load silicon stability)
     if [ "$tuning_choice" -eq 3 ]; then
         sudo bash -c "cat <<EOF >> $TARGET_CONF
 
@@ -3069,29 +3069,37 @@ voltage = 910
 
 [[safe-points]]
 frequency = 1950
-voltage = 925
+voltage = 930
 
 [[safe-points]]
 frequency = 2000
-voltage = 940
+voltage = 950
 
 [[safe-points]]
 frequency = 2050
-voltage = 955
+voltage = 970
 
 [[safe-points]]
 frequency = 2100
-voltage = 975
-
-[[safe-points]]
-frequency = 2125
 voltage = 990
 
 [[safe-points]]
+frequency = 2125
+voltage = 1000
+
+[[safe-points]]
 frequency = 2150
-voltage = 1005
+voltage = 1015
 EOF"
     fi
+
+    echo -e "  ${GREEN}[✓] New config.toml compiled successfully using hardware constraints!${NC}"
+    echo -e "  ${YELLOW}[⚙] Cycling changes into live governor service memory...${NC}"
+    sudo systemctl daemon-reload 2>/dev/null || true
+    sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null || true
+    echo -e "  ${GREEN}[✓] Task complete! Active system profiles locked into memory space cleanly.${NC}\n"
+    read -rp "  Press [Enter] to exit back to the main menu..."
+}
 
     echo -e "  ${GREEN}[✓] New config.toml compiled successfully using hardware constraints!${NC}"
     echo -e "  ${YELLOW}[⚙] Cycling changes into live governor service memory...${NC}"
