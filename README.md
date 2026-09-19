@@ -1,4 +1,3 @@
-------------------------------
 ## Bazzite Toolbox Installation & Technical Reference Guide
 A hardware-level automation utility and command-line management terminal custom-tailored for systems running Bazzite 43 and 44 Deck distributions on specialized AMD BC-250 architecture layouts (PlayStation 5 APU "Cyan Skillfish" platforms). This toolbox bridges low-level POSIX firmware compilation with transactional operating system parameters to securely unlock hardware registers, safely tune memory partitions, manage overclock interfaces, and preserve core system stability configurations.
 
@@ -12,7 +11,6 @@ Clone the repository, configure executable permissions, and initialize the prima
 
 ```bash
 if [ -d "Bazzite_Toolbox" ]; then read -p "Bazzite_Toolbox already exists. Overwrite? (y/N): " ans; [[ "$ans" =~ ^[Yy]$ ]] && rm -rf Bazzite_Toolbox || exit 1; fi && git clone https://github.com/Forbidden-Darkness/Bazzite_Toolbox.git && cd Bazzite_Toolbox/ && chmod +x *.sh && sudo ./start.sh
-
 ```
 
 ------------------------------
@@ -51,6 +49,7 @@ The toolbox acts as an intelligent abstraction layer over Bazzite's immutable, t
 │ • SMU Overclock Daemon Hooks    │                 │ • Protected quiet / rhgb Boot   │
 └─────────────────────────────────┘                 └─────────────────────────────────┘
 ```
+
 ------------------------------
 
 ## 💎 Core Optimization Engine Features
@@ -72,22 +71,11 @@ The toolbox acts as an intelligent abstraction layer over Bazzite's immutable, t
 
 ## 3. Isolated Performance Suite Customization (Blue & Red Pills)
 
-While the default community approach for the AMD BC-250 chip relies heavily on legacy disk-based ZSWAP profiles, this toolkit intentionally shifts the entire virtual memory caching pipeline to native, hardware-level **ZRAM drive channels**. 
+This toolkit completely overhauls Bazzite's virtual memory subsystem, introducing an ultra-dense, optimized **ZSWAP Core Matrix** specifically engineered to stabilize aggressive hardware splits.
 
 * **The Physical RAM Bottleneck:** Operating on an aggressive enthusiast layout split (**7GB System RAM / 9GB VRAM**) leaves an incredibly tight 7GB ceiling for background system tasks and Proton containers. Modern AAA titles easily request 12GB+ of system memory workspace.
-* **The Problem with ZSWAP (Disk Thrashing):** ZSWAP is a compressed cache layer that sits *in front* of a physical storage drive. When you overflow your tight 7GB RAM limit, ZSWAP is forced to aggressively dump data blocks down onto your storage disk. Because solid-state drives (SSDs) are thousands of times slower than raw RAM, your system enters a state of *Disk Thrashing*—dropping your gameplay into an unplayable, single-digit frame stutter crawl.
-* **The ZRAM Solution (In-Memory Acceleration):** ZRAM creates a completely isolated, virtual block device residing *entirely inside your actual RAM*. It compresses overflow files on the fly at a hardware level using high-speed **LZ4 kernel compression modules**. 
-
-By bypassing the slow physical storage drive entirely, ZRAM creates an unbottlenecked, ultra-fast **39GB total execution workspace** (7GB physical + 32GB virtual for Red Pill, or 7GB physical + 16GB virtual for Blue Pill). This completely eliminates asset streaming micro-stutters, stabilizes frame pacing, and keeps your camera pans buttery smooth right at your **60 FPS target**!
-## ❓ Frequently Asked Questions (FAQ)
-
-### What is the functional difference between the "Blue Pill" and "Red Pill" configurations?
-The distinct suite selections alter system memory paging constraints entirely inside a virtual ramdisk based on your underlying hardware allocation priorities:
-* **Blue Pill (16GB Optimization Profile):** This mode provisions an ultra-high-speed 16GB virtual ZRAM cache loop natively in your system RAM. It is meticulously configured for stock memory layouts (such as 12GB System / 4GB VRAM splits) to provide a lightweight, balanced memory cushion without reserving extensive background compression tables.
-* **Red Pill (32GB Optimization Profile):** This profile provisions a heavy-duty 32GB virtual ZRAM device block entirely inside your system RAM. It is custom-tailored specifically for extreme enthusiast layouts (such as the 7GB System / 9GB VRAM High Split) to deliver a massive compressed safe space, completely absorbing vast computational pages when running dense dynamic memory configurations.
-
-### Why is an explicit compressed RAM cache required for custom VRAM splits?
-The AMD BC-250 chip operates on a hard fixed 16GB total pool of unified GDDR6 memory. Dropping the default operating system allocation parameters down to narrow thresholds (leaving only 6GB or 7GB under the Extreme and High splits) leaves inadequate space for standard Bazzite game launchers and runtime desktop containers. By displacing volatile system data pools into an unbottlenecked, ultra-fast LZ4 ZRAM memory cushion rather than letting them hit a slow, fragmented physical drive swapfile, your architecture completely mitigates application crashes and maintains high computing throughput despite physical RAM restrictions.
+* **The ZSTD & Z3fold Compression Edge:** Rather than utilizing unoptimized, low-ratio compression fallbacks, the toolbox forcefully injects `zswap.compressor=zstd` and `zswap.zpool=z3fold` into the system boot entries. ZSTD provides extreme data density for complex gaming textures, while the Z3fold allocator allows the kernel to pack *three* compressed pages into a single physical memory frame instead of the standard two—increasing caching space efficiency by up to 50%!
+* **Hardened Cache Ceiling Allocation:** By expanding `zswap.max_pool_percent=40`, the kernel allows the compressed ZSWAP memory cache to safely claim up to **40% of physical RAM**. Coupled with an unfragmented 16GB (Blue Pill) or 32GB (Red Pill) continuous BTRFS storage swapfile, the architecture provides a massive, high-speed fallback buffer. This completely eliminates disk-thrashing frame drops and keeps your camera pans buttery smooth right at your **60 FPS target**!
 
 ## 4. Bazzite Core Graphical Splash Screen Shield
 
@@ -98,107 +86,10 @@ The AMD BC-250 chip operates on a hard fixed 16GB total pool of unified GDDR6 me
 * Xone Driver Integration: Seamlessly triggers localized module layering pipelines to hook and mount the official Microsoft Xbox Wireless Adapter driver stack (xone and kmod-xone), instantly enabling native wireless accessory functionality.
 * Fan Control & ACPI Voltage Overrides: Interrogates firmware registers to mount low-level sensor drivers (nct6687), exposing full PWM fan controller access to background daemon controllers (CoolerControl). It handles software-level ACPI architecture injection targets seamlessly, loading custom tables via early boot initrd overrides to safely stabilize clock speeds.
 
-### 6. Dynamic SMU CPU Overclocking Engine
-
-* **Direct Frequency Manipulation:** Abstracted via `Overclock-Live-Manager.sh`, this engine bypasses standard kernel frequency governors to hook directly into the hardware System Management Unit (SMU). It handles safe x86 clock-speed targeting, scaling manual frequencies up to the board's precise thermal limits.
-* **Voltage Alignment:** Dictates core clock parameters alongside specialized ACPI P-State tables, unlocking maximum single-threaded performance bounds for heavy execution loads.
-
-### 7. Core Compute Unit Live Manager Matrix
-
-* **Register Configuration Cache:** Manages real-time physical Compute Unit data profiles by writing states straight to `/etc/bc250-cu-live-manager.conf`. This acts as a persistent parameter map across immutable reboots.
-* **Dynamic WGP Bitmasking:** Programmatically tracking active vs. masked Work Group Processors (WGPs). It lets non-Linux operators seamlessly evaluate custom core combinations (ranging from stock 24 CUs up to the 40 CU physical matrix cap) while preserving structural stability tables.
-
-### 8. Xbox Wireless Adapter Native Integration (Xone Driver Stack)
-
-* **Immutable Layer Interlock:** Automates the injection and mounting of the third-party `xone` and `kmod-xone` hardware driver packages directly into the transactional file tree.
-* **Automated Device Handshake:** For platforms running Bazzite 43/44, the toolkit bypasses local package conflicts by directly triggering Bazzite's native `ujust toggle-xone` framework, creating an immediate plug-and-play interface for official USB wireless dongles.
-
-### 9. Hardware Wake-on-LAN Port Orchestrator
-
-* **Network Card Profiling:** Interrogates active network interface ports via the native NetworkManager CLI engine (`nmcli`). It completely replaces complicated network configuration loops with a simple, safe choice menu.
-* **Magic Packet Authorization:** Pushes strict, automated instruction strings directly to the target network card firmware, ensuring magic packet wakeup parameters stay perfectly enabled and active even after sudden system re-deployments or updates.
-
-### 10. GFX1013 FSR 4.1.1 Automated Deployment Core (Option 5 Engine)
-* **Touch-Free Multi-File Injection:** Automatically provisions both the hand-tuned FSR 4.1.1 INT8 Winograd upscaler core (`amd_fidelityfx_upscaler_dx12.dll`) and the missing master proxy bridge loader (`dxgi.dll`) simultaneously into target game directories.
-* **Input-Lag Mitigation:** By forcing a migration from un-optimized Float32 vectors down to tight INT8 parallel execution loops, the upscaler frees up critical graphics compute pipelines, maintaining a flat frame pacing ceiling at your locked 60 FPS target.
-* **Universal Wildcard Extraction Handling:** Implements case-insensitive recursive 7-Zip path queries (`-ir!`) to find and unpack critical files regardless of nested directory structures inside upstream repository archives, stripping away folder wrappers cleanly.
-* **Self-Healing Permission Recovery Pass:** Overcomes root extraction locks applied during standard `sudo` script runs. The module automatically drops system privileges post-flight, forcefully returning ownership of the custom game folders back to the local `bsystem` user account so Proton can safely execute the hooks on game boot.
-
-### 11. Architectural Silicon Compute Tier Performance Profiles
-* **Navi 10 Performance Bottleneck Constraints:** While Navi 10 is physically a larger die with up to 40 Compute Units (CUs), it hits power limits and thermal throttling thresholds early under heavy split memory profiles, resulting in micro-stuttering across its wide 256-bit memory bus interface.
-* **Navi 14 Fast Clock Optimization Advantage:** Navi 14 features a smaller, highly efficient die architecture (24 CUs) designed natively to run within narrow 128-bit bus boundaries. Free from power starvation, its internal L1/L2 caches keep the cores saturated with data. This results in significantly better cache locality and allows it to sustain much higher core clock speeds than a split-memory Navi 10 setup.
-* **Live System Dashboard Validation:** Integrates an automated file size footprint interrogator directly into your `run_status()` panel layout, checking the compiled byte configurations of your custom graphics driver (`libvulkan_radeon.so`) to determine if the active runtime profile is running a Navi 10 or Navi 14 performance layout loop.
-
-
-------------------------------
-## Special Thanks to the following:
-
-* **Development of Blue/Red Pill Script for Bazzite:** [@NexGen-3D](https://github.com)
-* **Development of cyan-skillfish-governor:** [@FilippoR](https://github.com)
-* **Development of bc250-cu-live-manager:** [@WinnieLV](https://github.com)
-* **Development of CPU Overclocking Tools for AMD BC-250:** [@bc250-collective](https://github.com)
-* **Development of bc250_memcfg (CMOS BIOS Utility):** [@fanoush](https://github.com)
-* **Development of BC250 FSR4 INT8 Re-Ordered Compilations:** [@daniel-h-0](https://github.com/daniel-h-0/bc250-fsr4-fork)
-* **Development of Upstream OptiScaler Hook Proxy Core Layers:** [@optiscaler](https://github.com/optiscaler/OptiScaler)
-* **Development of GFX1013 Async Compute Queue Firmware Patches:** [@DryhoppedIPA](https://github.com/DryhoppedIPA/bc250-gfx1013-fix)
-
-------------------------------
-
-## ❓ Frequently Asked Questions (FAQ)
-
-### What is the functional difference between the "Blue Pill" and "Red Pill" configurations?
-The distinct suite selections alter system memory paging constraints based on physical storage capacity:
-* **Blue Pill (16GB Optimization Profile):** This mode layers a dedicated 16GB contiguous BTRFS disk swap file on your device. It is meticulously tuned for lower-tier NVMe configurations where drive volume conservation is paramount, balancing asset swap files without triggering Out-Of-Memory (OOM) subvolume throttling.
-* **Red Pill (32GB Optimization Profile):** This deployment layers a full 32GB contiguous disk swap file cache block. It is designed for larger capacity NVMe nodes to provide a heavy virtual performance ceiling, completely absorbing vast computational pages when running dense dynamic memory configurations like the 10GB Extreme Split.
-
-### Why is an explicit physical disk swap file required for custom VRAM splits?
-The AMD BC-250 chip operates on a hard fixed 16GB total pool of unified GDDR6 memory. Dropping the default operating system allocation parameters down to narrow thresholds (e.g., 6GB or 7GB under the Extreme and High splits) leaves inadequate space for standard Bazzite game launchers and runtime desktop containers. By displacing volatile system data pools into an uncompressed, fast lz4 ZSWAP disk block, your architecture mitigates application crashes and maintains high computing throughput despite physical RAM restrictions.
-
-### Why did option 6 (Native 512MB Split) throw a kernel panic in early manual rollbacks?
-Without companion translation properties structured into the boot arguments layer, the native `amdgpu` driver initializations map translation thresholds relative to baseline visible memory blocks. When the Linux kernel handshakes a 512MB window under heavy display compositors without a hard-coded memory translation fence table (`amdgpu.gttsize`), allocation parameters overflow instantly, triggering a critical hardware register fault. The updated toolbox completely isolates this quirk by automatically re-indexing CMOS NVRAM tables back to an 8GB layout buffer *before* cleaning out module drivers.
-
-### Is this toolkit compatible with transaction-based atomic file updates?
-Yes. Every configuration pipeline maps changes dynamically via standard systemd overrides, local modprobe target rules, and transaction-safe `rpm-ostree kargs` calls. Running automated toolbox operations handles configuration migrations safely without disrupting Bazzite's background image delivery architecture.
-
-# Contributing to Bazzite Toolbox
-
-Thank you for your interest in optimizing and bulletproofing the Bazzite Toolbox. This project is a personal optimization terminal opened up to the wider community. To maintain data isolation, syntactic precision, and absolute hardware execution safety across **Bazzite 43 and 44 Deck** branches, all code modifications must align with strict low-level compilation guidelines.
-
-## 🛠️ Staging Environment Rules
-
-### 1. Immutability Preservation
-* **No Host Alterations:** All driver inclusions, kernel logic tweaks, and subsystem overrides must operate seamlessly within the Fedora Atomic blueprint interface using standard transaction-safe tools (`rpm-ostree kargs`, `ujust`, or local rule files inside `/etc/modprobe.d/` and `/etc/sysctl.d/`). Do not submit hooks that assume write access to standard root paths (`/usr`, `/bin`, or `/lib`).
-
-### 2. POSIX Compliance & Header Avoidance
-* **Pure C Memory Hooks:** Any downstream changes made to internal compilation engines or tool architectures (`bc250_memcfg` or matching hardware tracking frameworks) must be structured in pure standard C utilizing POSIX compliance patterns (`#include <stdio.h>`).
-* **Zero Dependency Builds:** Bazzite images do not ship with full C++ development kit libraries or standard runtime runtime template caches natively layered. Offline scripts must map calculations using basic structural arrays (`argv[]`) to guarantee a successful compilation run right out of script memory without forcing package dependencies onto the customer node.
-
-### 3. Separation of Image Layer Transactions
-* **Avoid Race Conditions:** When modifying multiple operational fields at the same time, split the commands into distinct terminal logic loops. Never bundle low-level memory reallocations (`ttm.pages_limit`) and display variables (`quiet rhgb`) into a shared `rpm-ostree` string wrapper; this causes Bazzite's atomic layer parser to choke and strip visual components from the active boot tree entries.
-
-## 📥 Submission Lifecycle (Pull Requests)
-
-1. **Isolate Your Target Fields:** Fork the repository and decouple your changes onto a specific feature branch tracking current deployment structures.
-2. **Validate Arithmetic Layout Matrices:** Confirm all custom mathematical page modifications increment cleanly by steps of `262144` or `524288` pages to keep byte blocks cleanly aligned on x86 architectures without decimal truncations.
-3. **Audit Execution Path Logs:** Verify that unexpected network dropouts or repository structural shifts cleanly fall back to internal script storage without dumping non-Linux users onto broken console lines or raw script syntax errors.
-4. **Submit an Detailed Briefing:** Outline your hardware test environment results (Bazzite image release build tag, memory profile results, temperature limits) directly within your Pull Request description file layout.
-
-## 📟 Subsystem Architecture & Hardware-Level Logic Matrix
-The Bazzite Toolbox manipulates the physical layout of the system registers by decoupling low-level hardware constraints from standard Linux userspace. Below is a comprehensive breakdown of the operations executed by each module in the script:
-
-
-| Core Script Module | Low-Level Hardware Interaction | Operating System & Kernel Changes | Fail-Safe & Crash Safeguards |
-|---|---|---|---|
-| RAM/VRAM Partitioner | Maps system modifications into physical motherboard NVRAM blocks through the low-level kernel driver interface /dev/nvram. | Manipulates the Linux Virtual Memory Translation Table Manager (ttm.pages_limit and ttm.page_pool_size). Configures custom hardware shared caching pools via amdgpu.gttsize. | CMOS Safety Gate: Restores a factory 8GB hardware buffer floor natively via an compiled C module before dropping OS kernel keys, preventing Out-Of-Memory display server lockups. |
-| Silicon Harvest Matrix | Directly interrogates active GFX render nodes (/dev/dri/renderD128) using direct low-level binding blocks against libdrm_amdgpu.so.1. | Decodes raw hardware register arrays to isolate uniform vs. harvested variations across Shader Engines (SE) and Shader Arrays (SH). | Atomic Isolation: Operates strictly as an un-layered, read-only system probe. It forces zero permanent file changes, letting non-Linux users map layouts safely. |
-| Blue/Red Pill Suites | Displaces hardware volatile caches out of memory registers. | Completely disables default disk-throttling swapfiles. Deploys a dedicated, high-speed virtual ZRAM device block architecture natively in system RAM. | Swappiness Clamping: Injects explicit rules (vm.swappiness=100) that forcefully prioritize raw physical memory allocation, shifting inactive background processes into compressed RAM drives. |
-| ACPI Firmware Fix | Injects custom 8-core CPU hardware management layout tables natively into the live system ACPI parsing tree. | Layers specific, split runtime power manager binaries (cpupower or kernel-tools) straight into the immutable image package base. | Dual-CPIO Mapping: Synchronizes custom tables simultaneously across /boot and /boot/efi directories, ensuring boot loader recovery options remain active if image trees shift. |
-
 ------------------------------
 
 ## 🧬 Memory Page Calculation Reference Matrix
 The Linux Translation Table Manager (`ttm`) tracks memory ceilings explicitly using system memory pages, where **1 Page = 4096 Bytes (4KB)**. The toolbox programmatically translates your choices into precise values to prevent driver allocation truncation collisions:
-
 
 * Profile 1: Extreme VRAM Split
 * Kernel Argument String: ttm.pages_limit=1572864 | amdgpu.gttsize=10240
@@ -224,7 +115,7 @@ The Linux Translation Table Manager (`ttm`) tracks memory ceilings explicitly us
 * Kernel Argument String: ttm.pages_limit=3932160 | amdgpu.gttsize=15104
    * Mathematical Formula: 3,932,160 × 4096 ÷ 1024³ = 15.0 GB assigned to the Operating System Pool.
    * Resulting Hardware Profile: Maximum System RAM available for Bazzite / ~512MB Dedicated Base GPU Buffer (Recommended for local LLM AI Workloads).
-
+   
 ------------------------------
 
 ### 📊 RAM/VRAM Allocation Performance Matrix
@@ -245,16 +136,56 @@ Bazzite 43 and 44 migrated across distinct generational shifts of the Fedora bas
 
 | Architectural System Component | Bazzite 43 Environment Blueprint (Fedora 40 Base Layer) | Bazzite 44 Deck Environment Blueprint (Fedora 41 Base Layer) | Toolbox Native Resolution Method |
 |---|---|---|---|
-| Boot Loader Entry Storage | Maintained static file blocks via /boot/efi/EFI/fedora/grub.cfg. | Migrated to the modernized Boot Loader Specification layout inside /boot/loader/entries/. | Unified System Call: Interrogates target environments and safely wraps commands with a dual fallback call: ujust regenerate-grub || sudo grub2-mkconfig. |
+| Boot Loader Entry Storage | Maintained static file blocks via /boot/efi/EFI/fedora/grub.cfg. | Migrated to the modernized Boot Loader Specification layout inside /boot/loader/entries/. | Unified System Call: Interrogates target environments and safely wraps commands with a dual fallback call: ujust regenerate-grub \|\| sudo grub2-mkconfig. |
 | Power Daemon Package Target | Packaged and cataloged system level clock utilities via kernel-tools. | Segregated core power controllers into a specialized, standalone cpupower package file structure. | Silent Search Interlock: Evaluates localized package indexes using rpm-ostree search before forcing installs, blocking missing package layer breaks. |
 | Compiler Toolchain Limits | Handled standard memory references and linker allocations via early C++ header formats. | Enforced strict compilation optimization checking that explicitly drops unbound C++ library includes. | POSIX C Offline Failback: Strips all C++ dependencies out of the script's local memory backup. Writes out a pure C engine (main.c) compiled cleanly by standard gcc. |
+
+------------------------------
+
+## ❓ Frequently Asked Questions (FAQ)
+
+### What is the functional difference between the "Blue Pill" and "Red Pill" configurations?
+The distinct suite selections alter system memory paging constraints based on physical storage capacity while utilizing an identical ultra-dense ZSWAP architecture:
+* **Blue Pill (16GB Optimization Profile):** This mode provisions a 16GB unfragmented BTRFS swapfile backing store on your storage volume. It is meticulously configured for stock memory layouts (such as 12GB System / 4GB VRAM splits) to provide a balanced memory cushion without allocating massive background storage tables.
+* **Red Pill (32GB Optimization Profile):** This profile provisions a heavy-duty 32GB unfragmented BTRFS swapfile backing store on your storage volume. It is custom-tailored specifically for extreme enthusiast layouts (such as the 7GB System / 9GB VRAM High Split) to deliver a massive virtual performance cushion, completely absorbing vast computational pages when running dense dynamic memory configurations.
+
+### Why is an explicit compressed RAM cache required for custom VRAM splits?
+The AMD BC-250 chip operates on a hard fixed 16GB total pool of unified GDDR6 memory. Dropping the default operating system allocation parameters down to narrow thresholds (leaving only 6GB or 7GB under the Extreme and High splits) leaves inadequate space for standard Bazzite game launchers and runtime desktop containers. By displacing volatile system data pools into an unbottlenecked, ultra-fast LZ4/ZSTD ZSWAP memory cushion rather than letting them hit a slow, fragmented physical drive swapfile without optimized compression parameters, your architecture completely mitigates application crashes and maintains high computing throughput despite physical RAM restrictions.
+
+### Why did option 6 (Native 512MB Split) throw a kernel panic in early manual rollbacks?
+Without companion translation properties structured into the boot arguments layer, the native `amdgpu` driver initializations map translation thresholds relative to baseline visible memory blocks. When the Linux kernel handshakes a 512MB window under heavy display compositors without a hard-coded memory translation fence table (`amdgpu.gttsize`), allocation parameters overflow instantly, triggering a critical hardware register fault. The updated toolbox completely isolates this quirk by automatically re-indexing CMOS NVRAM tables back to an 8GB layout buffer *before* cleaning out module drivers.
+
+### Is this toolkit compatible with transaction-based atomic file updates?
+Yes. Every configuration pipeline maps changes dynamically via standard systemd overrides, local modprobe target rules, and transaction-safe `rpm-ostree kargs` calls. Running automated toolbox operations handles configuration migrations safely without disrupting Bazzite's background image delivery architecture.
+
+# Contributing to Bazzite Toolbox
+
+Thank you for your interest in optimizing and bulletproofing the Bazzite Toolbox. This project is a personal optimization terminal opened up to the wider community. To maintain data isolation, syntactic precision, and absolute hardware execution safety across **Bazzite 43 and 44 Deck** branches, all code modifications must align with strict low-level compilation guidelines.
+
+## 🛠️ Staging Environment Rules
+
+### 1. Immutability Preservation
+* **No Host Alterations:** All driver inclusions, kernel logic tweaks, and subsystem overrides must operate seamlessly within the Fedora Atomic blueprint interface using standard transaction-safe tools (`rpm-ostree kargs`, `ujust`, or local rule files inside `/etc/modprobe.d/` and `/etc/sysctl.d/`). Do not submit hooks that assume write access to standard root paths (`/usr`, `/bin`, or `/lib`).
+
+### 2. POSIX Compliance & Header Avoidance
+* **Pure C Memory Hooks:** Any downstream changes made to internal compilation engines or tool architectures (`bc250_memcfg` or matching hardware tracking frameworks) must be structured in pure standard C utilizing POSIX compliance patterns (`#include <stdio.h>`).
+* **Zero Dependency Builds:** Bazzite images do not ship with full C++ development kit libraries or standard runtime template caches natively layered. Offline scripts must map calculations using basic structural arrays (`argv[]`) to guarantee a successful compilation run right out of script memory without forcing package dependencies onto the customer node.
+
+### 3. Separation of Image Layer Transactions
+* **Avoid Race Conditions:** When modifying multiple operational fields at the same time, split the commands into distinct terminal logic loops. Never bundle low-level memory reallocations (`ttm.pages_limit`) and display variables (`quiet rhgb`) into a shared `rpm-ostree` string wrapper; this causes Bazzite's atomic layer parser to choke and strip visual components from the active boot tree entries.
+
+## 📥 Submission Lifecycle (Pull Requests)
+
+1. **Isolate Your Target Fields:** Fork the repository and decouple your changes onto a specific feature branch tracking current deployment structures.
+2. **Validate Arithmetic Layout Matrices:** Confirm all custom mathematical page modifications increment cleanly by steps of `262144` or `524288` pages to keep byte blocks cleanly aligned on x86 architectures without decimal truncations.
+3. **Audit Execution Path Logs:** Verify that unexpected network dropouts or repository structural shifts cleanly fall back to internal script storage without dumping non-Linux users onto broken console lines or raw script syntax errors.
+4. **Submit a Detailed Briefing:** Outline your hardware test environment results (Bazzite image release build tag, memory profile results, temperature limits) directly within your Pull Request description file layout.
 
 ------------------------------
 
 ## 📂 Repository File Tree Reference
 
 The toolbox utilizes a unified flat-directory footprint mapped straight out the repository base workspace layer:
-
 
 ```text
 Bazzite_Toolbox/
@@ -279,7 +210,7 @@ To activate the advanced vector math loops and force-initialize the upscaler pro
 2. Stay on the **General** tab and scroll down to the **Launch Options** field at the bottom.
 3. Paste the following string exactly into the launch box:
    ```text
-   FSR_Fsr4ForceEnableInt8=true WINEDLLOVERRIDES="dxgi=n,b" %command%
+   WINEDLLOVERRIDES="dxgi=n,b" %command%
    ```
 
 ---
@@ -291,7 +222,6 @@ To activate the advanced vector math loops and force-initialize the upscaler pro
 
 | Environment Variable Key | Target Assignment Value |
 | :--- | :--- |
-| `FSR_Fsr4ForceEnableInt8` | `true` |
 | `WINEDLLOVERRIDES` | `dxgi=n,b` |
 
 ---
@@ -304,7 +234,6 @@ To activate the advanced vector math loops and force-initialize the upscaler pro
 
 | Variable Parameter | Assigned Configuration |
 | :--- | :--- |
-| `FSR_Fsr4ForceEnableInt8` | `true` |
 | `WINEDLLOVERRIDES` | `dxgi=n,b` |
 
 ---
@@ -316,7 +245,6 @@ To activate the advanced vector math loops and force-initialize the upscaler pro
 
 | Variable Name Identifier | Local Value Property |
 | :--- | :--- |
-| `FSR_Fsr4ForceEnableInt8` | `true` |
 | `WINEDLLOVERRIDES` | `dxgi=n,b` |
 
 ---
@@ -328,7 +256,6 @@ To activate the advanced vector math loops and force-initialize the upscaler pro
 
 | Variable Key Property | State Control Value |
 | :--- | :--- |
-| `FSR_Fsr4ForceEnableInt8` | `true` |
 | `WINEDLLOVERRIDES` | `dxgi=n,b` |
 
 ---
@@ -340,7 +267,6 @@ To activate the advanced vector math loops and force-initialize the upscaler pro
 
 | Key Name | Value |
 | :--- | :--- |
-| `FSR_Fsr4ForceEnableInt8` | `true` |
 | `WINEDLLOVERRIDES` | `dxgi=n,b` |
 
 ---
@@ -352,7 +278,6 @@ To activate the advanced vector math loops and force-initialize the upscaler pro
 
 | Environment Key | State Value |
 | :--- | :--- |
-| `FSR_Fsr4ForceEnableInt8` | `true` |
 | `WINEDLLOVERRIDES` | `dxgi=n,b` |
 
 ---
@@ -360,10 +285,10 @@ To activate the advanced vector math loops and force-initialize the upscaler pro
 ### 💻 8. Raw Terminal Console Execution (CLI Proton/Wine Wrappers)
 If you are executing your Windows games directly via an isolated command line terminal loop (such as `umugex`, `proton-call`, or native custom terminal shortcuts), format your running string by prefixing the execution call directly:
 ```bash
-FSR_Fsr4ForceEnableInt8=true WINEDLLOVERRIDES="dxgi=n,b" proton run /path/to/game.exe
+WINEDLLOVERRIDES="dxgi=n,b" proton run /path/to/game.exe
 ```
 
----
+------------------------------
 
 ## 🎨 Game-Engine Specific Preset Optimizers
 
@@ -393,3 +318,15 @@ When deploying the upscaler framework, the toolkit allows you to select from thr
 
 > [!WARNING]
 > If you experience violent screen flashing or menu flickering in any Unreal Engine title, run the toggle installer again and choose this preset to protect your eyes.
+
+------------------------------
+## Special Thanks to the following:
+
+* **Development of Blue/Red Pill Script for Bazzite:** [@NexGen-3D](https://github.com/NexGen-3D-Printing/SteamMachine)
+* **Development of cyan-skillfish-governor:** [@FilippoR](https://github.com/filippor/cyan-skillfish-governor)
+* **Development of bc250-cu-live-manager:** [@WinnieLV](https://github.com/WinnieLV/bc250-cu-live-manager)
+* **Development of CPU Overclocking Tools for AMD BC-250:** [@bc250-collective](https://github.com/bc250-collective/bc250_smu_oc)
+* **Development of bc250_memcfg (CMOS BIOS Utility):** [@fanoush](https://github.com/fanoush/bc250_memcfg)
+* **Development of BC250 FSR4 INT8 Re-Ordered Compilations:** [@daniel-h-0](https://github.com/daniel-h-0/bc250-fsr4-fork)
+* **Development of Upstream OptiScaler Hook Proxy Core Layers:** [@optiscaler](https://github.com/optiscaler/OptiScaler)
+* **Development of GFX1013 Async Compute Queue Firmware Patches:** [@DryhoppedIPA](https://github.com/DryhoppedIPA/bc250-gfx1013-fix)
