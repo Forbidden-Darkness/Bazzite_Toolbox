@@ -2026,7 +2026,7 @@ toggle_compute_queue_fix() {
         echo ""
         echo -e "   ↵) Hit [Enter] to return back to the main menu"
         echo -e "${CYAN}====================================================================${RESET}"
-        echo -n "  Select an option [1-5]: "
+        echo -n "  Select an option [1-6]: "
 
         local sub_opt; read -r sub_opt
         case "$sub_opt" in
