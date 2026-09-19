@@ -3,10 +3,10 @@
 #  Setup-16GB (Bazzite) – NexGen3D v2.0 (BLUE Pill Profile)
 # ────────────────────────────────────────────────────────────────
 
-YELLOW='\033[1;33m' local B_BLUE='\033[1;34m' local RED='\033[0;31m'
-DIM='\033[38;2;110;110;110m' local NC='\033[0m' local GREEN='\033[0;32m'
-B_GREEN='\033[1;32m' local MAGENTA="\033[1;95m" local BOLD='\033[1m'
-local CYAN='\033[0;36m' local B_RED='\033[1;31m' local RESET='\033[0m'
+YELLOW='\033[1;33m' B_BLUE='\033[1;34m' RED='\033[0;31m'
+DIM='\033[38;2;110;110;110m' NC='\033[0m' GREEN='\033[0;32m'
+B_GREEN='\033[1;32m' MAGENTA="\033[1;95m" BOLD='\033[1m'
+CYAN='\033[0;36m' B_RED='\033[1;31m' RESET='\033[0m'
 
 echo ""
 echo -e "  ${B_BLUE}[●] BLUE Pill Suite Active Deployment Profile${RESET} │ ${CYAN}Version:${RESET} ${GREEN}v2.0${RESET}"
@@ -47,20 +47,19 @@ ExecStart=/usr/bin/mkdir -p /etc/cyan-skillfish-governor-smu
 ExecStart=/usr/bin/cp -n /usr/etc/cyan-skillfish-governor-smu/config.toml /etc/cyan-skillfish-governor-smu/config.toml
 ExecStart=/usr/bin/systemctl disable gln-reinstall-sync.service
 ExecStart=/usr/bin/rm -f /etc/systemd/system/gln-reinstall-sync.service
-[Unit]
+[Install]
 WantedBy=multi-user.target
 EOF' 2>/dev/null || true) &>/dev/null
     (sudo systemctl daemon-reload 2>/dev/null || true) &>/dev/null
     (sudo systemctl enable gln-reinstall-sync.service 2>/dev/null || true) &>/dev/null
 fi
 
-echo "[●] Step 5/8: Injecting optimized performance flags into atomic kernel args (kargs)..."
+echo "[●] Step 5/8: Injecting performance flags into atomic kernel args (kargs)..."
 (rpm-ostree kargs --delete=systemd.zram=1 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --delete=zram.num_devices=1 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --delete=zswap.max_pool_percent=25 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --delete=zswap.compressor=lz4 2>/dev/null || true) &>/dev/null
 
-# 🚀 THE ZSWAP UL_PERFORMANCE MATRICES: Hardlocks zstd compression and z3fold triple-packing schemes active
 (rpm-ostree kargs --append-if-missing=mitigations=off 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --append-if-missing=zswap.enabled=1 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --append-if-missing=zswap.compressor=zstd 2>/dev/null || true) &>/dev/null
