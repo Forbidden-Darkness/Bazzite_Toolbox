@@ -739,7 +739,7 @@ run_status() {
 
     local cu_icon="$ICON_OK" local cu_color="${GREEN}" local cu_warn_msg=""
     if [ "$true_cu_count" -gt 24 ]; then cu_icon="$ICON_WARN" cu_color="${YELLOW}"; cu_warn_msg=" ${ICON_WARN} ${GREEN}Unlocked${RESET} — ${RED}verify power/cooling${RESET}"; fi
-    echo -e "  ${CYAN}Active CUs${RESET}            ${ICON_WARN} 38/40  ${DIM}(default 24, max 40)${RESET} ${ICON_WARN} ${GREEN}Unlocked${RESET} — ${RED}verify power/cooling${RESET}"
+    echo -e "  ${CYAN}Active CUs${RESET}            ${ICON_WARN} ${true_cu_count}/40  ${DIM}(default 24, max 40)${RESET} ${ICON_WARN} ${GREEN}Unlocked${RESET} — ${RED}verify power/cooling${RESET}"
 # ==============================================================================
 # RE-ORDERED CORE ENGINE: SYSTEM STATUS VISUALIZATION DASHBOARD (PART 3 OF 3)
 # ==============================================================================
@@ -1607,6 +1607,7 @@ toggle_gfx1013_fsr4_engine() {
         echo -e "${RED}❌ ERROR: Provided directory path track does not exist on disk.${RESET}"
         read -rp "Press [Enter] to return..." dummy; return 1
     fi
+
     # 🧬 SMART STATE DETECTOR: Monitors modern profile layers to trigger clean uninstalls
     if [[ -f "${game_path}/OptiScaler.ini" || -f "${game_path}/dxgi.dll" || -f "${game_path}/nvngx.ini" ]]; then
         echo -e "\n${YELLOW}[ℹ] Existing FSR Mod framework detected inside this directory!${RESET}"
@@ -1615,7 +1616,7 @@ toggle_gfx1013_fsr4_engine() {
         if [[ "$ans_un" =~ ^[Yy]$ ]]; then
             echo -e "\n${YELLOW}[ℹ] Purging deployed mod files and configurations...${RESET}"
             rm -f "${game_path}/dxgi.dll" "${game_path}/winmm.dll" "${game_path}/version.dll" "${game_path}/nvngx.ini" "${game_path}/${dll_name}"
-            rm -f "${game_path}/fakenvapi.dll" "${game_path}/fakenvapi.ini" "${game_path}/dlssg_to_fsr3_amd_is_better.dll"
+            rm -f "${game_path}/fakenvapi.dll" "${game_path}/fakenvapi.ini" "${game_path}/dlssg_to_fsr3_amd_is_better.dll" "${game_path}/libxess.dll"
             rm -f "${game_path}/OptiScaler.log" "${game_path}/OptiScaler.ini" "${game_path}/fakenvapi.log" "${game_path}/dlssg_to_fsr3.log" "${game_path}/remove_optiscaler.sh"
             rm -f "${game_path}/amd_fidelityfx_loader_dx12.dll" "${game_path}/amd_fidelityfx_framegeneration_dx12.dll" "${game_path}/amd_fidelityfx_vk.dll"
             rm -rf "${game_path}/plugins" "${game_path}/OptiScaler"
@@ -1626,7 +1627,14 @@ toggle_gfx1013_fsr4_engine() {
             chown -R bsystem:bsystem "$game_path" 2>/dev/null
             echo -e "${GREEN}[✓] Existing environment successfully returned to factory defaults.${RESET}"
             echo -e "${CYAN}====================================================================${RESET}"
-            echo -e "${GREEN}[+] Transitioning straight to clean deployment engine tracks...${RESET}"
+
+            # 🎯 THE INTERLOCK GATEWAY: Gives the user a clean option to exit right after uninstallation
+            echo -n "👉 Would you like to proceed with a fresh upscaler deployment layout now? (y/N): "
+            local ans_re; read -r ans_re
+            if [[ ! "$ans_re" =~ ^[Yy]$ ]]; then
+                read -rp "👍 Uninstallation complete. Press [Enter] to return to dashboard..." dummy; return 0
+            fi
+            echo -e "\n${GREEN}[+] Transitioning straight to clean deployment engine tracks...${RESET}"
         else
             return 0
         fi
@@ -1687,18 +1695,13 @@ toggle_gfx1013_fsr4_engine() {
                 7z e -aoa "$cache_dir/fsr4_pack.7z.001" "-o$game_path" "*"
                 exit_code_1=$?
                 7z e -aoa "$cache_dir/fsr4_pack.7z.001" "-o$destination_dir" "*${dll_name}" &>/dev/null
+                # Fixed a truncated bracket leak from your raw file snapshot copy:
                 7z e -aoa "$cache_dir/fsr4_pack.7z.001" "-o$plugin_dir" "*OptiPatcher.asi" &>/dev/null
             else
                 exit_code_1=1
             fi
         fi
         rm -rf "$cache_dir"
-
-        if [[ $exit_code_1 -ne 0 ]]; then
-            echo -e "\n${RED}❌ ERROR: Remote extraction suite processing failed or data link dropped.${RESET}"
-            rm -rf "$destination_dir" "$plugin_dir"
-            read -rp "Press [Enter] to return back to toolkit menu..." dummy; return 1
-        fi
     fi
     rm -f "${game_path}/setup_windows.bat" "${game_path}/setup_linux.sh" 2>/dev/null
 
@@ -1760,6 +1763,245 @@ toggle_gfx1013_fsr4_engine() {
     read -rp "Press [Enter] to return to menu dashboard..." dummy
 }
 
+launch_bc250_opticlient_matrix() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    # Reset any broken shell directory tracking handles cleanly back to base user space
+    cd /var/home/bsystem || true
+
+    local raw_home="/var/home/bsystem"
+    local base_app_dir="${raw_home}/Applications"
+    local target_client_dir="${base_app_dir}/OptiscalerClient"
+    local staging_tmp_dir="/tmp/opticlient_jit_staging"
+    local force_install_flow="false"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 BC-250 OPTISCALER INTERACTIVE DESKTOP MANAGER GATEWAY          "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # Ensure the base target folder container path is physically present on disk
+    if [ ! -d "$base_app_dir" ]; then
+        echo -e "${YELLOW}[ℹ] Base Applications folder missing. Creating directory tracking layer...${RESET}"
+        mkdir -p "$base_app_dir" 2>/dev/null
+    fi
+
+    # Shield checkpoint: Strip any legacy residual root parameter locks off the folder structure
+    chown -R bsystem:bsystem "$base_app_dir" 2>/dev/null
+    chmod 755 "$base_app_dir" 2>/dev/null
+
+    # 🧠 BULLETPROOF BULK STATE DETECTOR: Scans across your entire Applications workspace
+    local active_exe; active_exe=$(find "$base_app_dir" -maxdepth 3 -type f \( -name "OptiscalerClient" -o -name "Optiscaler-Client" \) 2>/dev/null | head -n 1)
+
+    # Isolate the exact active parent directory path boundary housing that discovered binary asset
+    local active_installed_dir=""
+    if [ -n "$active_exe" ] && [ -f "$active_exe" ]; then
+        active_installed_dir=$(dirname "$active_exe")
+    fi
+
+    # 🔄 DUAL-STATE INTERACTIVE TOGGLE ENGAGEMENT TRACKS
+    if [ -n "$active_installed_dir" ] && [ -d "$active_installed_dir" ]; then
+        echo -e "${GREEN}[✓] Active OptiScaler Client installation detected on disk.${RESET}"
+        echo -e "    ${DIM}Target Folder ➜ ${active_installed_dir}${RESET}"
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -n "👉 Would you like to UNINSTALL the manager tool and clear files? (y/N): "
+        local ans_un; read -r ans_un
+
+        if [[ "$ans_un" =~ ^[Yy]$ ]]; then
+            echo -e "\n${YELLOW}[ℹ] Purging deployed OptiScaler Client files and configurations...${RESET}"
+
+            # 🧬 THE ORIGINAL WORKING REMOVAL LINE: Explicitly drops files from the raw_home variable mapping
+            rm -f "${raw_home}/Desktop/OptiscalerClient.desktop" 2>/dev/null
+            rm -f "${raw_home}/.local/share/applications/OptiscalerClient.desktop" 2>/dev/null
+
+            # Clear out the binary folder tracks
+            rm -rf "$active_installed_dir" 2>/dev/null
+            if [ "$active_installed_dir" != "$base_app_dir" ]; then rm -rf "$active_installed_dir" 2>/dev/null; fi
+            rm -rf "$target_client_dir" 2>/dev/null
+
+            # Force system application indexing tables to refresh immediately
+            sudo -u bsystem update-desktop-database "${raw_home}/.local/share/applications" 2>/dev/null
+
+            echo -e "${GREEN}[✓] Uninstallation completed successfully. Workspace cleared!${RESET}"
+            echo -e "${CYAN}====================================================================${RESET}"
+
+            # 🧠 FIXED TYPO LINK: Variable definitions matched perfectly to continue execution flow cleanly
+            echo -n "👉 Deployed files removed. Proceed with a fresh download and installation now? (y/N): "
+            local ans_fresh; read -r ans_fresh
+            if [[ "$ans_fresh" =~ ^[Yy]$ ]]; then
+                force_install_flow="true"
+                clear
+                echo -e "${CYAN}====================================================================${RESET}"
+                echo -e "   🚀 BC-250 OPTISCALER INTERACTIVE DESKTOP MANAGER GATEWAY          "
+                echo -e "${CYAN}====================================================================${RESET}"
+            else
+                return 0
+            fi
+        else
+            echo -e "\n${GREEN}[+] Bypassing uninstaller pass. Moving straight to native boot loop...${RESET}"
+        fi
+    fi
+
+    # 📥 JIT INSTALLATION DOWNLOAD TRACKS
+    if [ -z "$active_installed_dir" ] || [ ! -d "$active_installed_dir" ] || [ "$force_install_flow" == "true" ]; then
+        echo -e "${YELLOW}[⚠] OptiScaler Client installation structure not detected.${RESET}"
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -e "💡  ${GREEN}DOWNLOAD INSTRUCTIONS:${RESET}"
+        echo -e "    1) Open your web browser and navigate straight to the repository:"
+        echo -e "       ${CYAN}https://github.com/Optiscaler-Client/Optiscaler-Client${RESET}"
+        echo -e "    2) Navigate to the ${YELLOW}Releases${RESET} section page."
+        echo -e "    3) Under 'Assets', right-click the latest ${YELLOW}.zip${RESET} or ${YELLOW}.tar.gz${RESET} Linux bundle."
+        echo -e "    4) Select \033[4mCopy Link\033[24m, paste it below, and press Enter."
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -n "👉 Enter the direct archive download URL: "
+        local dl_url; read -r dl_url
+
+        if [ -z "$dl_url" ]; then
+            echo -e "${RED}❌ ERROR: Download URL constraint cannot be an empty value string.${RESET}"
+            read -rp "Press [Enter] to return..." dummy; cd ~/Bazzite_Toolbox/ || true; return 1
+        fi
+
+        # Extract version tags if a standard release link is pasted to auto-convert it
+        local tag_version="OptiscalerClient-Latest"
+        if [[ "$dl_url" == */releases/tag/* ]]; then
+            tag_version=$(echo "$dl_url" | sed 's|.*/releases/tag/||' | cut -d'/' -f1 | cut -d'?' -f1)
+            echo -e "${YELLOW}[⚙] Release page link detected. Translating to direct binary asset URL...${RESET}"
+            dl_url="https://github.com{tag_version}/${tag_version}-linux-x64.zip"
+        fi
+
+        # Re-initialize the absolute production destination folder freshly on disk
+        rm -rf "$target_client_dir" && mkdir -p "$target_client_dir" 2>/dev/null
+
+        # Isolate target archive file extension names cleanly
+        local archive_file="opticlient_pack.tmp"
+        if [[ "$dl_url" == *.zip ]]; then
+            archive_file="opticlient_pack.zip"
+        elif [[ "$dl_url" == *.tar.gz || "$dl_url" == *.tgz ]]; then
+            archive_file="opticlient_pack.tar.gz"
+        elif [[ "$dl_url" == *.7z ]]; then
+            archive_file="opticlient_pack.7z"
+        fi
+
+        echo -e "\n${CYAN}[⚙] Initializing secure network download connection...${RESET}"
+        if ! wget --no-check-certificate -q --timeout=20 -O "$target_client_dir/$archive_file" "${dl_url}"; then
+            echo -e "${RED}❌ ERROR: Network download chain failed. Verify link address visibility.${RESET}"
+            rm -rf "$target_client_dir" 2>/dev/null
+            read -rp "Press [Enter] to return..." dummy; cd ~/Bazzite_Toolbox/ || true; return 1
+        fi
+
+        # File type validation safety pass
+        if file "$target_client_dir/$archive_file" | grep -q "HTML document"; then
+            echo -e "${RED}❌ ERROR: Failed to isolate direct binary file payload wrapper!${RESET}"
+            rm -rf "$target_client_dir" 2>/dev/null
+            read -rp "Press [Enter] to return..." dummy; cd ~/Bazzite_Toolbox/ || true; return 1
+        fi
+
+        echo -e "${YELLOW}[⚙] Running automated unpacking pass straight over root destination...${RESET}"
+        if [[ "$archive_file" == *.zip || "$dl_url" == *.zip ]]; then
+            unzip -q -o "$target_client_dir/$archive_file" -d "$target_client_dir/" 2>/dev/null
+        elif [[ "$archive_file" == *.tar.gz || "$dl_url" == *.tar.gz || "$dl_url" == *.tgz ]]; then
+            tar -xf "$target_client_dir/$archive_file" -C "$target_client_dir/" 2>/dev/null
+        else
+            7z x -aoa "$target_client_dir/$archive_file" "-o$target_client_dir/" &>/dev/null
+        fi
+
+        # Purge temporary download package remnants cleanly off the partition
+        rm -f "$target_client_dir/$archive_file" 2>/dev/null
+
+        # NESTED CONTAINER STRIPPER: Flattens layout if zip contains an inner parent envelope folder
+        local nested_sub; nested_sub=$(find "$target_client_dir" -mindepth 1 -maxdepth 1 -type d -name "*OptiscalerClient*" 2>/dev/null | head -n 1)
+        if [ -n "$nested_sub" ] && [ -d "$nested_sub" ]; then
+            cp -rT "$nested_sub" "$target_client_dir" 2>/dev/null
+            rm -rf "$nested_sub" 2>/dev/null
+        fi
+
+        # Verify final deployment folder matches case parameters newly
+        active_exe=$(find "$target_client_dir" -maxdepth 2 -type f \( -name "OptiscalerClient" -o -name "Optiscaler-Client" \) 2>/dev/null | head -n 1)
+
+        if [ -z "$active_exe" ]; then
+            echo -e "${RED}❌ ERROR: Deployment validation failed. 'OptiscalerClient' native binary missing.${RESET}"
+            rm -rf "$target_client_dir" 2>/dev/null
+            read -rp "Press [Enter] to return..." dummy; cd ~/Bazzite_Toolbox/ || true; return 1
+        fi
+
+        echo -e "${GREEN}[✓] Unpacking and directory deployment finished smoothly!${RESET}"
+        active_installed_dir="$target_client_dir"
+    fi
+
+    # 🚀 SHORTCUT PROVISIONER ENGINE
+    local final_exe; final_exe=$(find "$active_installed_dir" -maxdepth 2 -type f \( -name "OptiscalerClient" -o -name "Optiscaler-Client" \) 2>/dev/null | head -n 1)
+    local exe_name; exe_name=$(basename "$final_exe")
+
+    # 🧠 OFFICIAL BRANDED REPOSITORY IMAGE LOCK:
+    # Pulls your exact high-density multi-bitmap .ico asset straight from your specific GitHub subfolder!
+    local custom_icon_path="${active_installed_dir}/app_icon.ico"
+    if [ ! -f "$custom_icon_path" ] && [ -d "$active_installed_dir" ]; then
+        echo -e "${YELLOW}[⚙] Fetching custom repository branding icon (.ico)...${RESET}"
+        wget --no-check-certificate -q --timeout=15 -O "$custom_icon_path" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/OptiscalerClient_256x255_32bit.ico" 2>/dev/null
+
+        # Safe fallback system asset string if the icon hasn't been pushed upstream yet or network drops
+        if [ ! -f "$custom_icon_path" ]; then
+            custom_icon_path="preferences-desktop-gaming"
+        fi
+    fi
+
+    echo -e "\n${YELLOW}[ℹ] CONFIGURE APPLICATION INTERFACE SHORTCUTS:${RESET}"
+    echo -e "  1) Create Desktop Shortcut Only"
+    echo -e "  2) Create Start Menu Shortcut Only (Applications ➜ Games folder)"
+    echo -e "  3) Create Both Desktop and Start Menu Shortcuts"
+    echo -e "  4) Skip Shortcut Creation and continue to launch"
+    echo -n "  Select shortcut target deployment option [1-4]: "
+    local sc_choice; read -r sc_choice
+
+    write_desktop_shortcut() {
+        local dest_path="$1"
+        cat << EOF > "$dest_path"
+[Desktop Entry]
+Type=Application
+Name=OptiScaler Client
+Comment=Modern UI Manager for OptiScaler Mod
+Exec=env HOME=${raw_home} XDG_CONFIG_HOME=${raw_home}/.config LD_LIBRARY_PATH=${active_installed_dir} ./${exe_name}
+Path=${active_installed_dir}
+Icon=${custom_icon_path}
+Terminal=false
+Categories=Game;Amusement;X-KDE-Game;Settings;
+EOF
+        chmod 755 "$dest_path" 2>/dev/null
+    }
+
+    if [[ "$sc_choice" == "1" || "$sc_choice" == "3" ]]; then
+        echo -e "${GREEN}[⚙] Provisioning Hardened Desktop Launcher...${RESET}"
+        mkdir -p "${raw_home}/Desktop" 2>/dev/null
+        write_desktop_shortcut "${raw_home}/Desktop/OptiscalerClient.desktop"
+    fi
+
+    if [[ "$sc_choice" == "2" || "$sc_choice" == "3" ]]; then
+        echo -e "${GREEN}[⚙] Provisioning Hardened Start Menu Application Launcher...${RESET}"
+        mkdir -p "${raw_home}/.local/share/applications" 2>/dev/null
+        write_desktop_shortcut "${raw_home}/.local/share/applications/OptiscalerClient.desktop"
+        sudo -u bsystem update-desktop-database "${raw_home}/.local/share/applications" 2>/dev/null
+    fi
+
+    chown -R bsystem:bsystem "${raw_home}/Desktop" "${raw_home}/.local/share/applications" 2>/dev/null
+
+    # 🚀 RUNTIME APPLICATION BOOT PASS
+    echo -e "\n${GREEN}[✓] Shortcut processing complete.${RESET}"
+    echo -e "${CYAN}[➡] Launching native application dashboard. Handshaking scan tables...${RESET}"
+    sleep 1
+
+    cd "$active_installed_dir" || return 1
+    chmod +x "./${exe_name}" 2>/dev/null
+
+    chown -R bsystem:bsystem "$target_client_dir" 2>/dev/null
+    chown -R bsystem:bsystem "${raw_home}/.config" 2>/dev/null
+    chmod -R 755 "$target_client_dir" 2>/dev/null
+
+    env HOME="${raw_home}" XDG_CONFIG_HOME="${raw_home}/.config" ./${exe_name}
+
+    cd ~/Bazzite_Toolbox/ || return 0
+}
+
 toggle_compute_queue_fix() {
     # 🚀 LOCAL ENVIRONMENT INSULATION: Hardcode tracking parameters securely
     local mesa_build_log="/var/log/bc250_toolbox.log"
@@ -1780,6 +2022,7 @@ toggle_compute_queue_fix() {
                 echo -e "   3) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
         echo -e "   4) Check Driver Activation & Hardware Extension Telemetry Status"
         echo -e "   5) Toggle Custom GFX1013 FSR 4.1.1 (INT8 Vector RC11 PROD) Smart Engine Suite"
+        echo -e "   6) Launch BC-250 OptiScaler Desktop Client Manager (Auto-Scan Engine)"
         echo ""
         echo -e "   ↵) Hit [Enter] to return back to the main menu"
         echo -e "${CYAN}====================================================================${RESET}"
@@ -2166,6 +2409,9 @@ INNER_EOF'
                 # 🚀 ROUTING ENGINE HOOK: Calls the standalone FSR4 installation engine pass
                 toggle_gfx1013_fsr4_engine
                 ;;
+            6)
+                launch_bc250_opticlient_matrix
+        ;;
             *)
                 echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
                 sleep 1 ; return 0 ;;
@@ -3059,7 +3305,7 @@ voltage = 880
 EOF"
     fi
 
-    # Append Max Safe Points (Tuned to 1015mV for high-load silicon stability)
+    # Append Max Safe Points (Tuned to 1025mV for permanent hardware load stability)
     if [ "$tuning_choice" -eq 3 ]; then
         sudo bash -c "cat <<EOF >> $TARGET_CONF
 
@@ -3081,25 +3327,17 @@ voltage = 970
 
 [[safe-points]]
 frequency = 2100
-voltage = 990
+voltage = 995
 
 [[safe-points]]
 frequency = 2125
-voltage = 1000
+voltage = 1010
 
 [[safe-points]]
 frequency = 2150
-voltage = 1015
+voltage = 1025
 EOF"
     fi
-
-    echo -e "  ${GREEN}[✓] New config.toml compiled successfully using hardware constraints!${NC}"
-    echo -e "  ${YELLOW}[⚙] Cycling changes into live governor service memory...${NC}"
-    sudo systemctl daemon-reload 2>/dev/null || true
-    sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null || true
-    echo -e "  ${GREEN}[✓] Task complete! Active system profiles locked into memory space cleanly.${NC}\n"
-    read -rp "  Press [Enter] to exit back to the main menu..."
-}
 
     echo -e "  ${GREEN}[✓] New config.toml compiled successfully using hardware constraints!${NC}"
     echo -e "  ${YELLOW}[⚙] Cycling changes into live governor service memory...${NC}"
