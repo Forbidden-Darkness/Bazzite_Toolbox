@@ -60,6 +60,8 @@ echo "[●] Step 5/8: Injecting optimized performance flags into atomic kernel a
 (rpm-ostree kargs --delete=zswap.max_pool_percent=25 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --delete=zswap.compressor=lz4 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --delete=zswap.compressor=zstd 2>/dev/null || true) &>/dev/null
+# 🧠 EXTENDED CLEANUP PASS: Explicitly deletes old custom flags first to ensure a completely clean deployment layout
+(rpm-ostree kargs --delete=systemd.zram=0 --delete=zswap.zpool=z3fold --delete=zswap.max_pool_percent=40 2>/dev/null || true) &>/dev/null
 
 (rpm-ostree kargs --append-if-missing=mitigations=off 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --append-if-missing=zswap.enabled=1 2>/dev/null || true) &>/dev/null
