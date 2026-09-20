@@ -7,6 +7,7 @@ YELLOW='\033[1;33m' B_BLUE='\033[1;34m' RED='\033[0;31m'
 DIM='\033[38;2;110;110;110m' NC='\033[0m' GREEN='\033[0;32m'
 B_GREEN='\033[1;32m' MAGENTA="\033[1;95m" BOLD='\033[1m'
 CYAN='\033[0;36m' B_RED='\033[1;31m' RESET='\033[0m'
+oc_log="/var/log/bc250_oc_install.log"
 
 echo ""
 echo -e "  ${RED}RED Pill Suite Active Deployment Profile${RESET} │ ${CYAN}Version:${RESET} ${GREEN}v2.0${RESET} [●]"
@@ -15,16 +16,16 @@ echo -e "      ${DIM}Please hold steady and let the background transaction compi
 echo ""
 
 echo "[●] Step 1/8: Stopping obsolete governor daemon services..."
-(systemctl disable --now cyan-skillfish-governor 2>/dev/null || true) &>/dev/null
-(systemctl disable --now cyan-skillfish-governor-tt 2>/dev/null || true) &>/dev/null
-(systemctl disable --now oberon-governor 2>/dev/null || true) &>/dev/null
+sudo systemctl disable --now cyan-skillfish-governor >> "$oc_log" 2>&1 || true
+sudo systemctl disable --now cyan-skillfish-governor-tt >> "$oc_log" 2>&1 || true
+sudo systemctl disable --now oberon-governor >> "$oc_log" 2>&1 || true
 
 echo "[●] Step 2/8: Enabling the filippor/bazzite COPR repository..."
-(sudo copr enable filippor/bazzite -y 2>/dev/null || true) &>/dev/null
+sudo copr enable filippor/bazzite -y >> "$oc_log" 2>&1 || true
 
 echo "[●] Step 3/8: Cleaning and refreshing rpm-ostree metadata tracking..."
-(sudo rpm-ostree cleanup -m 2>/dev/null || true) &>/dev/null
-(sudo rpm-ostree refresh-md 2>/dev/null || true) &>/dev/null
+sudo rpm-ostree cleanup -m >> "$oc_log" 2>&1 || true
+sudo rpm-ostree refresh-md >> "$oc_log" 2>&1 || true
 
 echo "[●] Step 4/8: Staging Enhanced Cyan Skillfish Governor SMU layers..."
 is_reinstall=false
@@ -32,11 +33,11 @@ if [[ -d /usr/etc/cyan-skillfish-governor-smu || -f /var/log/bc250_oc_install.lo
     is_reinstall=true
 fi
 
-(sudo rpm-ostree cleanup -p 2>/dev/null || true) &>/dev/null
-(rpm-ostree install -y cyan-skillfish-governor-smu 2>/dev/null || true) &>/dev/null
+sudo rpm-ostree cleanup -p >> "$oc_log" 2>&1 || true
+sudo rpm-ostree install -y cyan-skillfish-governor-smu >> "$oc_log" 2>&1 || true
 
 if [ "$is_reinstall" = true ]; then
-    (sudo bash -c 'cat << "EOF" > /etc/systemd/system/gln-reinstall-sync.service
+    sudo bash -c 'cat << "EOF" > /etc/systemd/system/gln-reinstall-sync.service
 [Unit]
 Description=Post-Reboot Governor Directory Self-Healing Sync
 Before=cyan-skillfish-governor-smu.service
@@ -49,11 +50,10 @@ ExecStart=/usr/bin/systemctl disable gln-reinstall-sync.service
 ExecStart=/usr/bin/rm -f /etc/systemd/system/gln-reinstall-sync.service
 [Install]
 WantedBy=multi-user.target
-EOF' 2>/dev/null || true) &>/dev/null
-    (sudo systemctl daemon-reload 2>/dev/null || true) &>/dev/null
-    (sudo systemctl enable gln-reinstall-sync.service 2>/dev/null || true) &>/dev/null
+EOF' >> "$oc_log" 2>&1 || true
+    sudo systemctl daemon-reload >> "$oc_log" 2>&1 || true
+    sudo systemctl enable gln-reinstall-sync.service >> "$oc_log" 2>&1 || true
 fi
-
 echo "[●] Step 5/8: Injecting optimized performance flags into atomic kernel args (kargs)..."
 (rpm-ostree kargs --delete=systemd.zram=1 2>/dev/null || true) &>/dev/null
 (rpm-ostree kargs --delete=zram.num_devices=1 2>/dev/null || true) &>/dev/null
@@ -74,7 +74,14 @@ echo "[●] Step 6/8: Purging fragmented system layers and allocating unfragment
 (sudo btrfs subvolume create /var/swap 2>/dev/null || true) &>/dev/null
 (sudo semanage fcontext -a -t var_t /var/swap 2>/dev/null || true) &>/dev/null
 (sudo restorecon /var/swap 2>/dev/null || true) &>/dev/null
-(sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile 2>/dev/null || true) &>/dev/null
+
+# 🌀 FOREGROUND SPIRAL TRACKER: Holds execution focus and spins smoothly on a single line until allocation completes
+local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' ); local sp_idx=0
+sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile 2>/dev/null & local swap_pid=$!
+while kill -0 "$swap_pid" 2>/dev/null; do
+    echo -ne "\r  \033[1;31m[${spinner[sp_idx]}]\033[0m Allocating and formatting unfragmented 32GB Btrfs memory net..."; ((sp_idx=(sp_idx+1)%10)); sleep 0.08
+done; wait "$swap_pid"; echo -ne "\r                                                                                   \r"
+
 (sudo semanage fcontext -a -t swapfile_t /var/swap/swapfile 2>/dev/null || true) &>/dev/null
 (sudo restorecon /var/swap/swapfile 2>/dev/null || true) &>/dev/null
 
