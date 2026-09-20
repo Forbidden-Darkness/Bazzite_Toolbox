@@ -81,8 +81,8 @@ spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' ); sp_idx=
 (sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile 2>/dev/null || true) &>/dev/null
 while kill -0 "$swap_pid" 2>/dev/null; do
     echo -ne "\r  \033[1;31m[${spinner[sp_idx]}]\033[0m Allocating and formatting unfragmented 32GB Btrfs memory net..."; ((sp_idx=(sp_idx+1)%10)); sleep 0.08
-done; wait "$swap_pid"; echo -ne 
-"\r                                                                                   \r"
+done; wait "$swap_pid"; 
+echo -ne "\r                                                                                   \r"
 
 (sudo semanage fcontext -a -t swapfile_t /var/swap/swapfile 2>/dev/null || true) &>/dev/null
 (sudo restorecon /var/swap/swapfile 2>/dev/null || true) &>/dev/null
