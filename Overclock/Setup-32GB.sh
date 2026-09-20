@@ -98,7 +98,7 @@ echo "[●] Step 8/8: Compiling zstd acceleration drivers within system initramf
 
 echo ""
 echo -e "${B_GREEN}Setup Complete${NC}"
-echo -e "Please reboot your system using the following command: ${B_BLUE}systemctl reboot${NC}"
+#echo -e "Please reboot your system using the following command: ${B_BLUE}systemctl reboot${NC}"
 echo ""
 
 echo -e "\033[5m${B_RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${RESET}"
