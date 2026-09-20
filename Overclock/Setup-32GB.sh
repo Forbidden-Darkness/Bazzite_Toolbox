@@ -2,7 +2,6 @@
 # ────────────────────────────────────────────────────────────────
 #  Setup-32GB (Bazzite) – NexGen3D v2.0 (RED Pill Profile)
 # ────────────────────────────────────────────────────────────────
-
 YELLOW='\033[1;33m' B_BLUE='\033[1;34m' RED='\033[0;31m'
 DIM='\033[38;2;110;110;110m' NC='\033[0m' GREEN='\033[0;32m'
 B_GREEN='\033[1;32m' MAGENTA="\033[1;95m" BOLD='\033[1m'
@@ -16,28 +15,25 @@ echo -e "      ${DIM}Please hold steady and let the background transaction compi
 echo ""
 
 echo "[●] Step 1/8: Stopping obsolete governor daemon services..."
-(systemctl disable --now cyan-skillfish-governor 2>/dev/null || true) &>/dev/null
-(systemctl disable --now cyan-skillfish-governor-tt 2>/dev/null || true) &>/dev/null
-(systemctl disable --now oberon-governor 2>/dev/null || true) &>/dev/null
+sudo systemctl disable --now cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor >> "$oc_log" 2>&1 || true
 
 echo "[●] Step 2/8: Enabling the filippor/bazzite COPR repository..."
-(sudo copr enable filippor/bazzite -y 2>/dev/null || true) &>/dev/null
+sudo copr enable filippor/bazzite -y >> "$oc_log" 2>&1 || true
 
 echo "[●] Step 3/8: Cleaning and refreshing rpm-ostree metadata tracking..."
-(sudo rpm-ostree cleanup -m 2>/dev/null || true) &>/dev/null
-(sudo rpm-ostree refresh-md 2>/dev/null || true) &>/dev/null
+sudo rpm-ostree cleanup -m >> "$oc_log" 2>&1 || true
+sudo rpm-ostree refresh-md >> "$oc_log" 2>&1 || true
 
 echo "[●] Step 4/8: Staging Enhanced Cyan Skillfish Governor SMU layers..."
 is_reinstall=false
-if [[ -d /usr/etc/cyan-skillfish-governor-smu || -f /var/log/bc250_oc_install.log ]]; then
-    is_reinstall=true
-fi
+# 🧠 FIXED REINSTALL DETECTOR: Scans for the exact log footprint path to ensure toolchain mapping is synchronized
+if [[ -d /usr/etc/cyan-skillfish-governor-smu || -f "$oc_log" ]]; then is_reinstall=true; fi
 
-(sudo rpm-ostree cleanup -p 2>/dev/null || true) &>/dev/null
-(rpm-ostree install -y cyan-skillfish-governor-smu 2>/dev/null || true) &>/dev/null
+sudo rpm-ostree cleanup -p >> "$oc_log" 2>&1 || true
+sudo rpm-ostree install -y cyan-skillfish-governor-smu >> "$oc_log" 2>&1 || true
 
 if [ "$is_reinstall" = true ]; then
-    (sudo bash -c 'cat << "EOF" > /etc/systemd/system/gln-reinstall-sync.service
+    sudo bash -c 'cat << "EOF" > /etc/systemd/system/gln-reinstall-sync.service
 [Unit]
 Description=Post-Reboot Governor Directory Self-Healing Sync
 Before=cyan-skillfish-governor-smu.service
@@ -50,60 +46,44 @@ ExecStart=/usr/bin/systemctl disable gln-reinstall-sync.service
 ExecStart=/usr/bin/rm -f /etc/systemd/system/gln-reinstall-sync.service
 [Install]
 WantedBy=multi-user.target
-EOF' 2>/dev/null || true) &>/dev/null
-    (sudo systemctl daemon-reload 2>/dev/null || true) &>/dev/null
-    (sudo systemctl enable gln-reinstall-sync.service 2>/dev/null || true) &>/dev/null
+EOF' >> "$oc_log" 2>&1 || true
+    sudo systemctl daemon-reload >> "$oc_log" 2>&1 && sudo systemctl enable gln-reinstall-sync.service >> "$oc_log" 2>&1 || true
 fi
 echo "[●] Step 5/8: Injecting optimized performance flags into atomic kernel args (kargs)..."
-(rpm-ostree kargs --delete=systemd.zram=1 2>/dev/null || true) &>/dev/null
-(rpm-ostree kargs --delete=zram.num_devices=1 2>/dev/null || true) &>/dev/null
-(rpm-ostree kargs --delete=zswap.max_pool_percent=25 2>/dev/null || true) &>/dev/null
-(rpm-ostree kargs --delete=zswap.compressor=lz4 2>/dev/null || true) &>/dev/null
-(rpm-ostree kargs --delete=zswap.compressor=zstd 2>/dev/null || true) &>/dev/null
-# 🧠 EXTENDED CLEANUP PASS: Explicitly deletes old custom flags first to ensure a completely clean deployment layout
-(rpm-ostree kargs --delete=systemd.zram=0 --delete=zswap.zpool=z3fold --delete=zswap.max_pool_percent=40 2>/dev/null || true) &>/dev/null
-
-(rpm-ostree kargs --append-if-missing=mitigations=off 2>/dev/null || true) &>/dev/null
-(rpm-ostree kargs --append-if-missing=zswap.enabled=1 2>/dev/null || true) &>/dev/null
-(rpm-ostree kargs --append-if-missing=zswap.compressor=zstd 2>/dev/null || true) &>/dev/null
-(rpm-ostree kargs --append-if-missing=zswap.zpool=z3fold 2>/dev/null || true) &>/dev/null
-(rpm-ostree kargs --append-if-missing=zswap.max_pool_percent=40 2>/dev/null || true) &>/dev/null
-(rpm-ostree kargs --append-if-missing=systemd.zram=0 2>/dev/null || true) &>/dev/null
+# 🚀 UNIFIED FOREGROUND KERNEL SYNCHRONIZATION MATRIX: Cleans old parameters and preserves your boot splash metrics safely
+sudo rpm-ostree kargs --delete=systemd.zram=1 --delete=zram.num_devices=1 --delete=zswap.max_pool_percent=25 --delete=zswap.compressor=lz4 --delete=zswap.compressor=zstd --delete=systemd.zram=0 --delete=zswap.zpool=z3fold --delete=zswap.max_pool_percent=40 >> "$oc_log" 2>&1 || true
+sudo rpm-ostree kargs --append-if-missing=mitigations=off --append-if-missing=zswap.enabled=1 --append-if-missing=zswap.compressor=zstd --append-if-missing=zswap.zpool=z3fold --append-if-missing=zswap.max_pool_percent=40 --append-if-missing=systemd.zram=0 >> "$oc_log" 2>&1 || true
 
 echo "[●] Step 6/8: Purging fragmented system layers and allocating unfragmented 32GB storage swap..."
-(sudo swapoff /var/swap/swapfile 2>/dev/null || true) &>/dev/null
-(sudo rm -f /var/swap/swapfile 2>/dev/null || true) &>/dev/null
-(sudo btrfs subvolume delete /var/swap 2>/dev/null || true) &>/dev/null
-(sudo btrfs subvolume create /var/swap 2>/dev/null || true) &>/dev/null
-(sudo semanage fcontext -a -t var_t /var/swap 2>/dev/null || true) &>/dev/null
-(sudo restorecon /var/swap 2>/dev/null || true) &>/dev/null
+sudo swapoff /var/swap/swapfile >> "$oc_log" 2>&1 || true
+sudo rm -f /var/swap/swapfile >> "$oc_log" 2>&1 || true
+sudo btrfs subvolume delete /var/swap >> "$oc_log" 2>&1 || true
+sudo btrfs subvolume create /var/swap >> "$oc_log" 2>&1 || true
+sudo semanage fcontext -a -t var_t /var/swap >> "$oc_log" 2>&1 || true
+sudo restorecon /var/swap >> "$oc_log" 2>&1 || true
 
 # 🌀 FLAT SCRIPT FOREGROUND SPIRAL TRACKER: Global variables mapped to run outside wrapped function panels
 spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' ); sp_idx=0
-
-# 🚀 FIXED ATOMIC WORKER: Runs the Btrfs format in the background and immediately captures its exact PID handler
 sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile >/dev/null 2>&1 & swap_pid=$!
 
-# The loop will now animate smoothly because the background thread handle is verified and tracked
 while kill -0 "$swap_pid" 2>/dev/null; do
     echo -ne "\r  \033[1;31m[${spinner[sp_idx]}]\033[0m Allocating and formatting unfragmented 32GB Btrfs memory net..."; ((sp_idx=(sp_idx+1)%10)); sleep 0.08
 done; wait "$swap_pid"; echo -ne "\r                                                                                   \r"
 
-(sudo semanage fcontext -a -t swapfile_t /var/swap/swapfile 2>/dev/null || true) &>/dev/null
-(sudo restorecon /var/swap/swapfile 2>/dev/null || true) &>/dev/null
+sudo semanage fcontext -a -t swapfile_t /var/swap/swapfile >> "$oc_log" 2>&1 || true
+sudo restorecon /var/swap/swapfile >> "$oc_log" 2>&1 || true
 
 echo "[●] Step 7/8: Finalizing persistent fstab maps and tuning virtual memory (swappiness=100)..."
-(sudo sed -i '/\/var\/swap\/swapfile/d' /etc/fstab) &>/dev/null
-(sudo rm -f /etc/systemd/zram-generator.conf 2>/dev/null || true) &>/dev/null
-(sudo bash -c 'echo /var/swap/swapfile none swap defaults,nofail 0 0 >> /etc/fstab') &>/dev/null
-(sudo tee /etc/sysctl.d/99-swappiness.conf <<< "vm.swappiness = 100" 2>/dev/null || true) &>/dev/null
+sudo sed -i '/\/var\/swap\/swapfile/d' /etc/fstab >> "$oc_log" 2>&1 || true
+sudo rm -f /etc/systemd/zram-generator.conf >> "$oc_log" 2>&1 || true
+sudo bash -c 'echo "/var/swap/swapfile none swap defaults,nofail 0 0" >> /etc/fstab'
+sudo tee /etc/sysctl.d/99-swappiness.conf <<< "vm.swappiness = 100" >> "$oc_log" 2>&1 || true
 
 echo "[●] Step 8/8: Compiling zstd acceleration drivers within system initramfs maps..."
-(rpm-ostree initramfs --enable --arg=--add-drivers --arg=zstd 2>/dev/null || true) &>/dev/null
+sudo rpm-ostree initramfs --enable --arg=--add-drivers --arg=zstd >> "$oc_log" 2>&1 || true
 
 echo ""
 echo -e "${B_GREEN}Setup Complete${NC}"
-#echo -e "Please reboot your system using the following command: ${B_BLUE}systemctl reboot${NC}"
 echo ""
 
 echo -e "\033[5m${B_RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${RESET}"
