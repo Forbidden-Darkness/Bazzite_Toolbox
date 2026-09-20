@@ -75,9 +75,9 @@ echo "[●] Step 6/8: Purging fragmented system layers and allocating unfragment
 (sudo semanage fcontext -a -t var_t /var/swap 2>/dev/null || true) &>/dev/null
 (sudo restorecon /var/swap 2>/dev/null || true) &>/dev/null
 
-# 🌀 FOREGROUND SPIRAL TRACKER: Holds execution focus and spins smoothly on a single line until allocation completes
-local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' ); local sp_idx=0
-sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile 2>/dev/null & local swap_pid=$!
+# 🌀 FLAT SCRIPT FOREGROUND SPIRAL TRACKER: Global variables mapped to run outside wrapped function panels
+spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' ); sp_idx=0
+sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile 2>/dev/null & swap_pid=$!
 while kill -0 "$swap_pid" 2>/dev/null; do
     echo -ne "\r  \033[1;31m[${spinner[sp_idx]}]\033[0m Allocating and formatting unfragmented 32GB Btrfs memory net..."; ((sp_idx=(sp_idx+1)%10)); sleep 0.08
 done; wait "$swap_pid"; echo -ne "\r                                                                                   \r"
