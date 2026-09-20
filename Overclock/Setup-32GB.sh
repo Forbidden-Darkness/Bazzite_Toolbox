@@ -78,11 +78,14 @@ echo "[●] Step 6/8: Purging fragmented system layers and allocating unfragment
 
 # 🌀 FLAT SCRIPT FOREGROUND SPIRAL TRACKER: Global variables mapped to run outside wrapped function panels
 spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' ); sp_idx=0
-sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile 2>/dev/null || true &>/dev/null
+
+# 🚀 FIXED ATOMIC WORKER: Runs the Btrfs format in the background and immediately captures its exact PID handler
+sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile >/dev/null 2>&1 & swap_pid=$!
+
+# The loop will now animate smoothly because the background thread handle is verified and tracked
 while kill -0 "$swap_pid" 2>/dev/null; do
     echo -ne "\r  \033[1;31m[${spinner[sp_idx]}]\033[0m Allocating and formatting unfragmented 32GB Btrfs memory net..."; ((sp_idx=(sp_idx+1)%10)); sleep 0.08
-done; wait "$swap_pid"; 
-echo -ne "\r                                                                                   \r"
+done; wait "$swap_pid"; echo -ne "\r                                                                                   \r"
 
 (sudo semanage fcontext -a -t swapfile_t /var/swap/swapfile 2>/dev/null || true) &>/dev/null
 (sudo restorecon /var/swap/swapfile 2>/dev/null || true) &>/dev/null
