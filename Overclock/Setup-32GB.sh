@@ -61,9 +61,6 @@ sudo echo 'vm.swappiness = 180' | sudo tee /etc/sysctl.d/99-swappiness.conf || t
 echo "[●] Compiling lz4 acceleration tables within system initramfs maps..." &&
 rpm-ostree initramfs --enable --arg=--add-drivers --arg=lz4 || true
 
-# 🚀 PLYMOUTH BOOT SPLASH AUTO-REPAIRED GATE: Placed right here inside the execution chain
-sudo plymouth-set-default-theme --rebuild-initrd $(plymouth-set-default-theme) 2>/dev/null || true &&
-
 echo ""
 echo -e "${B_GREEN}Setup Complete${NC}"
 echo ""
