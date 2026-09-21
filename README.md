@@ -10,7 +10,7 @@ By executing this utility, you acknowledge that you are doing so entirely at you
 Clone the repository, configure executable permissions, and initialize the primary setup script.
 
 ```bash
-if [ -d "Bazzite_Toolbox" ]; then read -p "Bazzite_Toolbox already exists. Overwrite? (y/N): " ans; [[ "$ans" =~ ^[Yy]$ ]] && rm -rf Bazzite_Toolbox || exit 1; fi && git clone https://github.com/Forbidden-Darkness/Bazzite_Toolbox.git && cd Bazzite_Toolbox/ && chmod +x *.sh && sudo ./start.sh
+mkdir -p "$HOME/Applications" && cd "$HOME/Applications" && if [ -d "Bazzite_Toolbox" ]; then read -p "Bazzite_Toolbox already exists. Overwrite? (y/N): " ans; [[ "$ans" =~ ^[Yy]$ ]] && rm -rf Bazzite_Toolbox || exit 1; fi && git clone https://github.com/Forbidden-Darkness/Bazzite_Toolbox.git && cd Bazzite_Toolbox/ && chmod +x *.sh && sudo ./start.sh
 ```
 
 ------------------------------
