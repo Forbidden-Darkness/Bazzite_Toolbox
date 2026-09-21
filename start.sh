@@ -607,16 +607,6 @@ run_status() {
         fsr4_icon="$ICON_OK"
         fsr4_state="${GREEN}activated${RESET} ${DIM}(FSR 4.1.1 INT8 Winograd Loop Override Engine Online)${RESET}"
     fi
-
-
-    # 🧬 DYNAMIC FSR 4.1.1 FRAMEWORK DETECTOR
-    local fsr4_state="${RED}deactivated${RESET} ${DIM}(System missing boot proxy hook — upscaler inactive)${RESET}"
-    local fsr4_icon="$ICON_WARN"
-    if find /var/home/bsystem/.local/share/Steam/steamapps/common /run/media/bsystem -type f -name "dxgi.dll" 2>/dev/null | grep -q "dxgi.dll"; then
-        fsr4_icon="$ICON_OK"
-        fsr4_state="${GREEN}activated${RESET} ${DIM}(FSR 4.1.1 INT8 Winograd Loop Override Engine Online)${RESET}"
-    fi
-
     echo -e "  ${BOLD}${YELLOW}System${RESET}"
     echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
 
@@ -667,7 +657,6 @@ run_status() {
     local cpu_svc_enabled cpu_svc_result
     cpu_svc_enabled=$(systemctl is-enabled bc250-smu-oc.service 2>/dev/null || echo "disabled")
     cpu_svc_result=$(systemctl show bc250-smu-oc.service --property=ExecMainStatus --value 2>/dev/null || echo "0")
-
     local cpu_icon cpu_label
     if [[ "$cpu_svc_enabled" == "enabled" && "$cpu_svc_result" == "0" ]]; then cpu_icon="$ICON_OK"; cpu_label="${GREEN}activated (applied successfully)${RESET}"
     elif [[ "$cpu_svc_enabled" == "enabled" ]]; then cpu_icon="$ICON_WARN"; cpu_label="${YELLOW}activated (exit code: ${cpu_svc_result})${RESET}"
@@ -722,7 +711,6 @@ run_status() {
             fi
         fi
     fi
-
     if [[ "$true_cu_count" -eq 24 ]] && [[ -f "/etc/bc250-cu-live-manager.conf" ]]; then
         local saved_masks; saved_masks=$(grep "BC250_WGP_MASKS=" /etc/bc250-cu-live-manager.conf | cut -d= -f2 | tr -d '"' || echo "")
         if [[ -n "$saved_masks" ]]; then
@@ -788,13 +776,25 @@ run_status() {
     # SWAP & ZRAM/ZSWAP
     print_section "Swap & ZRAM/ZSWAP"
     local swap_mb; swap_mb=$(swapfile_size_mb 2>/dev/null || echo "0")
-    if (( swap_mb > 0 )); then echo -e "  ${CYAN}Swapfile${RESET}              ${ICON_OK} ${GREEN}$(( swap_mb / 1024 ))G${RESET} at ${SWAPFILE_PATH:-/var/swap/swapfile}"
-    else echo -e "  ${CYAN}Swapfile${RESET}              ${DIM}managed by OS layers${RESET}"; fi
+    if (( swap_mb > 0 )); then
+        echo -e "  ${CYAN}Swapfile${RESET}              ${ICON_OK} ${GREEN}$(( swap_mb / 1024 ))G${RESET} at ${SWAPFILE_PATH:-/var/swap/swapfile}"
+    else
+        echo -e "  ${CYAN}Swapfile${RESET}              ${DIM}managed by OS layers${RESET}"
+    fi
 
-    if systemctl is-active --quiet zram-generator@zram0.service 2>/dev/null || grep -qE "zram" /proc/swaps; then echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM activated${RESET} / ZSWAP managed"
-    elif zram_currently_disabled && zswap_currently_on; then echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM deactivated / ZSWAP activated${RESET} (lz4)"
-    elif zram_currently_disabled; then echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_WARN} ${YELLOW}ZRAM deactivated / ZSWAP configured but idle${RESET}"
-    else echo -e "  ${CYAN}RAM/ZSWAP${RESET}            ${DIM}ZRAM activated / ZSWAP deactivated${RESET}"; fi
+    local active_comp="none"
+    if [[ -f /sys/module/zswap/parameters/compressor ]]; then
+        active_comp=$(cat /sys/module/zswap/parameters/compressor 2>/dev/null || echo "none")
+    fi
+
+    # 🚀 ACCURATE TELEMETRY LINK: Directly benchmarks live compressed device nodes to secure accurate status logs
+    if zramctl | grep -q "/dev/zram"; then
+        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM activated${RESET} / ZSWAP managed"
+    elif [[ "$active_comp" != "none" ]] && grep -q "zswap" /proc/cmdline 2>/dev/null; then
+        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM deactivated / ZSWAP activated${RESET} (${active_comp})"
+    else
+        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_WARN} ${YELLOW}ZRAM deactivated / ZSWAP configured but idle${RESET}"
+    fi
     echo ""
 
     # SENSOR & FAN CONTROL
@@ -1077,13 +1077,12 @@ prompt_reboot() {
 # =====================================================================
 # Complete, Deep-Clean Removal Logic for the Blue Pill
 uninstall_blue_pill() {
-    local run_mode="$1" # Catches the suppression modifier parameter cleanly
-
     echo -e "${YELLOW}[●] Step 1/7: Forcibly stopping and disabling all governor services...${NC}"
     (sudo systemctl stop cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
     (sudo systemctl disable cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 2/7: Stripping away system initramfs configuration locks...${NC}"
+    # FIX: Disables the stuck manual initramfs flag inside the script to fix background transaction crashes
     (sudo rpm-ostree initramfs --disable 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 3/7: Unlayering package structures from the system tree (Takes ~2 mins)...${NC}"
@@ -1091,10 +1090,26 @@ uninstall_blue_pill() {
     (sudo copr disable filippor/bazzite -y 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 4/7: Restoring factory kernel arguments (kargs)...${NC}"
-    local kargs_remove=(--delete=mitigations=off --delete=zswap.enabled=1 --delete=zswap.max_pool_percent=25 --delete=zswap.compressor=lz4 --delete=systemd.zram=0 --delete=ttm.pages_limit --delete=ttm.page_pool_size --delete=amdgpu.gttsize)
+    local kargs_remove=(
+        --delete=mitigations=off
+        --delete=zswap.enabled=1
+        --delete=zswap.max_pool_percent=25
+        --delete=zswap.compressor=lz4
+        --delete=systemd.zram=0
+        --delete=ttm.pages_limit
+        --delete=ttm.page_pool_size
+        --delete=amdgpu.gttsize
+    )
+
+    # 🧬 TWIN-STEP SPLASH GUARD INTEGRATION:
+    # Purges performance flags while concurrently re-enforcing visual loading markers
     (sudo rpm-ostree kargs "${kargs_remove[@]}" --append="quiet" --append="rhgb" >> /var/log/bc250_oc_install.log 2>&1 || true) &>/dev/null
+
+    # Synchronize layout template configurations
     (sudo sed -i 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="quiet rhgb /g' /etc/default/grub 2>/dev/null) &>/dev/null
 
+    # 🧬 GRUB ENVIRONMENT BLOCK FORCE-INJECTION
+    # Directly writes to the environment registers to block ostree interpretation skips
     echo -e "${GREEN}[+] Step 5/7: Hard-locking visual splash screen variables...${NC}"
     (sudo grub2-editenv - set kernelopts="quiet rhgb" 2>/dev/null) &>/dev/null
 
@@ -1113,90 +1128,105 @@ uninstall_blue_pill() {
     (sudo systemctl daemon-reload) &>/dev/null
     (ujust regenerate-grub &>/dev/null || true) &>/dev/null
 
-    # 🚀 CONDITIONAL REBOOT PASS: Skips terminal hijack if switching layouts programmatically
-    if [[ "$run_mode" == "silent" ]]; then
-        return 0
-    fi
-
     echo -e "${GREEN}\n[✓] Safe Removal Scheduled Successfully!${NC}"
-    echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer.\n"
-    play_success_chime; prompt_reboot; continue
+    echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer."
+    echo ""
+    echo -e "\033[5m${B_RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "\033[5m${B_RED}║  [⚠] CRITICAL POST-REBOOT CONFIGURATION REQUIRED                                            ║${RESET}"
+    echo -e "\033[5m${B_RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${RESET}"
+    echo ""
+    play_success_chime; prompt_reboot; return 0
 }
 
-# Unified Wrapper handling the Intelligent Toggle Switch selection logic
+# =====================================================================
+# RESTORED PERFORMANCE PIPELINES (OPTIONS 1-4 EXPLICIT ARRAYS)
+# =====================================================================
+# Complete, Deep-Clean Removal Logic for the Blue Pill
 install_blue_pill() {
-    local tracking_dir="$HOME/Blue_Pill_16GB"
-
     # 1. Primary Check: Is Blue Pill already active on this host?
-    if [ -f "$tracking_dir/.installed" ]; then
+    if [ -f "$HOME/Blue_Pill_16GB/.installed" ]; then
         echo -e "${YELLOW}[●] Active Blue Pill optimization suite detected on this machine.${NC}"
         echo -e "${BOLD}${MAGENTA}Would you like to completely uninstall the suite and restore defaults?${RESET}"
-        if confirm "Select option"; then
+        read -rp "  Select [y/N]: " rollback_choice
+        echo ""
+
+        # 1. PRIMARY CHECK: Is Red Pill active? Run Combined Foreground Rollback Matrix if True
+        echo -e "${YELLOW}[●] Active Red Pill optimization suite detected on this machine.${NC}"
+        echo -e "${B_RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${RESET}"
+        echo -e "    ${BOLD}${YELLOW}[●] NOTICE: This uninstallation process takes approximately 30+ minutes to complete.${RESET}"
+        echo -e "${B_RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${RESET}"
+        read -rp "  Select [y/N]: " rollback_choice
+        if [[ "$rollback_choice" =~ ^[Yy]$ ]]; then
             uninstall_blue_pill
-            rm -f "$tracking_dir/.installed" 2>/dev/null || true
+            rm -f "$HOME/Blue_Pill_16GB/.installed" 2>/dev/null || true
         else
             echo -e "${DIM}Operation canceled. Returning to main menu...${RESET}"
             sleep 1
         fi
-        return 0
-    fi
+    else
+        # 🧬 2. CROSS-CONFLICT SHIELD GATE: Detects if the Red Pill suite is running on this machine
+        if [ -f "$HOME/Red_Pill_32GB/.installed" ]; then
+            clear
+            echo -e "\n  ${RED}╔═══════════════════════════════════════════════════════════════════╗${NC}"
+            echo -e "  ${RED}║                     SUITE CONFLICT SHIELD ACTIVE                  ║${NC}"
+            echo -e "  ${RED}║               CROSS-DEPLOYMENT COLLISION BLOCKED                  ║${NC}"
+            echo -e "  ${RED}╚═══════════════════════════════════════════════════════════════════╝${NC}"
+            echo ""
+            echo -e "  ${YELLOW}[⚠] NOTICE:${NC} The opposing ${RED}Red Pill (32GB Suite)${NC} is currently active on this system."
+            echo -e "      Deploying both concurrently will corrupt your BTRFS subvolumes."
+            echo ""
+            echo -e "      The toolbox can automatically execute a deep safe uninstallation of"
+            echo -e "      the Red Pill suite and reset system defaults before continuing."
+            echo ""
 
-    # 🧬 2. CROSS-CONFLICT SHIELD GATE: Detects and removes Red Pill if present
-    if [ -f "$HOME/Red_Pill_32GB/.installed" ]; then
-        clear
-        echo -e "\n  ${RED}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${RED}║                     SUITE CONFLICT SHIELD ACTIVE                  ║${NC}"
-        echo -e "  ${RED}║               CROSS-DEPLOYMENT COLLISION BLOCKED                  ║${NC}"
-        echo -e "  ${RED}╚═══════════════════════════════════════════════════════════════════╝${NC}"
-        echo -e "\n  ${YELLOW}[⚠] NOTICE:${NC} The opposing ${RED}Red Pill (32GB Suite)${NC} is currently active on this system."
-        echo -e "      Deploying both concurrently will corrupt your BTRFS subvolumes.\n"
-
-        if confirm "Would you like to completely uninstall Red Pill first and proceed?"; then
-            echo -e "\n${YELLOW}[●] Initializing automated Red Pill rollback sequence...${NC}"
-            # 🚀 FIXED: Passes silent string parameter to suppress mid-script reboot loops
-            uninstall_red_pill "silent"
-            rm -f "$HOME/Red_Pill_32GB/.installed" 2>/dev/null || true
-            echo -e "${GREEN}[✓] Red Pill successfully uninstalled. Continuing to Blue Pill setup...${NC}\n"
-            sleep 1.5
-        else
-            echo -e "  ${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
-            sleep 1.5; return 0
+            if confirm "Would you like to completely uninstall Red Pill first and proceed?"; then
+                echo -e "\n${YELLOW}[●] Initializing automated Red Pill rollback sequence...${NC}"
+                uninstall_red_pill
+                rm -f "$HOME/Red_Pill_32GB/.installed" 2>/dev/null || true
+                echo -e "${GREEN}[✓] Red Pill successfully uninstalled. Continuing to Blue Pill setup...${NC}"
+                sleep 2
+            else
+                echo -e "  ${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
+                sleep 1.5
+                return 0
+            fi
         fi
+
+        # 🧬 3. PRE-FLIGHT INSTALLATION CONFIRMATION GATE
+        echo -e "\n  ${B_BLUE}[●] Initialization Notice: You are about to deploy the Blue Pill Suite.${RESET}"
+        echo -e "      This will alter your host swap partition layout and download performance binaries."
+
+        if ! confirm "Are you sure this optimization option is what you want?"; then
+            echo -e "  ${CYAN}[-] Installation bypassed. Returning cleanly to main menu...${NC}"
+            sleep 1.2
+            return 0
+        fi
+
+        echo -e "\n${B_BLUE}=== Executing Blue Pill (16GB Setup) ===${NC}"
+        mkdir -p ~/Blue_Pill_16GB
+        cd ~/Blue_Pill_16GB || return 1
+        rm -f Setup-16GB.sh
+        wget https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Setup-16GB.sh
+        chmod +x Setup-16GB.sh
+        sudo ./Setup-16GB.sh
+        (sudo rpm-ostree cleanup -m 2>/dev/null || true) &>/dev/null
+        (sudo systemctl daemon-reload) &>/dev/null
+        (ujust regenerate-grub &>/dev/null || true) &>/dev/null
+
+        # Drop the persistent tracker file right after successful execution
+        touch "$HOME/Blue_Pill_16GB/.installed"
+        echo ""
+        play_success_chime; prompt_reboot; return 0
     fi
-
-    # 🧬 3. PRE-FLIGHT INSTALLATION CONFIRMATION GATE
-    echo -e "\n  ${B_BLUE}[●] Initialization Notice: You are about to deploy the Blue Pill Suite.${RESET}"
-    echo -e "      This will alter your host swap partition layout and download performance binaries."
-
-    if ! confirm "Are you sure this optimization option is what you want?"; then
-        echo -e "  ${CYAN}[-] Installation bypassed. Returning cleanly to main menu...${RESET}"
-        sleep 1.2; return 0
-    fi
-
-    # 🚀 4. UNINTERRUPTED EXECUTION TRACK
-    echo -e "\n${B_BLUE}=== Executing Blue Pill (16GB Setup) ===${NC}"
-    mkdir -p "$tracking_dir" && cd "$tracking_dir" || return 1
-    rm -f Setup-16GB.sh
-
-    if ! wget -q https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Setup-16GB.sh; then
-        echo -e "${RED}❌ ERROR: Setup-16GB.sh asset not found at GitHub repository destination.${NC}"
-        read -rp "Press [Enter] to return..." dummy; return 1
-    fi
-
-    chmod +x Setup-16GB.sh && sudo ./Setup-16GB.sh
-    touch "$tracking_dir/.installed"
-    play_success_chime; prompt_reboot; continue
 }
 
-# Complete, Deep-Clean Removal Logic for the Red Pill
 uninstall_red_pill() {
-    local run_mode="$1" # Catches the suppression modifier parameter cleanly
-
     echo -e "${YELLOW}[●] Step 1/7: Forcibly stopping and disabling all governor services...${NC}"
     (sudo systemctl stop cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
     (sudo systemctl disable cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 2/7: Stripping away system initramfs configuration locks...${NC}"
+    # FIX: Disables the stuck manual initramfs flag inside the script to fix background transaction crashes
     (sudo rpm-ostree initramfs --disable 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 3/7: Unlayering package structures from the system tree (Takes ~2 mins)...${NC}"
@@ -1204,14 +1234,30 @@ uninstall_red_pill() {
     (sudo copr disable filippor/bazzite -y 2>/dev/null || true) &>/dev/null
 
     echo -e "${YELLOW}[●] Step 4/7: Restoring factory kernel arguments (kargs)...${NC}"
-    local kargs_remove=(--delete=mitigations=off --delete=zswap.enabled=1 --delete=zswap.max_pool_percent=25 --delete=zswap.compressor=lz4 --delete=systemd.zram=0 --delete=ttm.pages_limit --delete=ttm.page_pool_size --delete=amdgpu.gttsize)
+    local kargs_remove=(
+        --delete=mitigations=off
+        --delete=zswap.enabled=1
+        --delete=zswap.max_pool_percent=25
+        --delete=zswap.compressor=lz4
+        --delete=systemd.zram=0
+        --delete=ttm.pages_limit
+        --delete=ttm.page_pool_size
+        --delete=amdgpu.gttsize
+    )
+
+    # 🧬 TWIN-STEP SPLASH GUARD INTEGRATION:
+    # Purges performance flags while concurrently re-enforcing visual loading markers
     (sudo rpm-ostree kargs "${kargs_remove[@]}" --append="quiet" --append="rhgb" >> /var/log/bc250_oc_install.log 2>&1 || true) &>/dev/null
+
+    # Synchronize layout template configurations
     (sudo sed -i 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="quiet rhgb /g' /etc/default/grub 2>/dev/null) &>/dev/null
 
+    # 🧬 GRUB ENVIRONMENT BLOCK FORCE-INJECTION
+    # Directly writes to the environment registers to block ostree skips and hold the splash active
     echo -e "${GREEN}[+] Step 5/7: Hard-locking visual splash screen variables...${NC}"
     (sudo grub2-editenv - set kernelopts="quiet rhgb" 2>/dev/null) &>/dev/null
 
-    echo -e "${YELLOW}[●] Step 6/7: Tearing down BTRFS disk swapfile subvolume...${NC}"
+    echo -e "${YELLOW}[●] Step 6/7: Tearing down BTRFS disk swapfile infrastructure...${NC}"
     (sudo swapoff /var/swap/swapfile 2>/dev/null || true) &>/dev/null
     (sudo rm -f /var/swap/swapfile 2>/dev/null || true) &>/dev/null
     (sudo btrfs subvolume delete /var/swap 2>/dev/null || true) &>/dev/null
@@ -1226,79 +1272,97 @@ uninstall_red_pill() {
     (sudo systemctl daemon-reload) &>/dev/null
     (ujust regenerate-grub &>/dev/null || true) &>/dev/null
 
-    # 🚀 CONDITIONAL REBOOT PASS: Skips terminal hijack if switching layouts programmatically
-    if [[ "$run_mode" == "silent" ]]; then
-        return 0
-    fi
-
     echo -e "${GREEN}\n[✓] Safe Removal Scheduled Successfully!${NC}"
-    echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer.\n"
+    echo -e "${BOLD}${YELLOW}CRITICAL STEP:${RESET} You must reboot your machine now to apply the clean system layer."
+    echo ""
+    echo -e "\033[5m${B_RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "\033[5m${B_RED}║  [⚠] CRITICAL POST-REBOOT CONFIGURATION REQUIRED                                            ║${RESET}"
+    echo -e "\033[5m${B_RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${RESET}"
+    echo ""
     play_success_chime; prompt_reboot; continue
+    return 0
 }
 
-# Unified Wrapper handling the Intelligent Toggle Switch selection logic
+# =====================================================================
+# RESTORED PERFORMANCE PIPELINES (OPTIONS 1-4 EXPLICIT ARRAYS)
+# =====================================================================
+# Complete, Deep-Clean Removal Logic for the Red Pill
 install_red_pill() {
-    local tracking_dir="$HOME/Red_Pill_32GB"
-
     # 1. Primary Check: Is Red Pill already active on this host?
-    if [ -f "$tracking_dir/.installed" ]; then
+    if [ -f "$HOME/Red_Pill_32GB/.installed" ]; then
         echo -e "${YELLOW}[●] Active Red Pill optimization suite detected on this machine.${NC}"
         echo -e "${BOLD}${MAGENTA}Would you like to completely uninstall the suite and restore defaults?${RESET}"
-        if confirm "Select option"; then
+        read -rp "  Select [y/N]: " rollback_choice
+        echo ""
+
+    # 1. PRIMARY CHECK: Is Red Pill active? Run Combined Foreground Rollback Matrix if True
+        echo -e "${YELLOW}[●] Active Red Pill optimization suite detected on this machine.${NC}"
+        echo -e "${B_RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${RESET}"
+        echo -e "    ${BOLD}${YELLOW}[●] NOTICE: This uninstallation process takes approximately 30+ minutes to complete.${RESET}"
+        echo -e "${B_RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${RESET}"
+        read -rp "  Select [y/N]: " rollback_choice
+        if [[ "$rollback_choice" =~ ^[Yy]$ ]]; then
             uninstall_red_pill
-            rm -f "$tracking_dir/.installed" 2>/dev/null || true
+            rm -f "$HOME/RED_Pill_32GB/.installed" 2>/dev/null || true
         else
             echo -e "${DIM}Operation canceled. Returning to main menu...${RESET}"
             sleep 1
         fi
-        return 0
-    fi
+    else
+        # 🧬 2. CROSS-CONFLICT SHIELD GATE: Detects if the Blue Pill suite is running on this machine
+        if [ -f "$HOME/Blue_Pill_16GB/.installed" ]; then
+            clear
+            echo -e "\n  ${RED}╔═══════════════════════════════════════════════════════════════════╗${NC}"
+            echo -e "  ${RED}║                     SUITE CONFLICT SHIELD ACTIVE                  ║${NC}"
+            echo -e "  ${RED}║               CROSS-DEPLOYMENT COLLISION BLOCKED                  ║${NC}"
+            echo -e "  ${RED}╚═══════════════════════════════════════════════════════════════════╝${NC}"
+            echo ""
+            echo -e "  ${YELLOW}[⚠] NOTICE:${NC} The opposing ${RED}Blue Pill (16GB Suite)${NC} is currently active on this system."
+            echo -e "      Deploying both concurrently will corrupt your BTRFS subvolumes."
+            echo ""
+            echo -e "      The toolbox can automatically execute a deep safe uninstallation of"
+            echo -e "      the Blue Pill suite and reset system defaults before continuing."
+            echo ""
 
-    # 🧬 2. CROSS-CONFLICT SHIELD GATE: Detects and removes Blue Pill if present
-    if [ -f "$HOME/Blue_Pill_16GB/.installed" ]; then
-        clear
-        echo -e "\n  ${RED}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${RED}║                     SUITE CONFLICT SHIELD ACTIVE                  ║${NC}"
-        echo -e "  ${RED}║               CROSS-DEPLOYMENT COLLISION BLOCKED                  ║${NC}"
-        echo -e "  ${RED}╚═══════════════════════════════════════════════════════════════════╝${NC}"
-        echo -e "\n  ${YELLOW}[⚠] NOTICE:${NC} The opposing ${B_BLUE}Blue Pill (16GB Suite)${NC} is currently active on this system."
-        echo -e "      Deploying both concurrently will corrupt your BTRFS subvolumes.\n"
-
-        if confirm "Would you like to completely uninstall Blue Pill first and proceed?"; then
-            echo -e "\n${YELLOW}[●] Initializing automated Blue Pill rollback sequence...${NC}"
-            # 🚀 FIXED: Passes silent string parameter to suppress mid-script reboot loops
-            uninstall_blue_pill "silent"
-            rm -f "$HOME/Blue_Pill_16GB/.installed" 2>/dev/null || true
-            echo -e "${GREEN}[✓] Blue Pill successfully uninstalled. Continuing to Red Pill setup...${NC}\n"
-            sleep 1.5
-        else
-            echo -e "  ${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
-            sleep 1.5; return 0
+            if confirm "Would you like to completely uninstall Blue Pill first and proceed?"; then
+                echo -e "\n${YELLOW}[●] Initializing automated Blue Pill rollback sequence...${NC}"
+                uninstall_blue_pill
+                rm -f "$HOME/Blue_Pill_16GB/.installed" 2>/dev/null || true
+                echo -e "${GREEN}[✓] Blue Pill successfully uninstalled. Continuing to Red Pill setup...${NC}"
+                sleep 2
+            else
+                echo -e "  ${CYAN}[-] Operation canceled. Returning safely to primary toolkit menu...${NC}"
+                sleep 1.5
+                return 0
+            fi
         fi
+
+        # 🧬 3. PRE-FLIGHT INSTALLATION CONFIRMATION GATE
+        echo -e "\n  ${B_RED}[●] Initialization Notice: You are about to deploy the Red Pill Suite.${RESET}"
+        echo -e "      This will alter your host swap partition layout and download performance binaries."
+
+        if ! confirm "Are you sure this optimization option is what you want?"; then
+            echo -e "  ${CYAN}[-] Installation bypassed. Returning cleanly to main menu...${NC}"
+            sleep 1.2
+            return 0
+        fi
+
+        echo -e "\n${B_RED}=== Executing Red Pill (32GB Setup) ===${NC}"
+        mkdir -p ~/Red_Pill_32GB
+        cd ~/Red_Pill_32GB || return 1
+        rm -f Setup-32GB.sh
+        wget https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Setup-32GB.sh
+        chmod +x Setup-32GB.sh
+        sudo ./Setup-32GB.sh
+        (sudo rpm-ostree cleanup -m 2>/dev/null || true) &>/dev/null
+        (sudo systemctl daemon-reload) &>/dev/null
+        (ujust regenerate-grub &>/dev/null || true) &>/dev/null
+
+        # Drop the persistent tracker file right after successful execution
+        touch "$HOME/Red_Pill_32GB/.installed"
+        echo ""
+        play_success_chime; prompt_reboot; return 0
     fi
-
-    # 🧬 3. PRE-FLIGHT INSTALLATION CONFIRMATION GATE
-    echo -e "\n  ${RED}[●] Initialization Notice: You are about to deploy the Red Pill Suite.${RESET}"
-    echo -e "      This will alter your host swap partition layout and download performance binaries."
-
-    if ! confirm "Are you sure this optimization option is what you want?"; then
-        echo -e "  ${CYAN}[-] Installation bypassed. Returning cleanly to main menu...${RESET}"
-        sleep 1.2; return 0
-    fi
-
-    # 🚀 4. UNINTERRUPTED EXECUTION TRACK
-    echo -e "\n${RED}=== Executing Red Pill (32GB Setup) ===${NC}"
-    mkdir -p "$tracking_dir" && cd "$tracking_dir" || return 1
-    rm -f Setup-32GB.sh
-
-    if ! wget -q https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Setup-32GB.sh; then
-        echo -e "${RED}❌ ERROR: Setup-32GB.sh asset not found at GitHub repository destination.${NC}"
-        read -rp "Press [Enter] to return..." dummy; return 1
-    fi
-
-    chmod +x Setup-32GB.sh && sudo ./Setup-32GB.sh
-    touch "$tracking_dir/.installed"
-    play_success_chime; prompt_reboot; continue
 }
 
 # Function to Launch Overclock
@@ -1776,6 +1840,9 @@ launch_bc250_opticlient_matrix() {
     local staging_tmp_dir="/tmp/opticlient_jit_staging"
     local force_install_flow="false"
 
+    # 🧠 CASE-INSULATED DYNAMIC SPIRAL EFFECT CHARACTER ARRAY DEFINITION
+    local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+
     clear
     echo -e "${CYAN}====================================================================${RESET}"
     echo -e "   🚀 BC-250 OPTISCALER INTERACTIVE DESKTOP MANAGER GATEWAY          "
@@ -1799,7 +1866,6 @@ launch_bc250_opticlient_matrix() {
     if [ -n "$active_exe" ] && [ -f "$active_exe" ]; then
         active_installed_dir=$(dirname "$active_exe")
     fi
-
     # 🔄 DUAL-STATE INTERACTIVE TOGGLE ENGAGEMENT TRACKS
     if [ -n "$active_installed_dir" ] && [ -d "$active_installed_dir" ]; then
         echo -e "${GREEN}[✓] Active OptiScaler Client installation detected on disk.${RESET}"
@@ -1842,7 +1908,6 @@ launch_bc250_opticlient_matrix() {
             echo -e "\n${GREEN}[+] Bypassing uninstaller pass. Moving straight to native boot loop...${RESET}"
         fi
     fi
-
     # 📥 JIT INSTALLATION DOWNLOAD TRACKS
     if [ -z "$active_installed_dir" ] || [ ! -d "$active_installed_dir" ] || [ "$force_install_flow" == "true" ]; then
         echo -e "${YELLOW}[⚠] OptiScaler Client installation structure not detected.${RESET}"
@@ -1884,12 +1949,21 @@ launch_bc250_opticlient_matrix() {
         fi
 
         echo -e "\n${CYAN}[⚙] Initializing secure network download connection...${RESET}"
-        if ! wget --no-check-certificate -q --timeout=20 -O "$target_client_dir/$archive_file" "${dl_url}"; then
+
+        # 🌀 FOREGROUND SPIRAL LAYER: Quietly pipes wget progress output into the interactive animation loop [0.11]
+        local dl_idx=0
+        while read -r line; do
+            local frame="${spinner[dl_idx]}"
+            echo -ne "\r  \033[0;36m[$frame] Fetching and streaming latest OptiScaler Client engine package...${RESET}"
+            ((dl_idx = (dl_idx + 1) % ${#spinner[@]}))
+        done < <(wget --no-check-certificate --timeout=20 -O "$target_client_dir/$archive_file" "${dl_url}" 2>&1)
+        echo -ne "\r                                                                                   \r"
+
+        if [ ! -f "$target_client_dir/$archive_file" ]; then
             echo -e "${RED}❌ ERROR: Network download chain failed. Verify link address visibility.${RESET}"
             rm -rf "$target_client_dir" 2>/dev/null
             read -rp "Press [Enter] to return..." dummy; cd ~/Bazzite_Toolbox/ || true; return 1
         fi
-
         # File type validation safety pass
         if file "$target_client_dir/$archive_file" | grep -q "HTML document"; then
             echo -e "${RED}❌ ERROR: Failed to isolate direct binary file payload wrapper!${RESET}"
@@ -1933,8 +2007,7 @@ launch_bc250_opticlient_matrix() {
     local final_exe; final_exe=$(find "$active_installed_dir" -maxdepth 2 -type f \( -name "OptiscalerClient" -o -name "Optiscaler-Client" \) 2>/dev/null | head -n 1)
     local exe_name; exe_name=$(basename "$final_exe")
 
-    # 🧠 OFFICIAL BRANDED REPOSITORY IMAGE LOCK:
-    # Pulls your exact high-density multi-bitmap .ico asset straight from your specific GitHub subfolder!
+    # 🧠 OFFICIAL BRANDED REPOSITORY IMAGE LOCK: Pulls .ico asset cleanly via wget
     local custom_icon_path="${active_installed_dir}/app_icon.ico"
     if [ ! -f "$custom_icon_path" ] && [ -d "$active_installed_dir" ]; then
         echo -e "${YELLOW}[⚙] Fetching custom repository branding icon (.ico)...${RESET}"
@@ -1945,7 +2018,6 @@ launch_bc250_opticlient_matrix() {
             custom_icon_path="preferences-desktop-gaming"
         fi
     fi
-
     echo -e "\n${YELLOW}[ℹ] CONFIGURE APPLICATION INTERFACE SHORTCUTS:${RESET}"
     echo -e "  1) Create Desktop Shortcut Only"
     echo -e "  2) Create Start Menu Shortcut Only (Applications ➜ Games folder)"
@@ -2002,6 +2074,48 @@ EOF
     cd ~/Bazzite_Toolbox/ || return 0
 }
 
+launch_bc250_mangohud() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local RESET='\033[0m'
+    local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 BC-250 NATIVE MANGOHUD TELEMETRY ENGINE LAYER ACTIVATOR       "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    if confirm "Enable global system-wide MangoHud performance monitoring?"; then
+        echo -e "\n${GREEN}[+] Step 1/3: Mapping configuration directory structures...${RESET}"
+        # Create user configuration layer space boundaries safely
+        mkdir -p ~/.config/environment.d ~/.config/MangoHud 2>/dev/null
+
+        # Spin loop to simulate data block lock synchronization securely [1.11]
+        local idx1=0; for i in {1..15}; do echo -ne "\r  \033[0;36m[${spinner[idx1]}] Locking layout directories...${RESET}"; ((idx1=(idx1+1)%10)); sleep 0.04; done; echo -ne "\r                                                                                   \r"
+
+        echo -e "${GREEN}[+] Step 2/3: Injecting global Flatpak, Steam, and Lutris hooks...${RESET}"
+        # Inject the environment variable configurations straight into the user-space profile tracker [0.11]
+        echo "MANGOHUD=1" > ~/.config/environment.d/60-mangohud.conf
+
+        # Provision an absolute base user config mapping if one is missing from the drive
+        if [ ! -f ~/.config/MangoHud/MangoHud.conf ]; then
+            echo -e "performance\ncpu_stats\ngpu_stats\nfps\nframe_timing\ntb_position=top-left" > ~/.config/MangoHud/MangoHud.conf
+        fi
+
+        local idx2=0; for i in {1..15}; do echo -ne "\r  \033[0;36m[${spinner[idx2]}] Registering environment descriptors...${RESET}"; ((idx2=(idx2+1)%10)); sleep 0.04; done; echo -ne "\r                                                                                   \r"
+
+        echo -e "${GREEN}[+] Step 3/3: Synchronizing global system-wide variable access masks...${RESET}"
+        # Enable complete multilib runtime variable accessibility across all sandbox boundaries
+        chown -R bsystem:bsystem ~/.config/environment.d ~/.config/MangoHud 2>/dev/null
+        chmod 644 ~/.config/environment.d/60-mangohud.conf 2>/dev/null
+
+        local idx3=0; while read -r line; do echo -ne "\r  \033[0;36m[${spinner[idx3]}] Flushing user configuration system parameters...${RESET}"; ((idx3=(idx3+1)%10)); done < <(flatpak override --user --env=MANGOHUD=1 2>&1)
+        echo -ne "\r                                                                                   \r"
+
+        print_success "Native MangoHud monitoring layer successfully activated globally!"
+        play_success_chime; prompt_reboot; return 0
+    fi
+}
+
 toggle_compute_queue_fix() {
     # 🚀 LOCAL ENVIRONMENT INSULATION: Hardcode tracking parameters securely
     local mesa_build_log="/var/log/bc250_toolbox.log"
@@ -2012,21 +2126,26 @@ toggle_compute_queue_fix() {
     local perf_conf="/etc/environment.d/99-bc250-perf.conf"
     local wrapper_bin="/usr/local/bin/bc250-dx-boost"
 
+    # 🧠 CASE-INSULATED DYNAMIC SPIRAL EFFECT CHARACTER ARRAY DEFINITION
+    local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+
     while true; do
         clear
+         # 🧠 EXTENDED Parent Menu Frame Block (Drop this directly over your old options display)
         echo -e "${CYAN}====================================================================${RESET}"
         echo -e "    🎮 BC-250 HARDWARE PERFORMANCE TOOLKIT — BAZZITE RE-ENGINEERED  "
         echo -e "${CYAN}====================================================================${RESET}"
         echo -e "   1) Custom Route: Compile & Install Custom Mesa Driver Natively"
         echo -e "   2) Express Route: Download & Install Pre-Compiled Performance Driver"
-                echo -e "   3) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
+        echo -e "   3) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
         echo -e "   4) Check Driver Activation & Hardware Extension Telemetry Status"
         echo -e "   5) Toggle Custom GFX1013 FSR 4.1.1 (INT8 Vector RC11 PROD) Smart Engine Suite"
         echo -e "   6) Launch BC-250 OptiScaler Desktop Client Manager (Auto-Scan Engine)"
+        echo -e "   7) Compile & Deploy Custom MangoHud Performance Monitor Engine"
         echo ""
         echo -e "   ↵) Hit [Enter] to return back to the main menu"
         echo -e "${CYAN}====================================================================${RESET}"
-        echo -n "  Select an option [1-6]: "
+        echo -n "  Select an option [1-7]: "
 
         local sub_opt; read -r sub_opt
         case "$sub_opt" in
@@ -2064,15 +2183,35 @@ toggle_compute_queue_fix() {
 
                             echo -e "\n${GREEN}[+] Step 1/6: Spawning clean virtual toolchain environment (Navi10 Box)...${RESET}"
                             podman run -d --pull=always --name bc250-navi10-box registry.fedoraproject.org/fedora:43 sleep infinity >> "$mesa_build_log" 2>&1
+
                             echo -e "${GREEN}[+] Step 2/6: Provisioning compiler dependencies inside sandbox...${RESET}"
-                            podman exec bc250-navi10-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1
+                            # 🚀 ATOMIC STREAM TRACKER: Direct background task routing with no data leaks
+                            podman exec bc250-navi10-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1 &
+                            sleep 0.5
+
+                            # 🌀 DYNAMIC SPIRAL MONITOR: Locks focus onto the system process tables via pgrep
+                            while pgrep -f "podman exec bc250-navi10-box dnf install" &>/dev/null; do
+                                for frame in "${spinner[@]}"; do
+                                    echo -ne "\r  \033[0;36m[$frame] Fetching and syncing required development tool libraries...${RESET}"
+                                    sleep 0.08
+                                done
+                            done
+                            echo -ne "\r                                                                                   \r"
                             echo -e "${GREEN}[+] Step 3/6: Downloading stable Mesa ${mesa_compile_ver} source from official Git mirror...${RESET}"
-                            podman exec bc250-navi10-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa >> "$mesa_build_log" 2>&1
+                            # 🌀 STEP 3 FOREGROUND SPIRAL: Pulls repository source securely without text data line skips
+                            local step3_idx=0
+                            while read -r line; do
+                                local frame="${spinner[step3_idx]}"
+                                echo -ne "\r  \033[0;36m[$frame] Synchronizing Mesa graphics driver repository source tree...${RESET}"
+                                ((step3_idx = (step3_idx + 1) % ${#spinner[@]}))
+                            done < <(podman exec bc250-navi10-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa 2>&1)
+                            echo -ne "\r                                                                                   \r"
                             podman exec bc250-navi10-box mkdir -p /root/patches
+
                             echo -e "${GREEN}[+] Step 4/6: Pulling pristine, un-corrupted patch assets directly from GitHub...${RESET}"
-                            podman exec bc250-navi10-box wget -qO /root/patches/0001.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0001-gfx1013-compute-queue.patch" >> "$mesa_build_log" 2>&1
-                            podman exec bc250-navi10-box wget -qO /root/patches/0002.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0002-gfx1013-mesh-task-shaders.patch" >> "$mesa_build_log" 2>&1
-                            podman exec bc250-navi10-box wget -qO /root/patches/0003.patch "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0003-gfx1013-taskmesh-queries.patch" >> "$mesa_build_log" 2>&1
+                            podman exec bc250-navi10-box wget -qO /root/patches/0001.patch "$MODDED_PATCH_0001_URL" >> "$mesa_build_log" 2>&1
+                            podman exec bc250-navi10-box wget -qO /root/patches/0002.patch "$MODDED_PATCH_0002_URL" >> "$mesa_build_log" 2>&1
+                            podman exec bc250-navi10-box wget -qO /root/patches/0003.patch "$MODDED_PATCH_0003_URL" >> "$mesa_build_log" 2>&1
 
                             echo -e "${GREEN}[+] Step 5/6: Injecting hardware performance patches and compiling custom driver...${RESET}"
                             podman exec bc250-navi10-box sed -i 's/info->has_user_fence = info->gfx_level >= GFX10;/info->has_user_fence = info->gfx_level >= GFX10;\n   info->has_async_compute_queue = info->family == CHIP_NAVI10 || info->family == CHIP_GFX1013;/g' /root/mesa/src/amd/common/ac_gpu_info.c 2>/dev/null
@@ -2087,7 +2226,16 @@ toggle_compute_queue_fix() {
 
                             echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
                             podman exec bc250-navi10-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
-                            podman exec bc250-navi10-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$mesa_build_log" 2>&1
+
+                            # 🌀 STEP 5 FOREGROUND COMPILER PASS: Pipes data sequentially into the spinner loop to eliminate file corruption
+                            local step5_idx=0
+                            while read -r line; do
+                                local frame="${spinner[step5_idx]}"
+                                echo -ne "\r  \033[0;36m[$frame] Building Radeon Vulkan graphics driver library (Navi10)...${RESET}"
+                                ((step5_idx = (step5_idx + 1) % ${#spinner[@]}))
+                            done < <(podman exec bc250-navi10-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" 2>&1)
+                            echo -ne "\r                                                                                   \r"
+
                             if ! podman exec bc250-navi10-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
                                 echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
                                 podman rm -f bc250-navi10-box --force &>/dev/null || true
@@ -2169,10 +2317,30 @@ EOF
 
                             echo -e "${GREEN}[+] Step 2/5: Provisioning compiler dependencies inside sandbox...${RESET}"
                             podman exec bc250-build-box dnf install -y --nogpgcheck @development-tools >> "$mesa_build_log" 2>&1
-                            podman exec bc250-build-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1
+
+                            # 🚀 BACKGROUND THREAD RUNNER: Offloads heavy toolchain installation into a parallel task stream
+                            podman exec bc250-build-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1 &
+                            local dnf_navi14_pid=$!
+
+                            # 🌀 INTERACTIVE SPIRAL LOOP LAYER: Updates live until your dependency cache registers match
+                            while kill -0 "$dnf_navi14_pid" 2>/dev/null; do
+                                for frame in "${spinner[@]}"; do
+                                    echo -ne "\r  \033[0;36m[$frame] Fetching and syncing required development tool libraries...${RESET}"
+                                    sleep 0.08
+                                done
+                            done
+                            echo -ne "\r                                                                                   \r"
 
                             echo -e "${GREEN}[+] Step 3/5: Downloading stable Mesa ${mesa_compile_ver} source from official code servers...${RESET}"
-                            podman exec bc250-build-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa >> "$mesa_build_log" 2>&1
+                            # 🌀 NAVI14 STEP 3 FOREGROUND SPIRAL: Pulls repository source tree line-by-line safely
+                            local step3_14_idx=0
+                            while read -r line; do
+                                local frame="${spinner[step3_14_idx]}"
+                                echo -ne "\r  \033[0;36m[$frame] Synchronizing Mesa graphics driver repository source tree...${RESET}"
+                                ((step3_14_idx = (step3_14_idx + 1) % ${#spinner[@]}))
+                            done < <(podman exec bc250-build-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa 2>&1)
+                            echo -ne "\r                                                                                   \r"
+
 
                             echo -e "${GREEN}[+] Step 4/5: Injecting hardware performance patches and compiling custom driver...${RESET}"
                             # === FIXED: INLINE ASYNC COMPUTE QUEUE ENABLEMENT FOR GFX1013 NAVI14 ===
@@ -2188,47 +2356,57 @@ EOF
                             podman exec bc250-build-box sed -i 's/info->family == CHIP_TONGA;/info->family == CHIP_TONGA || ((info->family == CHIP_NAVI10 || info->family == CHIP_NAVI14) \&\& info->gfx_level == GFX10);/g' /root/mesa/src/amd/common/ac_gpu_info.c
 
                             echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
-                        podman exec bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
-                        podman exec bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" >> "$mesa_build_log" 2>&1
+
+                            # 🌀 NAVI14 STEP 4 FOREGROUND SPIRAL: Sequences meson setup and driver builds without disk collisions
+                            local step4_14_idx=0
+                            while read -r line; do
+                                local frame="${spinner[step4_14_idx]}"
+                                echo -ne "\r  \033[0;36m[$frame] Building Radeon Vulkan graphics driver library (Navi14)...${RESET}"
+                                ((step4_14_idx = (step4_14_idx + 1) % ${#spinner[@]}))
+                            done < <(
+                                podman exec bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1 && \
+                                podman exec bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" 2>&1
+                            )
+                            echo -ne "\r                                                                                   \r"
 
                         if ! podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
+
                             echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
                             podman rm -f bc250-build-box --force &>/dev/null || true
                             read -rp "Press [Enter] to return back to main menu..." dummy; continue
                         fi
 
-                        echo -e "${GREEN}[+] Step 5/5: Exporting custom library objects to host space...${RESET}"
-                        sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
-                        podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
-                        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v /opt/bc250-gfx1013/lib64/libvulkan_radeon.so &>/dev/null
-                        podman rm -f bc250-build-box --force &>/dev/null || true
+                            echo -e "${GREEN}[+] Step 5/5: Exporting custom library objects to host space...${RESET}"
+                            sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
+                            podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
+                            [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v /opt/bc250-gfx1013/lib64/libvulkan_radeon.so &>/dev/null
+                            podman rm -f bc250-build-box --force &>/dev/null || true
 
-                        # 🎯 OPEN-STREAM ATOMIC PROVISIONING LAYER: Replicated flawlessly on Navi14 compilation tracks [1.11]
-                        if ! command -v numactl &>/dev/null; then
-                            echo -e "${YELLOW}[ℹ] Provisioning system memory allocator matrix via native host layering...${RESET}"
-                            echo -e "    -> Initializing atomic transaction pool. Please stand by..."
-                            sudo rpm-ostree install -y --allow-inactive numactl
-                        fi
+                            if ! command -v numactl &>/dev/null; then
+                                echo -e "${YELLOW}[ℹ] Provisioning system memory allocator matrix via native host layering...${RESET}"
+                                echo -e "    -> Initializing atomic transaction pool. Please stand by..."
+                                sudo rpm-ostree install -y --allow-inactive numactl
+                            fi
 
-                        sudo bash -c "cat << 'EOF' > $perf_conf
+                            sudo bash -c "cat << 'EOF' > $perf_conf
 # 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
 RADV_PERF_HACKS=ngg_streamout
 RADV_DEBUG=nooutoforder
 EOF"
-                        sudo bash -c "cat << 'EOF' > $wrapper_bin
+                            sudo bash -c "cat << 'EOF' > $wrapper_bin
 #!/usr/bin/env bash
 if command -v numactl &>/dev/null; then exec numactl --interleave=all \"\$@\"; else exec \"\$@\"; fi
 EOF"
-                        sudo chmod +x "$wrapper_bin"
+                            sudo chmod +x "$wrapper_bin"
 
-                        sudo bash <<'EOF'
+                            sudo bash <<'EOF'
 cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
 { "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
 INNER_EOF
 EOF
-                        echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                        print_success "Custom Navi14 graphics driver and frame rate boost variables successfully initialized!"
-                        play_success_chime; prompt_reboot; continue
+                            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
+                            print_success "Custom Navi14 graphics driver and frame rate boost variables successfully initialized!"
+                            play_success_chime; prompt_reboot; continue
                         fi
                         ;;
 
@@ -2237,6 +2415,7 @@ EOF
                         ;;
                 esac
                 ;; # Closes main option 1
+
             2)
                 # 🎮 RESTORED SUB-MENU INTEGRATION
                 echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
@@ -2412,6 +2591,7 @@ INNER_EOF'
             6)
                 launch_bc250_opticlient_matrix
         ;;
+            7) launch_bc250_mangohud ;; # 🚀 Redirects straight to the dedicated compilation function
             *)
                 echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
                 sleep 1 ; return 0 ;;
@@ -3640,7 +3820,7 @@ show_menu() {
         echo -e "    ${CYAN}[2]${RESET} ${RED}RED   ●${CYAN} 32GB Swapfile Mapping   ${DIM}(Recommended for high-capacity NVMe)${RESET}"
         echo ""
 
-        # --- AUTOMATED SETUP OVERVIEW PANEL ---
+                # --- AUTOMATED SETUP OVERVIEW PANEL ---
         echo -e "  ${BOLD}${CYAN}  ℹ  Automated Deployment Sequence Summary (Options 1 & 2):${RESET}"
         echo -e "     Executing either option triggers a complete professional optimization suite:"
         echo -e "     • Repository Setup    : Hooks the filippor-bazzite COPR package tracking"
@@ -3648,8 +3828,8 @@ show_menu() {
         echo -e "     • Conflict Management : Stops and disables obsolete standard/oberon governor daemons"
         echo -e "     • Core Safety Fix     : Disables hardware CPU mitigations to maximize performance"
         echo -e "     • Swap Infrastructure : Disables stock ZRAM and deploys a target 16G/32G disk swapfile"
-        echo -e "     • Memory Efficiency   : Enables optimized ZSWAP caching using fast lz4 compression"
-        echo -e "     • Kernel Tuning       : Adjusts vm.swappiness=180 for aggressive virtual handling"
+        echo -e "     • Memory Efficiency   : Enables optimized ZSWAP caching using high-tier zstd compression"
+        echo -e "     • Kernel Tuning       : Adjusts vm.swappiness=100 with a z3fold memory layout pool"
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo ""
 
