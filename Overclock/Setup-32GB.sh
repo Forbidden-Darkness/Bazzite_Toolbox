@@ -9,7 +9,7 @@ B_GREEN='\033[1;32m' MAGENTA="\033[1;95m" BOLD='\033[1m'
 CYAN='\033[0;36m' B_RED='\033[1;31m' RESET='\033[0m'
 
 echo ""
-echo -e "  ${B_BLUE}[●] RED Pill Suite Active Deployment Profile${RESET} │ ${CYAN}Version:${RESET} ${GREEN}v2.0${RESET}"
+echo -e "  ${B_RED}[●] RED Pill Suite Active Deployment Profile${RESET} │ ${CYAN}Version:${RESET} ${GREEN}v3.0${RESET}"
 echo -e "  ${YELLOW}[●] NOTICE: This deployment process takes approximately 25 minutes from start to finish.${NC}"
 echo -e "      ${DIM}Please hold steady and let the background transaction compiler finish completely.${NC}"
 echo ""
