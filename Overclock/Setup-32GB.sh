@@ -1,68 +1,95 @@
 #!/usr/bin/env bash
 # ────────────────────────────────────────────────────────────────
-#  Setup-32GB (Bazzite) – NexGen3D v2.0 (RED Pill Profile)
+#  Setup-32GB (Bazzite) – NexGen3D v3.0 (Red Pill Profile)
 # ────────────────────────────────────────────────────────────────
+
 YELLOW='\033[1;33m' B_BLUE='\033[1;34m' RED='\033[0;31m'
 DIM='\033[38;2;110;110;110m' NC='\033[0m' GREEN='\033[0;32m'
 B_GREEN='\033[1;32m' MAGENTA="\033[1;95m" BOLD='\033[1m'
 CYAN='\033[0;36m' B_RED='\033[1;31m' RESET='\033[0m'
-oc_log="/var/log/bc250_oc_install.log"
 
 echo ""
-echo -e "  ${RED}RED Pill Suite Active Deployment Profile${RESET} │ ${CYAN}Version:${RESET} ${GREEN}v2.0${RESET} [●]"
+echo -e "  ${B_BLUE}[●] RED Pill Suite Active Deployment Profile${RESET} │ ${CYAN}Version:${RESET} ${GREEN}v2.0${RESET}"
 echo -e "  ${YELLOW}[●] NOTICE: This deployment process takes approximately 25 minutes from start to finish.${NC}"
 echo -e "      ${DIM}Please hold steady and let the background transaction compiler finish completely.${NC}"
 echo ""
 
-echo "[●] Stopping obsolete governor daemon services..." &&
-systemctl disable --now cyan-skillfish-governor 2>/dev/null || true &&
-systemctl disable --now cyan-skillfish-governor-tt 2>/dev/null || true &&
-systemctl disable --now oberon-governor 2>/dev/null || true &&
+echo "[●] Step 1/8: Stopping obsolete governor daemon services..."
+(systemctl disable --now cyan-skillfish-governor 2>/dev/null || true) &>/dev/null
+(systemctl disable --now cyan-skillfish-governor-tt 2>/dev/null || true) &>/dev/null
+(systemctl disable --now oberon-governor 2>/dev/null || true) &>/dev/null
 
-echo "[●] Enabling the filippor/bazzite COPR repository..." &&
-sudo copr enable filippor/bazzite <<< y 2>/dev/null || true &&
+echo "[●] Step 2/8: Enabling the filippor/bazzite COPR repository..."
+(sudo copr enable filippor/bazzite -y 2>/dev/null || true) &>/dev/null
 
-echo "[●] Cleaning and refreshing rpm-ostree metadata tracking..." &&
-sudo rpm-ostree cleanup -m 2>/dev/null || true &&
-sudo rpm-ostree refresh-md 2>/dev/null || true &&
+echo "[●] Step 3/8: Cleaning and refreshing rpm-ostree metadata tracking..."
+(sudo rpm-ostree cleanup -m 2>/dev/null || true) &>/dev/null
+(sudo rpm-ostree refresh-md 2>/dev/null || true) &>/dev/null
 
-echo "[●] Staging Enhanced Cyan Skillfish Governor SMU layers..." &&
-rpm-ostree install cyan-skillfish-governor-smu 2>/dev/null || true &&
+echo "[●] Step 4/8: Staging Enhanced Cyan Skillfish Governor SMU layers..."
+is_reinstall=false
+if [[ -d /usr/etc/cyan-skillfish-governor-smu || -f /var/log/bc250_oc_install.log ]]; then
+    is_reinstall=true
+fi
 
-echo "[●] Injecting performance flags into atomic kernel args (kargs)..." &&
-rpm-ostree kargs --append-if-missing=mitigations=off 2>/dev/null || true &&
-rpm-ostree kargs --append-if-missing=zswap.enabled=1 2>/dev/null || true &&
-rpm-ostree kargs --append-if-missing=zswap.max_pool_percent=25 2>/dev/null || true &&
-rpm-ostree kargs --append-if-missing=zswap.compressor=lz4 2>/dev/null || true &&
-rpm-ostree kargs --append-if-missing=systemd.zram=0 2>/dev/null || true &&
+(sudo rpm-ostree cleanup -p 2>/dev/null || true) &>/dev/null
+(rpm-ostree install -y cyan-skillfish-governor-smu 2>/dev/null || true) &>/dev/null
 
-echo "[●] Tearing down old storage profiles and clearing swap blocks..." &&
-sudo swapoff /var/swap/swapfile 2>/dev/null || true &&
-sudo rm -f /var/swap/swapfile 2>/dev/null || true &&
-sudo btrfs subvolume delete /var/swap 2>/dev/null || true &&
+if [ "$is_reinstall" = true ]; then
+    (sudo bash -c 'cat << "EOF" > /etc/systemd/system/gln-reinstall-sync.service
+[Unit]
+Description=Post-Reboot Governor Directory Self-Healing Sync
+Before=cyan-skillfish-governor-smu.service
+ConditionPathExists=!/etc/cyan-skillfish-governor-smu/config.toml
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/mkdir -p /etc/cyan-skillfish-governor-smu
+ExecStart=/usr/bin/cp -n /usr/etc/cyan-skillfish-governor-smu/config.toml /etc/cyan-skillfish-governor-smu/config.toml
+ExecStart=/usr/bin/systemctl disable gln-reinstall-sync.service
+ExecStart=/usr/bin/rm -f /etc/systemd/system/gln-reinstall-sync.service
+[Install]
+WantedBy=multi-user.target
+EOF' 2>/dev/null || true) &>/dev/null
+    (sudo systemctl daemon-reload 2>/dev/null || true) &>/dev/null
+    (sudo systemctl enable gln-reinstall-sync.service 2>/dev/null || true) &>/dev/null
+fi
 
-echo "[●] Creating fresh BTRFS subvolume space configurations..." &&
-sudo btrfs subvolume create /var/swap 2>/dev/null || true &&
-sudo semanage fcontext -a -t var_t /var/swap 2>/dev/null || true &&
-sudo restorecon /var/swap 2>/dev/null || true &&
+echo "[●] Step 5/8: Injecting performance flags into atomic kernel args (kargs)..."
+(rpm-ostree kargs --delete=systemd.zram=1 2>/dev/null || true) &>/dev/null
+(rpm-ostree kargs --delete=zram.num_devices=1 2>/dev/null || true) &>/dev/null
+(rpm-ostree kargs --delete=zswap.max_pool_percent=25 2>/dev/null || true) &>/dev/null
+(rpm-ostree kargs --delete=zswap.compressor=lz4 2>/dev/null || true) &>/dev/null
 
-echo "[●] Allocating 32GB contiguous space boundary targets..." &&
-sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile 2>/dev/null || true &&
-sudo semanage fcontext -a -t swapfile_t /var/swap/swapfile 2>/dev/null ||true &&
-sudo restorecon /var/swap/swapfile 2>/dev/null ||true &&
+(rpm-ostree kargs --append-if-missing=mitigations=off 2>/dev/null || true) &>/dev/null
+(rpm-ostree kargs --append-if-missing=zswap.enabled=1 2>/dev/null || true) &>/dev/null
+(rpm-ostree kargs --append-if-missing=zswap.compressor=zstd 2>/dev/null || true) &>/dev/null
+(rpm-ostree kargs --append-if-missing=zswap.zpool=z3fold 2>/dev/null || true) &>/dev/null
+(rpm-ostree kargs --append-if-missing=zswap.max_pool_percent=40 2>/dev/null || true) &>/dev/null
+(rpm-ostree kargs --append-if-missing=systemd.zram=0 2>/dev/null || true) &>/dev/null
 
-echo "[●] Finalizing persistent mounting configurations inside /etc/fstab..." &&
-sudo sed -i '/\/var\/swap\/swapfile/d' /etc/fstab &&
-sudo bash -c 'echo /var/swap/swapfile none swap defaults,nofail 0 0 >> /etc/fstab' &&
+echo "[●] Step 6/8: Purging fragmented system layers and allocating unfragmented 32GB storage swap..."
+(sudo swapoff /var/swap/swapfile 2>/dev/null || true) &>/dev/null
+(sudo rm -f /var/swap/swapfile 2>/dev/null || true) &>/dev/null
+(sudo btrfs subvolume delete /var/swap 2>/dev/null || true) &>/dev/null
+(sudo btrfs subvolume create /var/swap 2>/dev/null || true) &>/dev/null
+(sudo semanage fcontext -a -t var_t /var/swap 2>/dev/null || true) &>/dev/null
+(sudo restorecon /var/swap 2>/dev/null || true) &>/dev/null
+(sudo btrfs filesystem mkswapfile --size 32G /var/swap/swapfile 2>/dev/null || true) &>/dev/null
+(sudo semanage fcontext -a -t swapfile_t /var/swap/swapfile 2>/dev/null || true) &>/dev/null
+(sudo restorecon /var/swap/swapfile 2>/dev/null || true) &>/dev/null
 
-echo "[●] Adjusting virtual memory swappiness parameters (vm.swappiness=180)..." &&
-sudo echo 'vm.swappiness = 180' | sudo tee /etc/sysctl.d/99-swappiness.conf || true &&
+echo "[●] Step 7/8: Finalizing persistent fstab maps and tuning virtual memory (swappiness=180)..."
+(sudo sed -i '/\/var\/swap\/swapfile/d' /etc/fstab) &>/dev/null
+(sudo rm -f /etc/systemd/zram-generator.conf 2>/dev/null || true) &>/dev/null
+(sudo bash -c 'echo /var/swap/swapfile none swap defaults,nofail 0 0 >> /etc/fstab') &>/dev/null
+(sudo tee /etc/sysctl.d/99-swappiness.conf <<< "vm.swappiness = 180" 2>/dev/null || true) &>/dev/null
 
-echo "[●] Compiling lz4 acceleration tables within system initramfs maps..." &&
-rpm-ostree initramfs --enable --arg=--add-drivers --arg=lz4 || true
+echo "[●] Step 8/8: Compiling zstd acceleration drivers within system initramfs maps..."
+(rpm-ostree initramfs --enable --arg=--add-drivers --arg=zstd 2>/dev/null || true) &>/dev/null
 
 echo ""
 echo -e "${B_GREEN}Setup Complete${NC}"
+echo -e "Please reboot your system using the following command: ${B_BLUE}systemctl reboot${NC}"
 echo ""
 
 echo -e "\033[5m${B_RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${RESET}"
