@@ -42,7 +42,7 @@ REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 # STEP 2: ASSIGN TARGET AUDIO & UPDATE REPOSITORIES
 # ==============================================================================
 # --- GLOBAL CORE CONFIGURATION TARGET PATHS ---
-EXTERNAL_DIR="$REAL_HOME/Bazzite_Toolbox"
+EXTERNAL_DIR="$REAL_HOME/Applications/Bazzite_Toolbox"
 CORE_UNLOCK_CONF="/etc/bc250-core-unlock.conf"
 
 # 🧬 FIXED INITIALIZATION PIN: Seeds the logger target path for options 1 & 2
@@ -1365,12 +1365,12 @@ install_red_pill() {
 install_overclock() {
     echo -e "${B_RED}=== Launching Overclock Menu ===${NC}"
 
-    local oc_dir="$REAL_HOME/Bazzite_Toolbox/Overclock"
+    local oc_dir="$REAL_HOME/Applications/Bazzite_Toolbox/Overclock"
     mkdir -p "$oc_dir"
     cd "$oc_dir" || return 1
     chown -R "$REAL_USER":"$REAL_USER" "$oc_dir"
 
-    local oc_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Overclock-Live-Manager.sh"
+    local oc_url="https://raw.githubusercontent.com/Forbidden-Darkness/Applications/Bazzite_Toolbox/main/Overclock/Overclock-Live-Manager.sh"
     local run_download=false
 
     # 🧬 OFFLINE-FIRST ENFORCEMENT: Fast 2-second pre-flight connectivity handshake
@@ -1406,7 +1406,7 @@ install_overclock() {
 install_wake_on_lan() {
     echo -e "${B_RED}=== Launching Wake on LAN Menu ===${NC}"
 
-    local wol_dir="$REAL_HOME/Bazzite_Toolbox/Wake_on_LAN"
+    local wol_dir="$REAL_HOME/Applications/Bazzite_Toolbox/Wake_on_LAN"
     mkdir -p "$wol_dir"
     cd "$wol_dir" || return 1
     chown -R "$REAL_USER":"$REAL_USER" "$wol_dir"
@@ -1920,7 +1920,7 @@ launch_bc250_opticlient_matrix() {
 
         if [ -z "$dl_url" ]; then
             echo -e "${RED}❌ ERROR: Download URL constraint cannot be an empty value string.${RESET}"
-            read -rp "Press [Enter] to return..." dummy; cd ~/Bazzite_Toolbox/ || true; return 1
+            read -rp "Press [Enter] to return..." dummy; cd ~/Applications/Bazzite_Toolbox/ || true; return 1
         fi
 
         # Extract version tags if a standard release link is pasted to auto-convert it
@@ -1958,13 +1958,13 @@ launch_bc250_opticlient_matrix() {
         if [ ! -f "$target_client_dir/$archive_file" ]; then
             echo -e "${RED}❌ ERROR: Network download chain failed. Verify link address visibility.${RESET}"
             rm -rf "$target_client_dir" 2>/dev/null
-            read -rp "Press [Enter] to return..." dummy; cd ~/Bazzite_Toolbox/ || true; return 1
+            read -rp "Press [Enter] to return..." dummy; cd ~/Applications/Bazzite_Toolbox/ || true; return 1
         fi
         # File type validation safety pass
         if file "$target_client_dir/$archive_file" | grep -q "HTML document"; then
             echo -e "${RED}❌ ERROR: Failed to isolate direct binary file payload wrapper!${RESET}"
             rm -rf "$target_client_dir" 2>/dev/null
-            read -rp "Press [Enter] to return..." dummy; cd ~/Bazzite_Toolbox/ || true; return 1
+            read -rp "Press [Enter] to return..." dummy; cd ~/Applications/Bazzite_Toolbox/ || true; return 1
         fi
 
         echo -e "${YELLOW}[⚙] Running automated unpacking pass straight over root destination...${RESET}"
@@ -1992,7 +1992,7 @@ launch_bc250_opticlient_matrix() {
         if [ -z "$active_exe" ]; then
             echo -e "${RED}❌ ERROR: Deployment validation failed. 'OptiscalerClient' native binary missing.${RESET}"
             rm -rf "$target_client_dir" 2>/dev/null
-            read -rp "Press [Enter] to return..." dummy; cd ~/Bazzite_Toolbox/ || true; return 1
+            read -rp "Press [Enter] to return..." dummy; cd ~/Applications/Bazzite_Toolbox/ || true; return 1
         fi
 
         echo -e "${GREEN}[✓] Unpacking and directory deployment finished smoothly!${RESET}"
@@ -2067,7 +2067,7 @@ EOF
 
     env HOME="${raw_home}" XDG_CONFIG_HOME="${raw_home}/.config" ./${exe_name}
 
-    cd ~/Bazzite_Toolbox/ || return 0
+    cd ~/Applications/Bazzite_Toolbox/ || return 0
 }
 
 launch_bc250_mangohud() {
@@ -3064,8 +3064,8 @@ launch_html_dashboard() {
         elif [[ -f "$REAL_HOME/$name" ]]; then
             target_html="$REAL_HOME/$name"
             break
-        elif [[ -f "$REAL_HOME/Bazzite_Toolbox/$name" ]]; then
-            target_html="$REAL_HOME/Bazzite_Toolbox/$name"
+        elif [[ -f "$REAL_HOME/Applications/Bazzite_Toolbox/$name" ]]; then
+            target_html="$REAL_HOME/Applications/Bazzite_Toolbox/$name"
             break
         fi
     done
