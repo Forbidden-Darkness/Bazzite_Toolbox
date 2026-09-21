@@ -82,7 +82,7 @@ echo "[●] Step 7/8: Finalizing persistent fstab maps and tuning virtual memory
 (sudo sed -i '/\/var\/swap\/swapfile/d' /etc/fstab) &>/dev/null
 (sudo rm -f /etc/systemd/zram-generator.conf 2>/dev/null || true) &>/dev/null
 (sudo bash -c 'echo /var/swap/swapfile none swap defaults,nofail 0 0 >> /etc/fstab') &>/dev/null
-(sudo tee /etc/sysctl.d/99-swappiness.conf <<< "vm.swappiness = 100" 2>/dev/null || true) &>/dev/null
+(sudo tee /etc/sysctl.d/99-swappiness.conf <<< "vm.swappiness = 180" 2>/dev/null || true) &>/dev/null
 
 echo "[●] Step 8/8: Compiling zstd acceleration drivers within system initramfs maps..."
 (rpm-ostree initramfs --enable --arg=--add-drivers --arg=zstd 2>/dev/null || true) &>/dev/null
