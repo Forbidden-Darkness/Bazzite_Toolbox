@@ -868,53 +868,60 @@ force_remove_shortcut() {
 # SHORTCUT CREATION & PROMPT LOGIC
 # =====================================================================
 create_start_menu_shortcut() {
-    print_info "Creating start menu shortcut..."
-    mkdir -p "$LOCAL_APPS"
+    print_info "Creating start menu shortcut..." [3]
+    mkdir -p "$LOCAL_APPS" [3]
 
-    cat << EOF > "$OLD_DESKTOP"
+    # 🚀 AUTOMATED REPOSITORY EMBLEM DEPLOYMENT
+    local icon_dest="${REAL_HOME}/Red_Pill_32GB"
+    mkdir -p "$icon_dest" 2>/dev/null
+    if [ ! -f "$icon_dest/matrix.ico" ]; then
+        sudo -u "$REAL_USER" wget -q -O "$icon_dest/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/matrix.ico" || true
+    fi
+
+    cat << EOF > "$OLD_DESKTOP" [3]
 [Desktop Entry]
 Version=1.0
 Type=Application
 Name=Bazzite Toolbox
 Comment=Launch Custom Bazzite Tweak Tool
 Exec=sudo bash "$SCRIPT_PATH"
-Icon=utilities-terminal
+Icon=$icon_dest/matrix.ico
 Terminal=true
 Categories=Utility;System;
 X-KDE-Submenu=Bazzite Toolbox
-EOF
+EOF [3]
 
-    chmod +x "$OLD_DESKTOP"
-    chown -R "$REAL_USER":"$REAL_USER" "$OLD_DESKTOP"
+    chmod +x "$OLD_DESKTOP" [3]
+    chown -R "$REAL_USER":"$REAL_USER" "$OLD_DESKTOP" [3]
 
-    rm -f "$OLD_DIRECTORY" "$OLD_MENU"
-    refresh_desktop_database
-    print_info "Shortcut installed successfully!"
+    rm -f "$OLD_DIRECTORY" "$OLD_MENU" [3]
+    refresh_desktop_database [3]
+    print_info "Shortcut installed successfully!" [3]
 }
 
 manage_shortcut_prompt() {
-    if [ -f "$CONFIG_FILE" ]; then
-        local saved_pref; saved_pref=$(grep "START_MENU_SHORTCUT=" "$CONFIG_FILE" | cut -d= -f2)
-        if [ "$saved_pref" == "false" ]; then force_remove_shortcut; return 0; fi
-        if [ "$saved_pref" == "true" ]; then create_start_menu_shortcut; return 0; fi
-    fi
+    if [ -f "$CONFIG_FILE" ]; then [3]
+        local saved_pref; saved_pref=$(grep "START_MENU_SHORTCUT=" "$CONFIG_FILE" | cut -d= -f2) [3]
+        if [ "$saved_pref" == "false" ]; then force_remove_shortcut; return 0; fi [3]
+        if [ "$saved_pref" == "true" ]; then create_start_menu_shortcut; return 0; fi [3]
+    fi [3]
 
-    echo -e "\n${YELLOW}Would you like to add a Bazzite Toolbox shortcut to your Start Menu?${NC}"
-    read -p "(Y/n): " -r user_choice
-    user_choice=${user_choice:-Y}
+    echo -e "\n${YELLOW}Would you like to add a Bazzite Toolbox shortcut to your Start Menu?${NC}" [3]
+    read -p "(Y/n): " -r user_choice [3]
+    user_choice=${user_choice:-Y} [3]
 
-    mkdir -p "$(dirname "$CONFIG_FILE")"
+    mkdir -p "$(dirname "$CONFIG_FILE")" [3]
 
-    if [[ "$user_choice" =~ ^[Yy]$ ]]; then
-        echo "START_MENU_SHORTCUT=true" > "$CONFIG_FILE"
-        chown "$REAL_USER":"$REAL_USER" "$CONFIG_FILE"
-        create_start_menu_shortcut
-    else
-        echo "START_MENU_SHORTCUT=false" > "$CONFIG_FILE"
-        chown "$REAL_USER":"$REAL_USER" "$CONFIG_FILE"
-        force_remove_shortcut
-        print_info "Opted out. All old shortcut records removed."
-    fi
+    if [[ "$user_choice" =~ ^[Yy]$ ]]; then [3]
+        echo "START_MENU_SHORTCUT=true" > "$CONFIG_FILE" [3]
+        chown "$REAL_USER":"$REAL_USER" "$CONFIG_FILE" [3]
+        create_start_menu_shortcut [3]
+    else [3]
+        echo "START_MENU_SHORTCUT=false" > "$CONFIG_FILE" [3]
+        chown "$REAL_USER":"$REAL_USER" "$CONFIG_FILE" [3]
+        force_remove_shortcut [3]
+        print_info "Opted out. All old shortcut records removed." [3]
+    fi [3]
 }
 
 # =====================================================================
@@ -981,54 +988,43 @@ ask_desktop_shortcut() {
     local desktop_dir; desktop_dir="$(sudo -u "$REAL_USER" xdg-user-dir DESKTOP 2>/dev/null || echo "")"
     [[ -n "$desktop_dir" ]] || desktop_dir="$REAL_HOME/Desktop"
     [[ -d "$desktop_dir" ]] || mkdir -p "$desktop_dir" 2>/dev/null || return 0
-
     local shortcut="$desktop_dir/Start Bazzite Boken Toolbox.desktop"
     [[ -f "$shortcut" ]] && return 0
 
-        # Clean Geometric Heading Panel
     echo -e "  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║                  DESKTOP SHORTCUT CONFIGURATION                   ║${NC}"
-    echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    echo -e "  ${BIYellow}Would you like to add an application shortcut to your desktop?${NC}"
+    echo -e "  ${CYAN}║╚═══════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "\n  ${BIYellow}Would you like to add an application shortcut to your desktop?${NC}"
     echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
     echo -e "    ${CYAN}1)${NC} Yes, create desktop shortcut     ${BIBlack}(Generates native launcher file)${NC}"
-    echo ""
-    echo -e "    ${CYAN}2)${NC} No, skip shortcut creation"
-    echo ""
+    echo -e "\n    ${CYAN}2)${NC} No, skip shortcut creation\n"
     echo -e "    ${RED}[Enter]${NC} Skip and continue to main manager"
-    echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
-    echo ""
-
-    # Colorized Input Prompt
+    echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}\n"
     read -rp "$(echo -e "  ${CYAN}Select an option [1-2]: ${NC}")" shortcut_choice
 
     case $shortcut_choice in
         1)
+            # 🚀 FIXED AUTO-DOWNLOAD PIPELINE: Pulls your raw matrix.ico asset to an insulated system directory safely
+            local icon_dest="${REAL_HOME}/Red_Pill_32GB"
+            mkdir -p "$icon_dest" 2>/dev/null
+            sudo -u "$REAL_USER" wget -q -O "$icon_dest/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/matrix.ico" || true
+
             cat > "$shortcut" <<SHORTCUT_EOF
 [Desktop Entry]
 Type=Application
 Name=Bazzite Boken Toolbox
 Comment=Manage Memory - Overclock - Wake on Lan
 Exec=konsole -e sudo bash "$SCRIPT_PATH"
-Icon=utilities-terminal
+Icon=$icon_dest/matrix.ico
 Terminal=false
 Categories=System;
 SHORTCUT_EOF
             chmod +x "$shortcut"
             chown "$REAL_USER":"$REAL_USER" "$shortcut" 2>/dev/null || true
             sudo -u "$REAL_USER" gio set "$shortcut" metadata::trusted true >/dev/null 2>&1 || true
-            print_info "Bazzite Boken Toolbox shortcut created successfully!"
-            sleep 2
+            print_info "Bazzite Boken Toolbox shortcut created successfully!" && sleep 2
             ;;
-        2)
-            print_info "Skipping desktop shortcut generation."
-            sleep 1.5
-            ;;
-        *)
-            print_info "Invalid choice. Skipping shortcut setup for now."
-            sleep 1.5
-            ;;
+        2|*) print_info "Skipping desktop shortcut generation." && sleep 1.5 ;;
     esac
 }
 
