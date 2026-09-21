@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ────────────────────────────────────────────────────────────────
-#  Setup-32GB (Bazzite) – NexGen3D v2.0 (RED Pill Profile)
+#  Setup-32GB (Bazzite) – NexGen3D v3.0 (RED Pill Profile)
 # ────────────────────────────────────────────────────────────────
 YELLOW='\033[1;33m' B_BLUE='\033[1;34m' RED='\033[0;31m'
 DIM='\033[38;2;110;110;110m' NC='\033[0m' GREEN='\033[0;32m'
@@ -32,6 +32,7 @@ rpm-ostree install cyan-skillfish-governor-smu 2>/dev/null || true &&
 echo "[●] Injecting performance flags into atomic kernel args (kargs)..." &&
 # 🚀 SPLASH SCREEN FIX: Combined into a single, clean atomic transaction pass to protect your native quiet rhgb flags
 rpm-ostree kargs --append-if-missing=mitigations=off --append-if-missing=zswap.enabled=1 --append-if-missing=zswap.max_pool_percent=25 --append-if-missing=zswap.compressor=lz4 --append-if-missing=systemd.zram=0 2>/dev/null || true &&
+
 echo "[●] Tearing down old storage profiles and clearing swap blocks..." &&
 sudo swapoff /var/swap/swapfile 2>/dev/null || true &&
 sudo rm -f /var/swap/swapfile 2>/dev/null || true &&
@@ -53,6 +54,9 @@ sudo bash -c 'echo /var/swap/swapfile none swap defaults,nofail 0 0 >> /etc/fsta
 
 echo "[●] Adjusting virtual memory swappiness parameters (vm.swappiness=180)..." &&
 sudo echo 'vm.swappiness = 180' | sudo tee /etc/sysctl.d/99-swappiness.conf || true &&
+
+echo "[●] Compiling lz4 acceleration tables within system initramfs maps..." &&
+rpm-ostree initramfs --enable --arg=--add-drivers --arg=lz4 || true
 
 # 🚀 PLYMOUTH BOOT SPLASH AUTO-REPAIRED GATE: Placed right here inside the execution chain
 sudo plymouth-set-default-theme --rebuild-initrd $(plymouth-set-default-theme) 2>/dev/null || true &&
