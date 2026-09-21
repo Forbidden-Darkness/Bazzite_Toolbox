@@ -78,7 +78,7 @@ echo "[●] Step 6/8: Purging fragmented system layers and allocating unfragment
 (sudo semanage fcontext -a -t swapfile_t /var/swap/swapfile 2>/dev/null || true) &>/dev/null
 (sudo restorecon /var/swap/swapfile 2>/dev/null || true) &>/dev/null
 
-echo "[●] Step 7/8: Finalizing persistent fstab maps and tuning virtual memory (swappiness=100)..."
+echo "[●] Step 7/8: Finalizing persistent fstab maps and tuning virtual memory (swappiness=180)..."
 (sudo sed -i '/\/var\/swap\/swapfile/d' /etc/fstab) &>/dev/null
 (sudo rm -f /etc/systemd/zram-generator.conf 2>/dev/null || true) &>/dev/null
 (sudo bash -c 'echo /var/swap/swapfile none swap defaults,nofail 0 0 >> /etc/fstab') &>/dev/null
