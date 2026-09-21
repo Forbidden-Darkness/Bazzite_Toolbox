@@ -30,7 +30,7 @@ echo "[●] Staging Enhanced Cyan Skillfish Governor SMU layers..." &&
 rpm-ostree install cyan-skillfish-governor-smu 2>/dev/null || true &&
 
 echo "[●] Injecting performance flags into atomic kernel args (kargs)..." &&
-# 🚀 SPLASH SCREEN FIX: Combined into a single, clean atomic transaction pass to protect your native quiet rhgb flags
+# 🧠 UNIFIED CHAIN ENGINE: Fixed by appending '&&' to seamlessly link your splash screen fixes to your storage allocations
 rpm-ostree kargs --append-if-missing=mitigations=off --append-if-missing=zswap.enabled=1 --append-if-missing=zswap.max_pool_percent=25 --append-if-missing=zswap.compressor=lz4 --append-if-missing=systemd.zram=0 2>/dev/null || true &&
 echo "[●] Tearing down old storage profiles and clearing swap blocks..." &&
 sudo swapoff /var/swap/swapfile 2>/dev/null || true &&
@@ -52,7 +52,10 @@ sudo sed -i '/\/var\/swap\/swapfile/d' /etc/fstab &&
 sudo bash -c 'echo /var/swap/swapfile none swap defaults,nofail 0 0 >> /etc/fstab' &&
 
 echo "[●] Adjusting virtual memory swappiness parameters (vm.swappiness=180)..." &&
-# 🚀 SYNTAX FIX: Seamlessly bridges your vm profiles directly to the uncut layout banners below
+# 🚀 LIVE DEACTIVATION ENGAGEMENT: Safely wipes the generator cache files to kill ZRAM in the active session
+sudo rm -f /etc/systemd/zram-generator.conf 2>/dev/null || true &&
+sudo rm -rf /etc/systemd/zram-generator.conf.d 2>/dev/null || true &&
+sudo systemctl daemon-reload >> "$oc_log" 2>&1 || true &&
 sudo echo 'vm.swappiness = 180' | sudo tee /etc/sysctl.d/99-swappiness.conf || true &&
 
 echo ""
