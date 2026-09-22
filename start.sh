@@ -962,50 +962,55 @@ esac
 
 echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 
-# 🔄 1B. FIXED ATOMIC USER SPACE PATH MIGRATION & SHORTCUT RE-BIND ENGINE
-local old_target="/var/home/bsystem/Bazzite_Toolbox"
-local new_target="/var/home/bsystem/Applications/Bazzite_Toolbox"
+# =====================================================================
+# 1B. ATOMIC USER SPACE PATH MIGRATION & SHORTCUT RE-BIND ENGINE
+# =====================================================================
+migrate_legacy_install_path() {
+    local old_target="/var/home/bsystem/Bazzite_Toolbox"
+    local new_target="/var/home/bsystem/Applications/Bazzite_Toolbox"
 
-# 🧠 KERNEL RESOLUTION: Explicitly finds the absolute physical path of the running script
-local active_real_path; active_real_path=$(readlink -f "$0" 2>/dev/null || echo "$SCRIPT_PATH")
+    # 🧠 KERNEL RESOLUTION: Explicitly finds the absolute physical path of the running script
+    local active_real_path; active_real_path=$(readlink -f "$0" 2>/dev/null || echo "$SCRIPT_PATH")
 
-if [ -d "$old_target" ] && [ "$active_real_path" != "$new_target/start.sh" ]; then
-    print_info "Old legacy path caught! Syncing user space environments..."
-    sudo -u bsystem mkdir -p "/var/home/bsystem/Applications" 2>/dev/null
-    
-    # 🧬 ATOMIC REPLICATOR: Copies your full toolkit folder into your unprivileged user space vault
-    sudo -u bsystem cp -rT "$old_target" "$new_target" 2>/dev/null || true
-    
-    if [ -d "$new_target" ] && [ -f "$new_target/start.sh" ]; then
-        print_info "Overwriting desktop launcher metadata configurations..."
+    if [ -d "$old_target" ] && [ "$active_real_path" != "$new_target/start.sh" ]; then
+        print_info "Old legacy path caught! Syncing user space environments..."
+        sudo -u bsystem mkdir -p "/var/home/bsystem/Applications" 2>/dev/null
         
-        # 🚀 UNPRIVILEGED SHORTCUT RE-WRITER: Accesses desktop launch files straight from user space accounts
-        sudo -u bsystem bash -c '
-            local sc_paths=("/var/home/bsystem/Desktop" "/var/home/bsystem/.local/share/applications")
-            for sc_dir in "${sc_paths[@]}"; do
-                if [ -d "$sc_dir" ]; then
-                    find "$sc_dir" -type f -name "*Bazzite*.desktop" 2>/dev/null | while read -r desktop_file; do
-                        # Forcefully re-write file tracks cleanly to point straight to the updated target location
-                        sed -i "s|Exec=.*|Exec=env HOME=/var/home/bsystem XDG_CONFIG_HOME=/var/home/bsystem/.config konsole -e sudo bash \"/var/home/bsystem/Applications/Bazzite_Toolbox/start.sh\"|g" "$desktop_file" 2>/dev/null
-                        sed -i "s|Path=.*|Path=/var/home/bsystem/Applications/Bazzite_Toolbox|g" "$desktop_file" 2>/dev/null
-                        sed -i "s|Icon=.*|Icon=/var/home/bsystem/.local/share/icons/matrix.ico|g" "$desktop_file" 2>/dev/null
-                        gio set "$desktop_file" metadata::trusted true 2>/dev/null || true
-                    done
-                fi
-            done
-            update-desktop-database /var/home/bsystem/.local/share/applications 2>/dev/null
-        '
+        # 🧬 ATOMIC REPLICATOR: Copies your full toolkit folder into your unprivileged user space vault
+        sudo -u bsystem cp -rT "$old_target" "$new_target" 2>/dev/null || true
         
-        print_info "Purging legacy partition remnants..."
-        SCRIPT_PATH="$new_target/start.sh"
-        
-        # 🚀 FORCED DISK DETACH: Moves the execution path out of the old folder before deleting it
-        (cd /var/home/bsystem && sleep 1.0 && rm -rf "$old_target" 2>/dev/null) &
-        
-        # Instantly restart the script smoothly out of your clean updated production folder location
-        exec bash "$SCRIPT_PATH" "$@"
+        if [ -d "$new_target" ] && [ -f "$new_target/start.sh" ]; then
+            print_info "Overwriting desktop launcher metadata configurations..."
+            
+            # 🚀 UNPRIVILEGED SHORTCUT RE-WRITER: Accesses desktop launch files straight from user space accounts
+            sudo -u bsystem bash -c '
+                local sc_paths=("/var/home/bsystem/Desktop" "/var/home/bsystem/.local/share/applications")
+                for sc_dir in "${sc_paths[@]}"; do
+                    if [ -d "$sc_dir" ]; then
+                        find "$sc_dir" -type f -name "*Bazzite*.desktop" 2>/dev/null | while read -r desktop_file; do
+                            sed -i "s|Exec=.*|Exec=env HOME=/var/home/bsystem XDG_CONFIG_HOME=/var/home/bsystem/.config konsole -e sudo bash \"/var/home/bsystem/Applications/Bazzite_Toolbox/start.sh\"|g" "$desktop_file" 2>/dev/null
+                            sed -i "s|Path=.*|Path=/var/home/bsystem/Applications/Bazzite_Toolbox|g" "$desktop_file" 2>/dev/null
+                            sed -i "s|Icon=.*|Icon=/var/home/bsystem/.local/share/icons/matrix.ico|g" "$desktop_file" 2>/dev/null
+                            gio set "$desktop_file" metadata::trusted true 2>/dev/null || true
+                        done
+                    fi
+                done
+                update-desktop-database /var/home/bsystem/.local/share/applications 2>/dev/null
+            '
+            
+            print_info "Purging legacy partition remnants..."
+            SCRIPT_PATH="$new_target/start.sh"
+            
+            # 🚀 FORCED DISK DETACH: Moves the execution path out of the old folder before deleting it
+            (cd /var/home/bsystem && sleep 1.0 && rm -rf "$old_target" 2>/dev/null) &
+            
+            # Instantly restart the script smoothly out of your clean updated production folder location
+            exec bash "$SCRIPT_PATH" "$@"
+        fi
     fi
-fi
+}
+# 🚀 Run the migration checkpoint function cleanly inside its insulated scope
+migrate_legacy_install_path
 
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
