@@ -868,60 +868,61 @@ force_remove_shortcut() {
 # SHORTCUT CREATION & PROMPT LOGIC
 # =====================================================================
 create_start_menu_shortcut() {
-    print_info "Creating start menu shortcut..." [3]
-    mkdir -p "$LOCAL_APPS" [3]
+    print_info "Creating start menu shortcut..."
+    mkdir -p "$LOCAL_APPS"
 
-    # 🚀 AUTOMATED REPOSITORY EMBLEM DEPLOYMENT
-    local icon_dest="${REAL_HOME}/Red_Pill_32GB"
-    mkdir -p "$icon_dest" 2>/dev/null
-    if [ ! -f "$icon_dest/matrix.ico" ]; then
-        sudo -u "$REAL_USER" wget -q -O "$icon_dest/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/matrix.ico" || true
+    # 🚀 LOCAL UNPRIVILEGED GRAPHICS POOL DEPLOYMENT: Safely evades Bazzite's read-only system protections
+    local local_icons="/var/home/bsystem/.local/share/icons"
+    mkdir -p "$local_icons" 2>/dev/null
+    if [ ! -f "$local_icons/matrix.ico" ]; then
+        wget -q -O "$local_icons/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/matrix.ico" || true
     fi
+    chown bsystem:bsystem "$local_icons/matrix.ico" 2>/dev/null
 
-    cat << EOF > "$OLD_DESKTOP" [3]
+    cat << EOF > "$OLD_DESKTOP"
 [Desktop Entry]
 Version=1.0
 Type=Application
 Name=Bazzite Toolbox
 Comment=Launch Custom Bazzite Tweak Tool
 Exec=sudo bash "$SCRIPT_PATH"
-Icon=$icon_dest/matrix.ico
+Icon=/var/home/bsystem/.local/share/icons/matrix.ico
 Terminal=true
 Categories=Utility;System;
 X-KDE-Submenu=Bazzite Toolbox
-EOF [3]
+EOF
 
-    chmod +x "$OLD_DESKTOP" [3]
-    chown -R "$REAL_USER":"$REAL_USER" "$OLD_DESKTOP" [3]
+    chmod +x "$OLD_DESKTOP"
+    chown -R "$REAL_USER":"$REAL_USER" "$OLD_DESKTOP"
 
-    rm -f "$OLD_DIRECTORY" "$OLD_MENU" [3]
-    refresh_desktop_database [3]
-    print_info "Shortcut installed successfully!" [3]
+    rm -f "$OLD_DIRECTORY" "$OLD_MENU"
+    refresh_desktop_database
+    print_info "Shortcut installed successfully!"
 }
 
 manage_shortcut_prompt() {
-    if [ -f "$CONFIG_FILE" ]; then [3]
-        local saved_pref; saved_pref=$(grep "START_MENU_SHORTCUT=" "$CONFIG_FILE" | cut -d= -f2) [3]
-        if [ "$saved_pref" == "false" ]; then force_remove_shortcut; return 0; fi [3]
-        if [ "$saved_pref" == "true" ]; then create_start_menu_shortcut; return 0; fi [3]
-    fi [3]
+    if [ -f "$CONFIG_FILE" ]; then
+        local saved_pref; saved_pref=$(grep "START_MENU_SHORTCUT=" "$CONFIG_FILE" | cut -d= -f2)
+        if [ "$saved_pref" == "false" ]; then force_remove_shortcut; return 0; fi
+        if [ "$saved_pref" == "true" ]; then create_start_menu_shortcut; return 0; fi
+    fi
 
-    echo -e "\n${YELLOW}Would you like to add a Bazzite Toolbox shortcut to your Start Menu?${NC}" [3]
-    read -p "(Y/n): " -r user_choice [3]
-    user_choice=${user_choice:-Y} [3]
+    echo -e "\n${YELLOW}Would you like to add a Bazzite Toolbox shortcut to your Start Menu?${NC}"
+    read -p "(Y/n): " -r user_choice
+    user_choice=${user_choice:-Y}
 
-    mkdir -p "$(dirname "$CONFIG_FILE")" [3]
+    mkdir -p "$(dirname "$CONFIG_FILE")"
 
-    if [[ "$user_choice" =~ ^[Yy]$ ]]; then [3]
-        echo "START_MENU_SHORTCUT=true" > "$CONFIG_FILE" [3]
-        chown "$REAL_USER":"$REAL_USER" "$CONFIG_FILE" [3]
-        create_start_menu_shortcut [3]
-    else [3]
-        echo "START_MENU_SHORTCUT=false" > "$CONFIG_FILE" [3]
-        chown "$REAL_USER":"$REAL_USER" "$CONFIG_FILE" [3]
-        force_remove_shortcut [3]
-        print_info "Opted out. All old shortcut records removed." [3]
-    fi [3]
+    if [[ "$user_choice" =~ ^[Yy]$ ]]; then
+        echo "START_MENU_SHORTCUT=true" > "$CONFIG_FILE"
+        chown "$REAL_USER":"$REAL_USER" "$CONFIG_FILE"
+        create_start_menu_shortcut
+    else
+        echo "START_MENU_SHORTCUT=false" > "$CONFIG_FILE"
+        chown "$REAL_USER":"$REAL_USER" "$CONFIG_FILE"
+        force_remove_shortcut
+        print_info "Opted out. All old shortcut records removed."
+    fi
 }
 
 # =====================================================================
@@ -993,7 +994,7 @@ ask_desktop_shortcut() {
 
     echo -e "  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║                  DESKTOP SHORTCUT CONFIGURATION                   ║${NC}"
-    echo -e "  ${CYAN}║╚═══════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
     echo -e "\n  ${BIYellow}Would you like to add an application shortcut to your desktop?${NC}"
     echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
     echo -e "    ${CYAN}1)${NC} Yes, create desktop shortcut     ${BIBlack}(Generates native launcher file)${NC}"
@@ -1004,18 +1005,22 @@ ask_desktop_shortcut() {
 
     case $shortcut_choice in
         1)
-            # 🚀 FIXED AUTO-DOWNLOAD PIPELINE: Pulls your raw matrix.ico asset to an insulated system directory safely
-            local icon_dest="${REAL_HOME}/Red_Pill_32GB"
-            mkdir -p "$icon_dest" 2>/dev/null
-            sudo -u "$REAL_USER" wget -q -O "$icon_dest/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/matrix.ico" || true
+            # 🚀 BRANDED ICON PROCUREMENT MATRIX: Insulates your matrix.ico asset cleanly on the disk partition
+            local icon_dest="${REAL_HOME}/Applications/Bazzite_Toolbox"
+            if [ ! -f "$icon_dest/matrix.ico" ]; then
+                sudo -u "$REAL_USER" wget -q -O "$icon_dest/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/matrix.ico" || true
+            fi
+            [[ -f "$icon_dest/matrix.ico" ]] || icon_dest="utilities-terminal"
 
+            # 🛠️ FIXED TEXT BLOCK ENVELOPE: Properly captures entry tags without syntax bleeding
             cat > "$shortcut" <<SHORTCUT_EOF
 [Desktop Entry]
 Type=Application
 Name=Bazzite Boken Toolbox
 Comment=Manage Memory - Overclock - Wake on Lan
 Exec=konsole -e sudo bash "$SCRIPT_PATH"
-Icon=$icon_dest/matrix.ico
+Path=$icon_dest
+Icon=${icon_dest}/matrix.ico
 Terminal=false
 Categories=System;
 SHORTCUT_EOF
@@ -1041,7 +1046,8 @@ prompt_reboot() {
     echo -e "  ${YELLOW}╚═══════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "    ${CYAN}[1]${NC} Reboot Now        ${DIM}(Recommended to apply active layers)${RESET}"
-    echo -e "    ${CYAN}[2]${NC} Cancel Reboot     ${DIM}(Return cleanly back to main toolkit menu)${RESET}"
+    echo -e "    ${CYAN}[2]${NC} Shutdown Now      ${DIM}(Recommended to apply active layers)${RESET}"
+    echo -e "    ${CYAN}[3]${NC} Cancel Reboot     ${DIM}(Return cleanly back to main toolkit menu)${RESET}"
     echo ""
     echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
 
@@ -1055,6 +1061,11 @@ prompt_reboot() {
             sudo systemctl reboot
             ;;
         2)
+            echo -e "\n  ${RED}[+] Flushing caches and shutting down system now...${NC}"
+            sleep 1.5
+            sudo systemctl poweroff
+            ;;
+        3)
             # Unified Cancel Notice matching your fallback loops
             echo -e "\n  ${YELLOW}[-] Reboot postponed. Returning safely back to main menu...${NC}"
             sleep 2
@@ -1370,7 +1381,7 @@ install_overclock() {
     cd "$oc_dir" || return 1
     chown -R "$REAL_USER":"$REAL_USER" "$oc_dir"
 
-    local oc_url="https://raw.githubusercontent.com/Forbidden-Darkness/Applications/Bazzite_Toolbox/main/Overclock/Overclock-Live-Manager.sh"
+    local oc_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/Overclock-Live-Manager.sh"
     local run_download=false
 
     # 🧬 OFFLINE-FIRST ENFORCEMENT: Fast 2-second pre-flight connectivity handshake
@@ -1910,7 +1921,7 @@ launch_bc250_opticlient_matrix() {
         echo -e "${CYAN}====================================================================${RESET}"
         echo -e "💡  ${GREEN}DOWNLOAD INSTRUCTIONS:${RESET}"
         echo -e "    1) Open your web browser and navigate straight to the repository:"
-        echo -e "       ${CYAN}https://github.com/Optiscaler-Client/Optiscaler-Client${RESET}"
+        echo -e "       \033]8;;https://github.com/Optiscaler-Client/Optiscaler-Client\033\\\\${CYAN}🌐 https://github.com/Optiscaler-Client/Optiscaler-Client ${DIM}➜ (Right-Click / Open Link)${RESET}\033]8;;\033\\\\"
         echo -e "    2) Navigate to the ${YELLOW}Releases${RESET} section page."
         echo -e "    3) Under 'Assets', right-click the latest ${YELLOW}.zip${RESET} or ${YELLOW}.tar.gz${RESET} Linux bundle."
         echo -e "    4) Select \033[4mCopy Link\033[24m, paste it below, and press Enter."
@@ -1920,7 +1931,7 @@ launch_bc250_opticlient_matrix() {
 
         if [ -z "$dl_url" ]; then
             echo -e "${RED}❌ ERROR: Download URL constraint cannot be an empty value string.${RESET}"
-            read -rp "Press [Enter] to return..." dummy; cd ~/Applications/Bazzite_Toolbox/ || true; return 1
+            read -rp "Press [Enter] to return..." dummy; cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || true; return 1
         fi
 
         # Extract version tags if a standard release link is pasted to auto-convert it
@@ -1958,13 +1969,13 @@ launch_bc250_opticlient_matrix() {
         if [ ! -f "$target_client_dir/$archive_file" ]; then
             echo -e "${RED}❌ ERROR: Network download chain failed. Verify link address visibility.${RESET}"
             rm -rf "$target_client_dir" 2>/dev/null
-            read -rp "Press [Enter] to return..." dummy; cd ~/Applications/Bazzite_Toolbox/ || true; return 1
+            read -rp "Press [Enter] to return..." dummy; cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || true; return 1
         fi
         # File type validation safety pass
         if file "$target_client_dir/$archive_file" | grep -q "HTML document"; then
             echo -e "${RED}❌ ERROR: Failed to isolate direct binary file payload wrapper!${RESET}"
             rm -rf "$target_client_dir" 2>/dev/null
-            read -rp "Press [Enter] to return..." dummy; cd ~/Applications/Bazzite_Toolbox/ || true; return 1
+            read -rp "Press [Enter] to return..." dummy; cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || true; return 1
         fi
 
         echo -e "${YELLOW}[⚙] Running automated unpacking pass straight over root destination...${RESET}"
@@ -1992,7 +2003,7 @@ launch_bc250_opticlient_matrix() {
         if [ -z "$active_exe" ]; then
             echo -e "${RED}❌ ERROR: Deployment validation failed. 'OptiscalerClient' native binary missing.${RESET}"
             rm -rf "$target_client_dir" 2>/dev/null
-            read -rp "Press [Enter] to return..." dummy; cd ~/Applications/Bazzite_Toolbox/ || true; return 1
+            read -rp "Press [Enter] to return..." dummy; cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || true; return 1
         fi
 
         echo -e "${GREEN}[✓] Unpacking and directory deployment finished smoothly!${RESET}"
@@ -2067,8 +2078,9 @@ EOF
 
     env HOME="${raw_home}" XDG_CONFIG_HOME="${raw_home}/.config" ./${exe_name}
 
-    cd ~/Applications/Bazzite_Toolbox/ || return 0
+    cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || return 0
 }
+
 
 launch_bc250_mangohud() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
