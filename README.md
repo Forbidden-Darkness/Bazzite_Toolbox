@@ -20,7 +20,7 @@ mkdir -p "$HOME/Applications" && cd "$HOME/Applications" && if [ -d "Bazzite_Too
 Integrate the Bazzite Toolbox shortcut into the System & Utilities directory of your desktop environment's application menu.
 
 ```bash
-cd /var/home/bsystem/Applications/Bazzite_Toolbox/ && sudo ./start.sh --install-shortcut && exit
+cd "$Home/Applications/Bazzite_Toolbox" && sudo ./start.sh --install-shortcut && exit
 ```
 
 ## Remove System Shortcut
