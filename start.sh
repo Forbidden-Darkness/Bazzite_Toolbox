@@ -962,23 +962,40 @@ esac
 
 echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 
-# 🔄 1B. LEGACY ENVIRONMENT PATH MIGRATION CHECKPOINT
+# 🔄 1B. HARDENED ENVIRONMENT PATH MIGRATION & SHORTCUT RE-BIND MATRIX
 local old_target="/var/home/bsystem/Bazzite_Toolbox"
 local new_target="/var/home/bsystem/Applications/Bazzite_Toolbox"
 
 if [ -d "$old_target" ] && [ "$SCRIPT_PATH" != "$new_target/start.sh" ]; then
-    print_info "Old directory path detected! Migrating environment layers..."
+    print_info "Old directory footprint detected! Synchronizing environment layers..."
     mkdir -p "/var/home/bsystem/Applications" 2>/dev/null
-
-    # 🧬 ATOMIC COPIER: Moves your repository cleanly without breaking execution bits
+    
+    # 🧬 ATOMIC COPIER: Migrates your toolkit safely to the new production path
     cp -rT "$old_target" "$new_target" 2>/dev/null || true
-
+    
     if [ -d "$new_target" ] && [ -f "$new_target/start.sh" ]; then
-        rm -rf "$old_target" 2>/dev/null
-        print_info "Migration successful. Redirecting execution chain..."
-
-        # Re-bind your absolute path handle cleanly to the new destination track
+        print_info "Re-binding existing desktop shortcuts to new absolute path..."
+        
+        # 🚀 AUTOMATED SHORTCUT FIXER: Corrects existing launchers on the fly
+        local sc_paths=("/var/home/bsystem/Desktop" "/var/home/bsystem/.local/share/applications")
+        for sc_dir in "${sc_paths[@]}"; do
+            if [ -d "$sc_dir" ]; then
+                find "$sc_dir" -type f -name "*Bazzite*.desktop" 2>/dev/null | while read -r desktop_file; do
+                    sed -i "s|Exec=.*|Exec=env HOME=/var/home/bsystem XDG_CONFIG_HOME=/var/home/bsystem/.config konsole -e sudo bash \"$new_target/start.sh\"|g" "$desktop_file" 2>/dev/null
+                    sed -i "s|Path=.*|Path=$new_target|g" "$desktop_file" 2>/dev/null
+                    sed -i "s|Icon=.*|Icon=/var/home/bsystem/.local/share/icons/matrix.ico|g" "$desktop_file" 2>/dev/null
+                done
+            fi
+        done
+        sudo -u bsystem update-desktop-database /var/home/bsystem/.local/share/applications 2>/dev/null
+        
+        print_info "Migration successful. Cleaving legacy partition records..."
         SCRIPT_PATH="$new_target/start.sh"
+        
+        # 🌀 DELAYED FORCE-PURGE: Spawns a clean sub-shell process to erase the folder once released
+        (sleep 1.0 && rm -rf "$old_target" 2>/dev/null) &
+        
+        # Reload immediately from your fresh directory track location
         exec bash "$SCRIPT_PATH" "$@"
     fi
 fi
@@ -986,7 +1003,7 @@ fi
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
-#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 # 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
