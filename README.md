@@ -28,7 +28,7 @@ Remove the application shortcut from the System & Utilities menu.
 Note: This command triggers an automatic system reboot to apply changes and refresh the desktop environment configuration.
 
 ```bash
-cd /var/home/bsystem/Applications/Bazzite_Toolbox/ && sudo ./start.sh --remove-shortcut && systemctl reboot
+cd /var/home/bsystem/Applications/Bazzite_Toolbox/ && sudo bash -c "./start.sh --remove-shortcut && systemctl reboot"
 ```
 ------------------------------
 ## 📟 Technical Architecture Overview
