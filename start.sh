@@ -3905,7 +3905,7 @@ show_menu() {
         echo -e "     • Core Safety Fix     : Disables hardware CPU mitigations to maximize performance"
         echo -e "     • Swap Infrastructure : Disables stock ZRAM and deploys a target 16G/32G disk swapfile"
         echo -e "     • Memory Efficiency   : Enables optimized ZSWAP caching using high-tier zstd compression"
-        echo -e "     • Kernel Tuning       : Adjusts vm.swappiness=100 with a z3fold memory layout pool"
+        echo -e "     • Kernel Tuning       : Adjusts vm.swappiness=180 with a z3fold memory layout pool"
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo ""
 
