@@ -787,11 +787,16 @@ run_status() {
         active_comp=$(cat /sys/module/zswap/parameters/compressor 2>/dev/null || echo "none")
     fi
 
-    # 🚀 ACCURATE TELEMETRY LINK: Directly benchmarks live compressed device nodes to secure accurate status logs
+    # 🚀 FIXED BAZZITE MATRIX: Audits true virtual parameters directly instead of cmdline text strings
+    local zswap_enabled="N"
+    if [[ -f /sys/module/zswap/parameters/enabled ]]; then
+        zswap_enabled=$(cat /sys/module/zswap/parameters/enabled 2>/dev/null || echo "N")
+    fi
+
     if zramctl | grep -q "/dev/zram"; then
         echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM activated${RESET} / ZSWAP managed"
-    elif [[ "$active_comp" != "none" ]] && grep -q "zswap" /proc/cmdline 2>/dev/null; then
-        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM deactivated / ZSWAP activated${RESET} (${active_comp})"
+    elif [[ "$zswap_enabled" == "Y" && "$active_comp" != "none" ]]; then
+        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM deactivated / ZSWAP activated (${active_comp})${RESET}"
     else
         echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_WARN} ${YELLOW}ZRAM deactivated / ZSWAP configured but idle${RESET}"
     fi
@@ -957,10 +962,31 @@ esac
 
 echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 
+# 🔄 1B. LEGACY ENVIRONMENT PATH MIGRATION CHECKPOINT
+local old_target="/var/home/bsystem/Bazzite_Toolbox"
+local new_target="/var/home/bsystem/Applications/Bazzite_Toolbox"
+
+if [ -d "$old_target" ] && [ "$SCRIPT_PATH" != "$new_target/start.sh" ]; then
+    print_info "Old directory path detected! Migrating environment layers..."
+    mkdir -p "/var/home/bsystem/Applications" 2>/dev/null
+
+    # 🧬 ATOMIC COPIER: Moves your repository cleanly without breaking execution bits
+    cp -rT "$old_target" "$new_target" 2>/dev/null || true
+
+    if [ -d "$new_target" ] && [ -f "$new_target/start.sh" ]; then
+        rm -rf "$old_target" 2>/dev/null
+        print_info "Migration successful. Redirecting execution chain..."
+
+        # Re-bind your absolute path handle cleanly to the new destination track
+        SCRIPT_PATH="$new_target/start.sh"
+        exec bash "$SCRIPT_PATH" "$@"
+    fi
+fi
+
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
-local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 # 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
@@ -2081,47 +2107,60 @@ EOF
     cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || return 0
 }
 
-
-launch_bc250_mangohud() {
+manage_mangohud_toggle() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
-    local RED='\033[0;31m' local RESET='\033[0m'
-    local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
 
-    clear
-    echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "   🚀 BC-250 NATIVE MANGOHUD TELEMETRY ENGINE LAYER ACTIVATOR       "
-    echo -e "${CYAN}====================================================================${RESET}"
+    # 🚀 ROOT ENVIRONMENT PROBE: Directly checks the active global environment profile
+    local is_active="false"
+    if grep -q "MANGOHUD" /etc/environment 2>/dev/null; then is_active="true"; fi
 
-    if confirm "Enable global system-wide MangoHud performance monitoring?"; then
-        echo -e "\n${GREEN}[+] Step 1/3: Mapping configuration directory structures...${RESET}"
-        # Create user configuration layer space boundaries safely
-        mkdir -p ~/.config/environment.d ~/.config/MangoHud 2>/dev/null
+    # 🔄 TRACK 1: ACTIVE DEACTIVATION PURGE (Fires if variable is registered)
+    if [ "$is_active" == "true" ]; then
+        clear
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -e "   🚀 MANGOHUD OVERLAY SYSTEM STATUS: ACTIVE                        "
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -e "${GREEN}[✓] MangoHud environment profile detected in system tables.${RESET}"
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -n "👉 MangoHud is active. Would you like to DEACTIVATE & REMOVE settings? (y/N): "
+        local ans_un; read -r ans_un
 
-        # Spin loop to simulate data block lock synchronization securely [1.11]
-        local idx1=0; for i in {1..15}; do echo -ne "\r  \033[0;36m[${spinner[idx1]}] Locking layout directories...${RESET}"; ((idx1=(idx1+1)%10)); sleep 0.04; done; echo -ne "\r                                                                                   \r"
+        if [[ "$ans_un" =~ ^[Yy]$ ]]; then
+            echo -e "\n${RED}[●] Disabling system overrides and clearing user configs...${RESET}"
 
-        echo -e "${GREEN}[+] Step 2/3: Injecting global Flatpak, Steam, and Lutris hooks...${RESET}"
-        # Inject the environment variable configurations straight into the user-space profile tracker [0.11]
-        echo "MANGOHUD=1" > ~/.config/environment.d/60-mangohud.conf
+            # Pure system configuration removal
+            sudo sed -i '/MANGOHUD/d' /etc/environment 2>/dev/null || true
+            sudo sed -i '/MANGOHUD/d' /etc/profile.local 2>/dev/null || true
 
-        # Provision an absolute base user config mapping if one is missing from the drive
-        if [ ! -f ~/.config/MangoHud/MangoHud.conf ]; then
-            echo -e "performance\ncpu_stats\ngpu_stats\nfps\nframe_timing\ntb_position=top-left" > ~/.config/MangoHud/MangoHud.conf
+            # Clear sandbox profiles cleanly
+            flatpak override --user --unset-env=MANGOHUD com.valvesoftware.Steam 2>/dev/null || true
+            flatpak uninstall --user -y org.freedesktop.Platform.VulkanLayer.MangoHud 2>/dev/null || true
+            rm -rf "/var/home/bsystem/.config/MangoHud" 2>/dev/null
+            rm -f "/var/home/bsystem/.config/environment.d/mangohud.conf" 2>/dev/null
+
+            echo -e "\n${GREEN}[✓] MangoHud has been completely deactivated and profiles cleared!${RESET}"
+            sleep 2; return 0
+        else
+            echo -e "\n${YELLOW}[ℹ] Bypassing deactivation. Returning to main engine...${RESET}"
+            sleep 1.5; return 0
         fi
-
-        local idx2=0; for i in {1..15}; do echo -ne "\r  \033[0;36m[${spinner[idx2]}] Registering environment descriptors...${RESET}"; ((idx2=(idx2+1)%10)); sleep 0.04; done; echo -ne "\r                                                                                   \r"
-
-        echo -e "${GREEN}[+] Step 3/3: Synchronizing global system-wide variable access masks...${RESET}"
-        # Enable complete multilib runtime variable accessibility across all sandbox boundaries
-        chown -R bsystem:bsystem ~/.config/environment.d ~/.config/MangoHud 2>/dev/null
-        chmod 644 ~/.config/environment.d/60-mangohud.conf 2>/dev/null
-
-        local idx3=0; while read -r line; do echo -ne "\r  \033[0;36m[${spinner[idx3]}] Flushing user configuration system parameters...${RESET}"; ((idx3=(idx3+1)%10)); done < <(flatpak override --user --env=MANGOHUD=1 2>&1)
-        echo -ne "\r                                                                                   \r"
-
-        print_success "Native MangoHud monitoring layer successfully activated globally!"
-        play_success_chime; prompt_reboot; return 0
     fi
+
+    # 📥 TRACK 2: ACTIVE RE-INSTALLATION ACTIVATION (Runs if variable is missing)
+    echo -e "${YELLOW}[⚙] MangoHud inactive. Handing off execution cleanly to activation track...${RESET}"
+    sleep 1
+
+    # Force environmental registration directly into the system table
+    sudo sed -i '/MANGOHUD/d' /etc/environment 2>/dev/null || true
+    echo "MANGOHUD=1" | sudo tee -a /etc/environment >/dev/null
+
+    # Configure user space app overrides cleanly
+    flatpak override --user --env=MANGOHUD=1 com.valvesoftware.Steam 2>/dev/null || true
+    mkdir -p "/var/home/bsystem/.config/MangoHud" 2>/dev/null
+
+    echo -e "\n${GREEN}[✓] MangoHud has been completely activated for all Steam games!${RESET}"
+    sleep 2; return 0
 }
 
 toggle_compute_queue_fix() {
@@ -2149,7 +2188,7 @@ toggle_compute_queue_fix() {
         echo -e "   4) Check Driver Activation & Hardware Extension Telemetry Status"
         echo -e "   5) Toggle Custom GFX1013 FSR 4.1.1 (INT8 Vector RC11 PROD) Smart Engine Suite"
         echo -e "   6) Launch BC-250 OptiScaler Desktop Client Manager (Auto-Scan Engine)"
-        echo -e "   7) Compile & Deploy Custom MangoHud Performance Monitor Engine"
+        echo -e "   7) Configure & Uninstall MangoHud Performance Monitor Engine"
         echo ""
         echo -e "   ↵) Hit [Enter] to return back to the main menu"
         echo -e "${CYAN}====================================================================${RESET}"
@@ -2599,7 +2638,7 @@ INNER_EOF'
             6)
                 launch_bc250_opticlient_matrix
         ;;
-            7) launch_bc250_mangohud ;; # 🚀 Redirects straight to the dedicated compilation function
+            7) manage_mangohud_toggle ;; # 🚀 Redirects straight to the dedicated compilation function
             *)
                 echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
                 sleep 1 ; return 0 ;;
