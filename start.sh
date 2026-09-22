@@ -966,11 +966,11 @@ echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
 # 1B. ATOMIC USER SPACE PATH MIGRATION & SHORTCUT RE-BIND ENGINE
 # =====================================================================
 migrate_legacy_install_path() {
-    local old_target="/var/home/bsystem/Bazzite_Toolbox"
-    local new_target="/var/home/bsystem/Applications/Bazzite_Toolbox"
+    old_target="/var/home/bsystem/Bazzite_Toolbox"
+    new_target="/var/home/bsystem/Applications/Bazzite_Toolbox"
 
-    # 🧠 KERNEL RESOLUTION: Explicitly finds the absolute physical path of the running script
-    local active_real_path; active_real_path=$(readlink -f "$0" 2>/dev/null || echo "$SCRIPT_PATH")
+# 🧠 KERNEL RESOLUTION: Explicitly finds the absolute physical path of the running script
+    active_real_path=$(readlink -f "$0" 2>/dev/null || echo "$SCRIPT_PATH")
 
     if [ -d "$old_target" ] && [ "$active_real_path" != "$new_target/start.sh" ]; then
         print_info "Old legacy path caught! Syncing user space environments..."
