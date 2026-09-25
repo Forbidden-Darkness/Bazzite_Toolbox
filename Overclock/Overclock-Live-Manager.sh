@@ -289,7 +289,7 @@ apply_manual_clock_clamp() {
         echo -e "${RED}❌ CRITICAL LIMIT SHIELD: Ceilings exceeded! Aborting injection.${RESET}"; sleep 3; return 1
     fi
 
-        echo -e "${YELLOW}[⚙] Hot-patching governor boundary tables securely...${RESET}"
+    echo -e "${YELLOW}[⚙] Hot-patching governor boundary tables securely...${RESET}"
     # 🧬 ANCHORED LINE BOUNDARIES: Matches strict line starts to isolate fields perfectly
     sudo sed -i "s/^max = .*/max = $target_freq/g" "$SMU_CONF" 2>/dev/null
     sudo sed -i "s/^max_voltage = .*/max_voltage = $target_volt/g" "$SMU_CONF" 2>/dev/null
