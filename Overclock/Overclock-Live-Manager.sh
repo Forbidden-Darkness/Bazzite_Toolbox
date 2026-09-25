@@ -290,8 +290,8 @@ apply_manual_clock_clamp() {
     fi
 
     echo -e "${YELLOW}[⚙] Hot-patching governor boundary tables...${RESET}"
-    sudo sed -i "s/max = .*/max = $target_freq/g" "$SMU_CONF" 2>/dev/null
-    sudo sed -i "s/max_voltage = .*/max_voltage = $target_volt/g" "$SMU_CONF" 2>/dev/null
+    sudo sed -i "s/^max = .*/max = $target_freq/g" "$SMU_CONF" 2>/dev/null
+    sudo sed -i "s/^max_voltage = .*/max_voltage = $target_volt/g" "$SMU_CONF" 2>/dev/null
     
     sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null
     echo -e "${GREEN}[✓] SUCCESS: Silicon parameters locked! Service refreshed smoothly.${RESET}"
