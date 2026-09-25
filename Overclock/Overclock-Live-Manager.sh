@@ -289,11 +289,15 @@ apply_manual_clock_clamp() {
         echo -e "${RED}❌ CRITICAL LIMIT SHIELD: Ceilings exceeded! Aborting injection.${RESET}"; sleep 3; return 1
     fi
 
-    echo -e "${YELLOW}[⚙] Hot-patching governor boundary tables...${RESET}"
+        echo -e "${YELLOW}[⚙] Hot-patching governor boundary tables securely...${RESET}"
+    # 🧬 ANCHORED LINE BOUNDARIES: Matches strict line starts to isolate fields perfectly
     sudo sed -i "s/^max = .*/max = $target_freq/g" "$SMU_CONF" 2>/dev/null
     sudo sed -i "s/^max_voltage = .*/max_voltage = $target_volt/g" "$SMU_CONF" 2>/dev/null
     
+    # 🧬 RE-GENERATE DYNAMIC RE-INDEX PASS
+    sudo systemctl daemon-reload 2>/dev/null || true
     sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null
+    
     echo -e "${GREEN}[✓] SUCCESS: Silicon parameters locked! Service refreshed smoothly.${RESET}"
     sleep 2; return 0
 }
