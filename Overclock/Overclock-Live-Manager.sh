@@ -1039,6 +1039,11 @@ clear
         2b) run_manager_phase2 ;;
         m|M) configure_governor_profile ;;
         c|C) apply_manual_clock_clamp ;;
+        r|R)
+                print_info "Reinitializing toolkit memory tracking blocks..."
+                sleep 0.5
+                exec bash "$SCRIPT_PATH" "$@"
+                ;;
         3a) uninstall_cpu_overclock ;;
         3b) uninstall_cu_live_manager ;;
         4)  run_cpu_core_stress_test ;;
