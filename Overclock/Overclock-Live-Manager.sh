@@ -253,9 +253,9 @@ apply_manual_clock_clamp() {
     local SMU_CONF="/etc/cyan-skillfish-governor-smu/config.toml"
 
     clear
-    echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "   🚀 GFX1013 LIVE GOVERNOR CEILING MANUAL OVERRIDE INJECTOR        "
-    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e  "       ${CYAN}====================================================================${RESET}"
+    echo -e  "              🚀 GFX1013 LIVE GOVERNOR CEILING MANUAL OVERRIDE INJECTOR        "
+    echo -e  "       ${CYAN}====================================================================${RESET}"
     
     if [[ ! -f "$SMU_CONF" ]]; then
         echo -e "${RED}❌ ERROR: Governor profile template missing at $SMU_CONF${RESET}"
@@ -991,6 +991,24 @@ uninstall_cu_live_manager() {
     play_success_chime
     prompt_reboot
 }
+
+type_prompt() {
+    local text="$1"
+    local delay="${2:-0.03}"
+
+    for (( i=0; i<${#text}; i++ )); do
+        echo -ne "\033[38;2;0;255;0m${text:$i:1}\033[0m"
+
+        if [ "$SKIP_ANIMATION" = false ]; then
+            # 🧬 LOCK-JAW KEY CHECK: Instantly polls stdin terminal cache descriptor
+            if read -t 0.001 -n 1 2>/dev/null; then
+                SKIP_ANIMATION=true
+            fi
+            sleep "$delay"
+        fi
+    done
+}
+
 case "$1" in
     --phase2) run_phase2; exit 0 ;;
     --manager-phase2) run_manager_phase2; exit 0 ;;
