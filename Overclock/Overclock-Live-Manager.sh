@@ -48,7 +48,6 @@ if [ -z "$TERMINAL_RESIZE_FORCED" ] && [ -t 0 ]; then
         wmctrl -r :ACTIVE: -e 0,-1,-1,$WIDTH,$HEIGHT
     fi
 fi
-
 REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 
@@ -198,7 +197,6 @@ SHORTCUT_EOF
             ;;
     esac
 }
-
 ask_desktop_shortcut
 
 clear
@@ -245,6 +243,44 @@ finalize_settings() {
     read -p "Press [Enter] to return to the tuning menu..."
 }
 
+# ==============================================================================
+# 🎛️ SURGICAL HARDWARE SMU GOVERNOR CEILING MANUAL OVERRIDES
+# ==============================================================================
+apply_manual_clock_clamp() {
+    local SMU_CONF="/etc/cyan-skillfish-governor-smu/config.toml"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 GFX1013 LIVE GOVERNOR CEILING MANUAL OVERRIDE INJECTOR        "
+    echo -e "${CYAN}====================================================================${RESET}"
+    
+    # Failsafe check: Ensure the template configuration exists before allowing changes
+    if [[ ! -f "$SMU_CONF" ]]; then
+        echo -e "${RED}❌ ERROR: Governor profile template missing at $SMU_CONF${RESET}"
+        echo -e "         Please run Option [M] from the menu first to seed the template."
+        echo ""
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    read -rp "👉 Enter Target Maximum GPU Frequency (MHz) [e.g. 1800, 2150]: " target_freq
+    read -rp "👉 Enter Target Maximum GPU Voltage (mV)     [e.g. 900, 1025]: " target_volt
+
+    if [[ ! "$target_freq" =~ ^[0-9]+$ ]] || [[ ! "$target_volt" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}❌ ERROR: Parameters must be explicit integers.${RESET}"; sleep 2; return 1
+    fi
+
+    if (( target_freq > 2200 )) || (( target_volt > 1050 )); then
+        echo -e "${RED}❌ CRITICAL LIMIT SHIELD: Ceilings exceeded! Aborting injection.${RESET}"; sleep 3; return 1
+    fi
+
+    echo -e "${YELLOW}[⚙] Hot-patching governor boundary tables...${RESET}"
+    sudo sed -i "s/max = .*/max = $target_freq/g" "$SMU_CONF" 2>/dev/null
+    sudo sed -i "s/max_voltage = .*/max_voltage = $target_volt/g" "$SMU_CONF" 2>/dev/null
+    
+    sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null
+    echo -e "${GREEN}[✓] SUCCESS: Silicon parameters locked! Service refreshed smoothly.${RESET}"
+    sleep 2; return 0
+}
 run_cpu_core_stress_test() {
     clear
     echo -e "${BOLD}${YELLOW}=== Launching Silicon Per-Core Stability Sweep ===${NC}"
@@ -326,7 +362,6 @@ configure_governor_profile() {
         3) THROTTLE_TEMP=65; RECOVERY_TEMP=58; COOLING_LABEL="Liquid Cooled Core";;
         *) THROTTLE_TEMP=83; RECOVERY_TEMP=75; COOLING_LABEL="Stock Air (Optimized)";;
     esac
-
     # 🚀 SMART INTERFACE DETECTOR: Dynamically manages DBus based on launch style to fix the Resume Mode bug
     echo -e "\n  ${CYAN}╔═ SYSTEM INTERFACE AUDIT: BAZZITE EXECUTION ENVIRONMENT ═════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Are you primarily running this system inside Steam Gaming Mode (Big Picture interface)?    ${CYAN}║${NC}"
@@ -561,7 +596,6 @@ run_preset_stress_flow() {
         sleep 2
     fi
 }
-
 launch_tuning_menu() {
     while true; do
         clear
@@ -646,7 +680,6 @@ launch_tuning_menu() {
                     # Header row configuration - 100% Symmetrical Bounds Pinned
                     printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s   ${CYAN}║${NC}\n" "${BOLD}Freq Block" "Voltage (VID)" "Thermal Load" "Silicon Performance Profile${RESET}"
                     echo -e "  ${CYAN}║${BIBlack}   ──────────────┼──────────────────────┼───────────────┼───────────────────────────────────  ${CYAN}║${NC}"
-
                     # Standard Rows - Mapped explicitly with inner character counters
                     printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "2000-2300 MHz" "800" "840" "50°C - 60°C" "Absolute Eco Floor (Dead Silent)"
                     printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "2400-2500 MHz" "840" "860" "58°C - 65°C" "Balanced Power Light Emulation"
@@ -669,7 +702,6 @@ launch_tuning_menu() {
                     echo ""
 
                     echo -e "  ${DIM}    * Type [Q] to return to previous menu  │  Type [R] to refresh table view *${RESET}\n"
-
                     # ==============================================================================
                     # 🧬 HARDENED PARAMETER COLLECTION TRACK (NO DUPLICATE PROMPTS)
                     # ==============================================================================
@@ -715,7 +747,6 @@ launch_tuning_menu() {
                             echo -e "  ${RED}SAFETY ERROR: Temperature limit must sit between 60°C and 95°C!${NC}"
                         fi
                     done
-
                     # ==============================================================================
                     # 🧬 HARDWARE DEPLOYMENT CORE (STRESS LOOPS & RESTORED LOOP-AGAIN PROMPTS)
                     # ==============================================================================
@@ -774,7 +805,6 @@ launch_tuning_menu() {
         esac
     done
 }
-
 prompt_reboot() {
     echo ""
     echo -e "${YELLOW}==================================================${NC}"
@@ -791,7 +821,6 @@ prompt_reboot() {
 }
 
 run_phase1() {
-    # 🧬 PRE-FLIGHT DEPLOYMENT GATE: Detects if the CPU suite is already initialized or staged
     if [[ -f "/usr/local/bin/bc250-detect" ]] || [[ -f "$SERVICE_FILE" ]]; then
         clear
         echo -e "\n  ${YELLOW}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
@@ -834,7 +863,6 @@ EOF"
     play_success_chime
     prompt_reboot
 }
-
 run_phase2() {
     log "${GREEN}[Phase 2] Resuming execution tree following successful reboot...${NC}"
     cd /tmp || exit
@@ -848,34 +876,22 @@ run_phase2() {
     sudo ln -sf /opt/bc250_smu_tools/venv/bin/bc250-detect /usr/local/bin/bc250-detect
     sudo ln -sf /opt/bc250_smu_tools/venv/bin/bc250-apply /usr/local/bin/bc250-apply
 
-    # ==============================================================================
-    # 🧬 HARDENED INJECTION ENGINE: OVERWRITING CONSTRAINTS AND TESTING TIMERS
-    # ==============================================================================
     log "${GREEN}[⚙] Injecting custom low-power overrides from your repository...${NC}"
     local py_packages="/opt/bc250_smu_tools/venv/lib64/python3.14/site-packages"
 
-    # 🚀 Curl downloads directly overwrite factory defaults using your uniform global targets
     sudo curl -sSL -o "$py_packages/bc250_apply.py" "$MODDED_APPLY_URL" >> "$LOG_FILE" 2>&1
     sudo curl -sSL -o "$py_packages/bc250_limits.py" "$MODDED_LIMITS_URL" >> "$LOG_FILE" 2>&1
     sudo curl -sSL -o "$py_packages/bc250_detect.py" "$MODDED_DETECT_URL" >> "$LOG_FILE" 2>&1
 
-    
-    # Obliterate pre-compiled cache artifacts to force immediate system evaluation
     sudo rm -rf "$py_packages/__pycache__" 2>/dev/null || true
-    # ==============================================================================
 
     sudo systemctl disable bc250-resume.service >> "$LOG_FILE" 2>&1
     sudo rm -f "$SERVICE_FILE"
     sudo systemctl daemon-reload
     log "${GREEN}[Success] Installation complete! 'bc250-detect' and 'bc250-apply' are ready.${NC}"
     
-    # Menu launches AFTER the files have been completely overwritten
     launch_tuning_menu
 }
-
-# ==============================================================================
-# 🧬 HARDENED COMPUTE UNIT LIVE MANAGER GATEWAY (PREVENTS DUPLICATE DEPLOYMENTS)
-# ==============================================================================
 run_manager_phase1() {
     # 🧬 PRE-FLIGHT DEPLOYMENT GATE: Detects if the CU Live Manager suite is already initialized or staged
     if [[ -f "/usr/local/bin/bc250-cu-live-manager" ]] || [[ -f "/etc/bc250-cu-live-manager.conf" ]] || [[ -f "/etc/systemd/system/bc250-cu-live-manager.service" ]]; then
@@ -929,7 +945,6 @@ run_manager_phase2() {
     chmod +x bc250-cu-live-manager.sh
     sudo ./bc250-cu-live-manager.sh
 }
-
 uninstall_cpu_overclock() {
     log "${RED}[Uninstall] Initializing CPU Overclock rollback suite...${NC}"
     sudo systemctl disable --now bc250-smu-oc.service >> "$LOG_FILE" 2>&1 || true
@@ -959,7 +974,6 @@ uninstall_cu_live_manager() {
     play_success_chime
     prompt_reboot
 }
-
 case "$1" in
     --phase2) run_phase2; exit 0 ;;
     --manager-phase2) run_manager_phase2; exit 0 ;;
@@ -967,9 +981,6 @@ case "$1" in
     --uninstall-cu) uninstall_cu_live_manager; exit 0 ;;
 esac
 
-# ==============================================================================
-# 🚀 CLEAN CONGESTION-FREE MASTER MENU LOOP (NO REFLECTION DELAYS)
-# ==============================================================================
 while true; do
 clear
     TEXT_STR="            BC-250 CPU OVERCLOCK & Compute Unit Live Manager Setup Tool             "
@@ -990,6 +1001,7 @@ clear
     echo ""
     echo -e "    ${BOLD}${CYAN}• Silicon Governor & Performance Tuning Profile Manager:${RESET}"
     echo -e "      ${CYAN}[M]${RESET}  Modify Governor Performance Profile     ${DIM}(Hardware Spec Audit Wizard)${RESET}"
+    echo -e "      ${CYAN}[C]${RESET}  Inject Manual Governor Clock Clamp      ${DIM}(Hot-patch active SMU ceilings)${RESET}"
     echo ""
     echo -e "    ${BOLD}${YELLOW}• Rollback & Restoration Profiles:${RESET}"
     echo -e "      ${DIM}[3a] Uninstall CPU Overclock Profiles Completely${RESET}"
@@ -1002,14 +1014,14 @@ clear
     echo -e "      ${BOLD}${MAGENTA}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
     echo ""
 
-    read -p "  Select an option [ 1a-4, M, ↵ ]: " choice
-
-        case "$choice" in
+    read -p "  Select an option [ 1a-4, M, C, ↵ ]: " choice
+    case "$choice" in
         1a) run_phase1 ;;
         1b) run_phase2 ;;
         2a) run_manager_phase1 ;;
         2b) run_manager_phase2 ;;
         m|M) configure_governor_profile ;;
+        c|C) apply_manual_clock_clamp ;;
         3a) uninstall_cpu_overclock ;;
         3b) uninstall_cu_live_manager ;;
         4)  run_cpu_core_stress_test ;;
