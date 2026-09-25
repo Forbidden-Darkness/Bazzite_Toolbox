@@ -265,19 +265,19 @@ apply_manual_clock_clamp() {
     fi
 
     # 🧬 PREMIUM SYMMETRICAL HARDWARE OVERRIDE REFERENCE TARGETS
-    echo -e "  ${CYAN}╔══════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║                     ${BOLD}${BICyan}BC-250 SMU MANUAL CLOCK TUNING SAFE REFERENCE MATRIX${NC}             ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚══════════════════════════════════════════════════════════════════════╝${NC}"
-    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-31s   ${CYAN}║${NC}\n" "${BOLD}GPU Clock" "Safe Voltage (VID)" "Target Silicon Profile Performance${RESET}"
-    echo -e "  ${CYAN}║${BIBlack}   ──────────────┼──────────────────────┼─────────────────────────────────  ${CYAN}║${NC}"
-    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s  ${CYAN}║${NC}\n" "1400 MHz" "750" "780" "Factory Baseline (Dead Silent)"
-    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s  ${CYAN}║${NC}\n" "1600 MHz" "780" "820" "Balanced Power Eco Layout"
-    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-31s%b  ${CYAN}║${NC}\n" "${BIGreen}" "1800 MHz" "${NC}" "${BIGreen}" "880" "900" "${NC}" "${BIGreen}" "🎯 EFFICIENCY GAMING SWEET SPOT" "${NC}"
-    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-31s%b  ${CYAN}║${NC}\n" "${BIGreen}" "1850 MHz" "${NC}" "${BIGreen}" "900" "920" "${NC}" "${BIGreen}" "🎯 TUNED VOLTAGE HEADROOM CLAMP" "${NC}"
-    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s  ${CYAN}║${NC}\n" "2000 MHz" "940" "965" "Aggressive Profile (High Fan Speed)"
-    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s  ${CYAN}║${NC}\n" "2100 MHz" "980" "1005" "Extreme Overclock Air Ceiling"
-    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-31s%b  ${CYAN}║${NC}\n" "${RED}" "2150 MHz" "${NC}" "${RED}" "1010" "1025" "${NC}" "${RED}" "⚠️ MAXIMUM VOLTAGE LIMIT SHIELD" "${NC}"
-    echo -e "  ${CYAN}╚══════════════════════════════════════════════════════════════════════╝${NC}\n"
+    echo -e "  ${CYAN}╔════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║             ${BOLD}${BICyan}BC-250 SMU MANUAL CLOCK TUNING SAFE REFERENCE MATRIX${NC}               ${CYAN}║${NC}"
+    echo -e "  ${CYAN}╚════════════════════════════════════════════════════════════════════════════════╝${NC}"
+    printf "  ${CYAN}║${NC}   %b%-10s%b │ %-20s │ %-39s  ${CYAN}║${NC}\n" "${BOLD}" "GPU Clock" "${RESET}" "Safe Voltage (VID)" "Target Silicon Profile Performance"
+    echo -e "  ${CYAN}║${BIBlack}   ──────────────┼──────────────────────┼───────────────────────────────────    ${CYAN}║${NC}"
+    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s       ${CYAN}║${NC}\n" "1400 MHz" "750" "780" "Factory Baseline (Dead Silent)"
+    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s       ${CYAN}║${NC}\n" "1600 MHz" "780" "820" "Balanced Power Eco Layout"
+    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-31s%b       ${CYAN}║${NC}\n" "${BIGreen}" "1800 MHz" "${NC}" "${BIGreen}" "880" "900" "${NC}" "${BIGreen}" "🎯 EFFICIENCY GAMING SWEET SPOT" "${NC}"
+    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-31s%b       ${CYAN}║${NC}\n" "${BIGreen}" "1850 MHz" "${NC}" "${BIGreen}" "900" "920" "${NC}" "${BIGreen}" "🎯 TUNED VOLTAGE HEADROOM CLAMP" "${NC}"
+    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s   ${CYAN}║${NC}\n" "2000 MHz" "940" "965" "Aggressive Profile (High Fan Speed)"
+    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s       ${CYAN}║${NC}\n" "2100 MHz" "980" "1005" "Extreme Overclock Air Ceiling"
+    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-31s%b       ${CYAN}║${NC}\n" "${RED}" "2150 MHz" "${NC}" "${RED}" "1010" "1025" "${NC}" "${RED}" "⚠️ MAXIMUM VOLTAGE LIMIT SHIELD" "${NC}"
+    echo -e "  ${CYAN}╚════════════════════════════════════════════════════════════════════════════════╝${NC}\n"
     read -rp "👉 Enter Target Maximum GPU Frequency (MHz) [e.g. 1800, 2150]: " target_freq
     read -rp "👉 Enter Target Maximum GPU Voltage (mV)     [e.g. 900, 1025]: " target_volt
 
