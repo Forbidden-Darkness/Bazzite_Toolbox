@@ -1031,7 +1031,10 @@ clear
     echo -e "      ${BOLD}${MAGENTA}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
     echo ""
 
-    read -p "  Select an option [ 1a-4, M, C, ↵ ]: " choice
+    type_prompt "  Select an option [ 1a-4, M, C, ↵ ]: " 0.03
+    choice=""
+        read -n 1 -s choice || true
+        echo ""
     case "$choice" in
         1a) run_phase1 ;;
         1b) run_phase2 ;;
