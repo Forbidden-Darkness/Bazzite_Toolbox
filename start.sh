@@ -957,7 +957,7 @@ migrate_legacy_install_path
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
-local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 # 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
@@ -3517,56 +3517,41 @@ secure_system_exit() {
 # ==============================================================================
 launch_html_dashboard() {
     echo ""
-    echo -e "${YELLOW}[+] Scanning local environment paths for matrix dashboards...${NC}"
+    echo -e "${YELLOW}[+] Streaming dashboard matrix cleanly from GitHub down to a RAM buffer...${NC}"
 
-    local target_html=""
-    for name in "index.html" "cu_map_matrix.html"; do
-        if [[ -f "$EXTERNAL_DIR/$name" ]]; then
-            target_html="$EXTERNAL_DIR/$name"
-            break
-        elif [[ -f "$(dirname "$SCRIPT_PATH")/$name" ]]; then
-            target_html="$(dirname "$SCRIPT_PATH")/$name"
-            break
-        elif [[ -f "$REAL_HOME/$name" ]]; then
-            target_html="$REAL_HOME/$name"
-            break
-        elif [[ -f "$REAL_HOME/Applications/Bazzite_Toolbox/Overclock/$name" ]]; then
-            target_html="$REAL_HOME/Applications/Bazzite_Toolbox/Overclock/$name"
-            break
-        fi
-    done
+    # 🧬 PRISTINE MASTER PATH: Targets your exact updated HTML dashboard tree mirror
+    local remote_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/HTML/index.html"
+    local local_buffer="/dev/shm/bc250_harvest_dashboard.html"
 
-    if [[ -n "$target_html" ]]; then
-        echo -e "${B_GREEN}[✔] Target discovered: ${WHITE}$target_html${NC}"
-        echo -e "${CYAN}[ℹ] Spawning detached host browser thread as user: ${WHITE}$REAL_USER${NC}"
-        echo -e "${DIM}    Passing payload variables through the active desktop portal pipeline...${RESET}"
-
-        local user_id
-        user_id=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
-
-        local session_bus="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$user_id/bus"
-        local display_env=""
-        [[ -n "$DISPLAY" ]] && display_env="DISPLAY=$DISPLAY"
-        [[ -n "$XAUTHORITY" ]] && display_env="XAUTHORITY=$XAUTHORITY"
-
-        if command -v flatpak-spawn &>/dev/null; then
-            eval "sudo -u \"$REAL_USER\" XDG_RUNTIME_DIR=\"/run/user/$user_id\" $session_bus $display_env flatpak-spawn --host xdg-open \"$target_html\"" &>/dev/null &
-        elif command -v busctl &>/dev/null; then
-            eval "sudo -u \"$REAL_USER\" XDG_RUNTIME_DIR=\"/run/user/$user_id\" $session_bus busctl --user call org.freedesktop.portal.Desktop /org/freedesktop/portal/desktop org.freedesktop.portal.OpenURI OpenURI ssss \"\" \"file://$target_html\" \"\" \"\"" &>/dev/null &
-        else
-            eval "sudo -u \"$REAL_USER\" XDG_RUNTIME_DIR=\"/run/user/$user_id\" $session_bus $display_env xdg-open \"$target_html\"" &>/dev/null &
-        fi
-
-        sleep 2.5
-    else
-        echo -e "${RED}[-❌-] CRITICAL ERROR: 'index.html' or 'cu_map_matrix.html' was not found!${NC}"
-        echo -e "         Ensure your file sits cleanly in one of these directories:"
-        echo -e "         • $EXTERNAL_DIR"
-        echo -e "         • $(dirname "$SCRIPT_PATH")"
-        echo ""
-        type_prompt "  Press [any key] to return to the dashboard... " 0.03
-        read -n 1 -s -r || true
+    # Fetch pass: Pull down the code stream. If it errors or drops out, abort early
+    if ! curl -sSLf "$remote_url" -o "$local_buffer"; then
+        echo -e "${RED}❌ ERROR: Remote GitHub file target is currently unreachable.${RESET}"
+        read -rp "Press [Enter] to return..." dummy; return 1
     fi
+
+    echo -e "${B_GREEN}[✓] Data buffer synchronized successfully.${NC}"
+    echo -e "${CYAN}[ℹ] Spawning detached host browser thread as user: ${WHITE}$REAL_USER${NC}"
+    echo -e "${DIM}    Passing payload variables through the active desktop portal pipeline...${RESET}"
+
+    local user_id
+    user_id=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
+
+    local session_bus="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$user_id/bus"
+    local display_env=""
+    [[ -n "$DISPLAY" ]] && display_env="DISPLAY=$DISPLAY"
+    [[ -n "$XAUTHORITY" ]] && display_env="XAUTHORITY=$XAUTHORITY"
+
+    # 🚀 PORTAL INTERPRETER OVERPASS: Pass the file link down to the browser natively
+    if command -v flatpak-spawn &>/dev/null; then
+        eval "sudo -u \"$REAL_USER\" XDG_RUNTIME_DIR=\"/run/user/$user_id\" $session_bus $display_env flatpak-spawn --host xdg-open \"$local_buffer\"" &>/dev/null &
+    elif command -v busctl &>/dev/null; then
+        eval "sudo -u \"$REAL_USER\" XDG_RUNTIME_DIR=\"/run/user/$user_id\" $session_bus busctl --user call org.freedesktop.portal.Desktop /org/freedesktop/portal/desktop org.freedesktop.portal.OpenURI OpenURI ssss \"\" \"file://$local_buffer\" \"\" \"\"" &>/dev/null &
+    else
+        eval "sudo -u \"$REAL_USER\" XDG_RUNTIME_DIR=\"/run/user/$user_id\" $session_bus $display_env xdg-open \"$local_buffer\"" &>/dev/null &
+    fi
+
+    sleep 1.2
+    (play_success_chime &>/dev/null &)
 }
 
 toggle_xbox_adapter() {
