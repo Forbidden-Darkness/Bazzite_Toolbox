@@ -719,7 +719,6 @@ run_status() {
         active_comp=$(cat /sys/module/zswap/parameters/compressor 2>/dev/null || echo "none")
     fi
 
-    # 🚀 FIXED BAZZITE MATRIX: Audits true virtual parameters directly instead of cmdline text strings
     local zswap_enabled="N"
     if [[ -f /sys/module/zswap/parameters/enabled ]]; then
         zswap_enabled=$(cat /sys/module/zswap/parameters/enabled 2>/dev/null || echo "N")
@@ -759,7 +758,6 @@ run_status() {
     esac
     echo -e "  ${CYAN}Xbox Wireless Adapter${RESET} ${xbox_icon} ${xbox_color}${xbox_label}${RESET}"
 
-    # 🚀 ACCENT HARMONIZATION MAP: Perfectly matches layout spacing down your console screen grid
     local ds5_icon ds5_color ds5_label
     if [ -f "/etc/udev/rules.d/99-dualsense-bridge.rules" ] || [ -f "/etc/modprobe.d/bluetooth-lowlatency.conf" ]; then
         ds5_icon="$ICON_OK"; ds5_color="$GREEN"; ds5_label="activated (low-latency bridge fix engaged)"
@@ -787,10 +785,14 @@ run_status() {
     else vram_icon="$ICON_WARN"; vram_color="$DIM"; vram_label="CAPPED (Factory-throttled 7.4GB memory allocation limit)"; fi
     echo -e "  ${YELLOW}Dynamic VRAM${RESET}          ${vram_icon} ${vram_color}${vram_label}${RESET}"
 
-    local audio_icon audio_color audio_label
-    if [ -f "/etc/modprobe.d/bc250-audio.conf" ]; then audio_icon="$ICON_OK"; audio_color="$GREEN"; audio_label="patched module activated (reboot advised)"
-    else audio_icon="$ICON_WARN"; audio_color="$YELLOW"; audio_label="stock hardware module activated"; fi
-    echo -e "  ${B_VIOLET}Audio Patch${RESET}           ${audio_icon} ${audio_color}${audio_label}${RESET}\n"
+    # 🧬 ENVIRONMENT OVERLAYS: Displays active MangoHud tracking and host breakout bus configurations [0.14]
+    local hud_icon="$ICON_WARN" local hud_lbl="${YELLOW}Idle${RESET}"
+    pgrep -x "mangohud" >/dev/null && hud_icon="$ICON_OK" && hud_lbl="${GREEN}Active & Graphing Telemetry${RESET}"
+    echo -e "  ${MAGENTA}MangoHud Monitor${RESET}      ${hud_icon} ${hud_lbl}"
+
+    local flat_icon="$ICON_WARN" local flat_lbl="${YELLOW}Containerized Restrained${RESET}"
+    [[ -n "$DBUS_SESSION_BUS_ADDRESS" ]] && flat_icon="$ICON_OK" && flat_lbl="${GREEN}Host Portals Unlocked (flatpak-spawn safe)${RESET}"
+    echo -e "  ${CYAN}Desktop Sandbox Bus${RESET}   ${flat_icon} ${flat_lbl}\n"
 
     check_system_health
 }
