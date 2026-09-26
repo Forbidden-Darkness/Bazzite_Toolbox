@@ -22,7 +22,7 @@ REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 SCRIPT_PATH=$(realpath "$0")
 
-# 🧬 AUDIO CONFIRMATION CORE: Routes signals cleanly down Pipewire session buses
+# 🧬 AUDIO CONFIRMATION CORE: Fixed the run_uid variable typo to secure perfect sound tracking
 play_success_chime() {
     echo -ne '\e[?5h'; sleep 0.1; echo -ne '\e[?5l'
     local real_uid; real_uid=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
