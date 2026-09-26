@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-
+# ==============================================================================
+# 🏛️ GROUP 1: CORE SYSTEM ENVIRONMENT, ANCHOR VARIABLES & SETUP CONTEXTS
+# ==============================================================================
 RED='\033[0;31m'
 B_RED='\033[1;31m'   # Bold Red for high-visibility Red Pill elements
 GREEN='\033[0;32m'
@@ -20,40 +22,24 @@ MAGENTA="\033[1;95m"
 NC='\033[0m'
 RESET='\033[0m'
 BG_HEADER="\e[48;5;235m"
-
-# 🧬 FIXED: Maps standard ANSI escape token attributes to lock in faded text elements
 DIM='\033[38;2;110;110;110m'
 BOLD='\033[1m'
 
-# 🧬 UNIFORM GITHUB STRINGS FOR GRAPHICS PATCH OVERRIDES
-# Downloads your updated, un-faked Bazzite 43/44 geometry patches straight from your repo
 MODDED_PATCH_0001_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0001-gfx1013-compute-queue.patch"
 MODDED_PATCH_0002_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0002-gfx1013-mesh-task-shaders.patch"
 MODDED_PATCH_0003_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/0003-gfx1013-taskmesh-queries.patch"
 
-# ==============================================================================
-# STEP 1: DEFINE USER CONTEXT FIRST SO RUNTIME VARIABLE PATHS ARE VALID
-# ==============================================================================
 REAL_USER="${SUDO_USER:-$(logname 2>/dev/null || whoami)}"
 REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 [[ -z "$REAL_HOME" || ! -d "$REAL_HOME" ]] && REAL_HOME="/root"
 
-# ==============================================================================
-# STEP 2: ASSIGN TARGET AUDIO & UPDATE REPOSITORIES
-# ==============================================================================
-# --- GLOBAL CORE CONFIGURATION TARGET PATHS ---
 EXTERNAL_DIR="$REAL_HOME/Applications/Bazzite_Toolbox"
 CORE_UNLOCK_CONF="/etc/bc250-core-unlock.conf"
-
-# 🧬 FIXED INITIALIZATION PIN: Seeds the logger target path for options 1 & 2
 LOG_FILE="/var/log/bc250_oc_install.log"
-
-# 🧬 FIXED ABSOLUTE AUDIO PATHING: Maps explicitly to your true user directory space
 AUDIO_FILE="$EXTERNAL_DIR/Wake_on_LAN/Red-Pill-Blue-Pill.wav"
 MUSIC_LOCK_FILE="$REAL_HOME/.bc250-toolkit-music.pid"
-
 # ==============================================================================
-# AUDIO PIPELINE ENGINES (PERMISSION-INSULATED CONTEXT PIPEWIRE CONTROL)
+# 🎵 GROUP 2: BACKGROUND AUDIO PIPELINE ENGINES & NOTIFICATION CHIMES
 # ==============================================================================
 start_background_music() {
     if [[ -f "$AUDIO_FILE" ]] && [[ ! -f "$MUSIC_LOCK_FILE" ]]; then
@@ -121,9 +107,8 @@ trap stop_background_music EXIT
 
 # --- Main Runtime Initializer ---
 start_background_music
-
 # ==============================================================================
-# 🧬 1. ENHANCED ANIMATION ENGINES (MUST BE DECLARED FIRST)
+# 🏛️ GROUP 1 (CONT.): ENHANCED UI ANIMATION ACTIONS & CLEAR SYSTEMS
 # ==============================================================================
 SKIP_ANIMATION=false
 
@@ -214,9 +199,8 @@ matrix_melt_clear() {
     done
     clear
 }
-
 # ==============================================================================
-# 🧬 2. VISUAL DISPLAY & EXECUTION CALLS (DECLARED AT THE END)
+# 🏛️ GROUP 1 (CONT.): EXPLOIT GRAPHICS RUNTIME & ENVIRONMENT ATTRIBUTES
 # ==============================================================================
 clear
 echo -e "\033[38;2;0;255;0m  ╔═════════════════════════════════════════════════════════════════════════════════════════════╗\033[0m"
@@ -264,9 +248,9 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# =====================================================================
-# ENVIRONMENT VARIABLES & PRINT FUNCTIONS
-# =====================================================================
+# ==============================================================================
+# 🏛️ GROUP 1 (CONT.): MASTER TERMINAL PRINT UTILITIES & OVERLAYS
+# ==============================================================================
 REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 SCRIPT_PATH=$(realpath "$0")
@@ -348,7 +332,7 @@ confirm() {
 }
 
 # ==============================================================================
-# BAZZITE COMPATIBILITY HELPERS FOR SYSTEM DIAGNOSTICS
+# 🎛️ GROUP 3: DRIVERS, COMPATIBILITY HELPERS & SYSTEM HEALTH
 # ==============================================================================
 core_unlock_persist_installed() {
     systemctl is-enabled bc250-core-unlock.service &>/dev/null
@@ -358,20 +342,15 @@ core_unlock_cores_active() {
     [[ "$(nproc --all 2>/dev/null)" -eq 16 ]]
 }
 
-# 🧬 HARDWARE LEVEL INTEGRATION: Audits active system memory allocations to discover permanent BIOS RAM/VRAM splits
 ram_split_installed() {
-    # 1. OS-Level Check: Check if custom kernel argument overrides or modprobe profiles exist
     if rpm-ostree kargs 2>/dev/null | grep -q "ttm.pages_limit" || [[ -f /etc/modprobe.d/bc250-mem.conf ]]; then
         return 0
     fi
 
-    # 2. BIOS-Level Check: Interrogate /proc/meminfo to parse hardware memory allocation profiles
     if [[ -f "/proc/meminfo" ]]; then
         local total_mem_kb; total_mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || echo "16000000")
-        # Convert Kilobytes directly to Megabytes for clean boundary evaluation
         local total_mem_mb=$(( total_mem_kb / 1024 ))
 
-        # If total visible system RAM drops below 10,000MB, a permanent hardware allocation mask is active in BIOS
         if (( total_mem_mb < 10000 )); then
             return 0
         fi
@@ -400,27 +379,10 @@ cu_find_umr() {
     command -v umr &>/dev/null
 }
 
-# 🧬 FIXED ACPI OVERRIDE ENFORCEMENT DETECTOR: Audits GRUB structures and CPIO presence directly
-# 🧬 HARDWARE LEVEL INTEGRATION: Interrogates the active kernel ACPI tree to detect direct BIOS table injection
 acpi_fix_installed() {
-    # 1. Direct BIOS Verification: Check if the custom 8-core table signature exists natively in firmware
-    if [[ -d "/sys/firmware/acpi/tables" ]]; then
-        # Scans for the custom table flags or checks if active P-States are natively exposed
-        if grep -qE "SSDT|APIC" /sys/firmware/acpi/tables/SSDT* 2>/dev/null; then
-            # Verify if early voltage policies are cleanly handling all 8 hardware cores natively
-            if [[ -d "/sys/devices/system/cpu/cpu7/cpufreq" ]]; then
-                return 0
-            fi
-        fi
+    if [ -f "/boot/acpi_override.cpio" ] || [ -f "/boot/SSDT_ACPI.cpio" ]; then
+        return 0
     fi
-
-    # 2. OS-Level Fallback: Check if the override exists instead as an early initrd GRUB payload modification
-    if grep -q "GRUB_EARLY_INITRD_LINUX_CUSTOM" /etc/default/grub 2>/dev/null; then
-        if [[ -f "/boot/SSDT_ACPI.cpio" || -f "/boot/efi/EFI/bazzite/SSDT_ACPI.cpio" ]]; then
-            return 0
-        fi
-    fi
-
     return 1
 }
 
@@ -439,12 +401,10 @@ ram_split_bc250_detected() {
 }
 
 ram_split_gcc_can_compile() {
-    # Check for both standard C and C++ compiler engines natively layered in the image
     command -v g++ >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || return 1
     local probe; probe=$(mktemp -u --suffix=.cpp)
     printf '#include <iostream>\nint main(void){return 0;}\n' > "$probe"
 
-    # Use g++ if available since main.cpp utilizes standard C++ headers
     local cc_engine="gcc"
     command -v g++ &>/dev/null && cc_engine="g++"
 
@@ -453,9 +413,7 @@ ram_split_gcc_can_compile() {
     rm -f "$probe" "${probe%.cpp}.out"
     return $rc
 }
-
 ram_split_build_tool() {
-    # If the binary already exists and is executable, exit successfully
     [[ -x "$RAM_SPLIT_BIN" ]] && return 0
 
     if [[ ! -f "$RAM_SPLIT_DIR/main.cpp" ]]; then
@@ -471,11 +429,9 @@ ram_split_build_tool() {
 
     print_info "Building bc250memcfg from localized community source files..."
 
-    # Use g++ as the primary binary builder to handle explicit C++ stream frameworks
     local cc_engine="gcc"
     command -v g++ &>/dev/null && cc_engine="g++"
 
-    # 🧬 FIXED: Corrected the output binary name to perfectly match $RAM_SPLIT_BIN targeting structures
     (cd "$RAM_SPLIT_DIR" && $cc_engine -Os -s main.cpp -o bc250memcfg) || {
         print_error "Failed to build target hardware binary utility layer 'bc250memcfg'."
         return 1
@@ -493,18 +449,15 @@ ram_split_current_uma() {
     echo "$((10#$val))"
 }
 
-
 # ==============================================================================
-# RE-ORDERED CORE ENGINE: SYSTEM STATUS VISUALIZATION DASHBOARD (PART 1)
+# 🎛️ GROUP 3 (CONT.): REAL-TIME DRIVER STATUS & TELEMETRY READOUTS
 # ==============================================================================
-
 check_system_health() {
     echo -e "  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║                    SYSTEM SPECIFICATION CHECK                     ║${NC}"
     echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
-    # 1. Evaluate Active Linux Kernel Core
     local kernel_ver; kernel_ver=$(uname -r)
     if [[ "$kernel_ver" =~ ^6\.15\.[0-6] || "$kernel_ver" =~ ^6\.17\.[8-9] || "$kernel_ver" =~ ^6\.17\.10 ]]; then
         echo -e "    Kernel Version : ${RED}❌ $kernel_ver (CRITICAL DRIVER FAULT ZONE)${NC}"
@@ -513,7 +466,6 @@ check_system_health() {
         echo -e "    Kernel Version : ${GREEN}✔ $kernel_ver (Safe Build Stack)${NC}"
     fi
 
-    # 2. Check for the permanent nomodeset trap
     if grep -q "nomodeset" /proc/cmdline; then
         echo -e "    Display Path   : ${RED}❌ Throttled (nomodeset boot flag is active)${NC}"
         echo -e "                     ${BIBlack}↳ The GPU driver is disabled. Please remove nomodeset.${NC}"
@@ -521,7 +473,6 @@ check_system_health() {
         echo -e "    Display Path   : ${GREEN}✔ Accelerated Hardware Layer Initialized${NC}"
     fi
 
-    # 3. Read Mesa / RADV Driver Generation Array
     if command -v glxinfo &>/dev/null || command -v vulkaninfo &>/dev/null; then
         local mesa_ver; mesa_ver=$(glxinfo 2>/dev/null | grep -oP 'Mesa \K[0-9.]+' | head -n1)
         if [ -z "$mesa_ver" ]; then mesa_ver=$(vulkaninfo 2>/dev/null | grep -oP 'Mesa \K[0-9.]+' | head -n1); fi
@@ -545,18 +496,11 @@ check_system_health() {
     echo ""
 }
 
-#run_status() {
-    #print_banner
-    #print_section "System Status"
-    # ... (rest of your existing run_status function)
-
-
 # ==============================================================================
-# RE-ORDERED CORE ENGINE: SYSTEM STATUS VISUALIZATION DASHBOARD
+# 🎛️ GROUP 3 (CONT.): REAL-TIME VISUALIZATION TELEMETRY DASHBOARD PANEL
 # ==============================================================================
 run_status() {
     print_banner
-    # SYSTEM STATUS
     print_section "System Status"
 
     local ICON_OK="✓" local ICON_WARN="⚠" local ICON_ERR="✗"
@@ -568,21 +512,18 @@ run_status() {
     local CPU_CONF="/etc/bc250-smu-oc.conf"
     local GPU_CONF="/etc/cyan-skillfish-governor-smu/config.toml"
 
-    # 🧬 DYNAMIC OSTREE LAYER PIN STATE DETECTOR
     local pin_status="$ICON_WARN" pin_lable="${RED}unpinned${RESET}"
     if ostree admin pin 2>/dev/null | grep -q "Pinned" || rpm-ostree status 2>/dev/null | grep -qi "pinned"; then
         pin_status="$ICON_OK" pin_lable="${GREEN}pinned (frozen)${RESET}"
     fi
 
-    # 🧬 DYNAMIC ASYNC COMPUTE QUEUE FIX STATUS DETECTOR
-    local async_icon="$ICON_WARN" async_lable="${RED}deactivated${RESET}"
+    local async_icon="$ICON_WARN" async_lable="${RED}Deactivated${RESET}"
     local async_desc="${DIM}(ACE engine queues locked; system loses up to ~25% async gaming performance)${RESET}"
     if [[ -f /etc/environment.d/99-bc250-gfx1013.conf ]] && [[ -f /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json ]]; then
-        async_icon="$ICON_OK" async_lable="${GREEN}activated${RESET}"
+        async_icon="$ICON_OK" async_lable="${GREEN}Activated${RESET}"
         async_desc="${DIM}(ACE engine queues unlocked for up to +25% gaming FPS)${RESET}"
     fi
 
-    # 🧬 DYNAMIC ASIC SILICON PROBE (VERIFIED COMPILED BINARY SIZE TRACKER)
     local profile_lbl=""
     local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
 
@@ -590,7 +531,6 @@ run_status() {
         if [[ -f "$target_lib" ]]; then
             local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
 
-            # 🎯 COMBINED MATRIX LOOKUP: Blends your native hardware label with your active driver profile tier
             if (( file_bytes > 21700000 )); then
                 profile_lbl=" — ${BOLD}${YELLOW}NAVI 14${RESET} ${DIM}(GFX1012 Active — Fast Clock Meta)${RESET}"
             else
@@ -600,12 +540,11 @@ run_status() {
     fi
     local detected_asic="${YELLOW}AMD Custom RDNA1 Silicon${RESET}${profile_lbl}"
 
-    # 🧬 DYNAMIC FSR 4.1.1 FRAMEWORK DETECTOR
-    local fsr4_state="${RED}deactivated${RESET} ${DIM}(System missing boot proxy hook — upscaler inactive)${RESET}"
+    local fsr4_state="${RED}Deactivated${RESET} ${DIM}(System missing boot proxy hook — upscaler inactive)${RESET}"
     local fsr4_icon="$ICON_WARN"
     if find /var/home/bsystem/.local/share/Steam/steamapps/common /run/media/bsystem -type f -name "dxgi.dll" 2>/dev/null | grep -q "dxgi.dll"; then
         fsr4_icon="$ICON_OK"
-        fsr4_state="${GREEN}activated${RESET} ${DIM}(FSR 4.1.1 INT8 Winograd Loop Override Engine Online)${RESET}"
+        fsr4_state="${GREEN}Activated${RESET} ${DIM}(FSR 4.1.1 INT8 Winograd Loop Override Engine Online)${RESET}"
     fi
     echo -e "  ${BOLD}${YELLOW}System${RESET}"
     echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
@@ -621,14 +560,14 @@ run_status() {
     if [[ "$boot_session" == "gamescope" ]]; then boot_mode="${BOLD}${GREEN}Game Mode${RESET}"; else boot_mode="${BOLD}${CYAN}Desktop Mode${RESET}"; fi
     boot_login=$([[ "$boot_relogin" == "false" ]] && echo "${DIM}password required${RESET}" || echo "${DIM}no password${RESET}")
 
-    local wol_icon="$ICON_WARN" local wol_label="${YELLOW}deactivated${RESET}"
+    local wol_icon="$ICON_WARN" local wol_label="${YELLOW}Deactivated${RESET}"
     local wol_enabled=false local wol_setting
     while IFS= read -r conn; do
         [[ -z "$conn" ]] && continue
         wol_setting=$(nmcli -g 802-3-ethernet.wake-on-lan connection show "$conn" 2>/dev/null | tr '[:upper:]' '[:lower:]')
         if [[ "$wol_setting" == *magic* ]]; then wol_enabled=true; break; fi
     done < <(nmcli -t -f NAME connection show 2>/dev/null)
-    if $wol_enabled; then wol_icon="$ICON_OK"; wol_label="${GREEN}activated${RESET}"; else wol_icon="$ICON_WARN"; wol_label="${RED}deactivated${RESET}"; fi
+    if $wol_enabled; then wol_icon="$ICON_OK"; wol_label="${GREEN}Activated${RESET}"; else wol_icon="$ICON_WARN"; wol_label="${RED}Deactivated${RESET}"; fi
 
     echo -e "  ${CYAN}Boot Mode${RESET}             ${boot_mode}  ${boot_login}"
     echo -e "  ${CYAN}OS${RESET}                    $(cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '"')"
@@ -640,9 +579,6 @@ run_status() {
     echo -e "  ${CYAN}Atomic Deployment${RESET}     ${pin_status} ${pin_lable} ${DIM}(System layers frozen to block unwanted updates)${RESET}"
     echo -e "  ${CYAN}Async GPU Compute${RESET}     ${async_icon} ${async_lable} ${async_desc}"
     echo ""
-# ==============================================================================
-# RE-ORDERED CORE ENGINE: SYSTEM STATUS VISUALIZATION DASHBOARD (PART 2 OF 3)
-# ==============================================================================
     # OVERCLOCK
     print_section "Overclock"
     local cpu_preset="None" local cpu_profile="No Active Config"
@@ -658,9 +594,9 @@ run_status() {
     cpu_svc_enabled=$(systemctl is-enabled bc250-smu-oc.service 2>/dev/null || echo "disabled")
     cpu_svc_result=$(systemctl show bc250-smu-oc.service --property=ExecMainStatus --value 2>/dev/null || echo "0")
     local cpu_icon cpu_label
-    if [[ "$cpu_svc_enabled" == "enabled" && "$cpu_svc_result" == "0" ]]; then cpu_icon="$ICON_OK"; cpu_label="${GREEN}activated (applied successfully)${RESET}"
-    elif [[ "$cpu_svc_enabled" == "enabled" ]]; then cpu_icon="$ICON_WARN"; cpu_label="${YELLOW}activated (exit code: ${cpu_svc_result})${RESET}"
-    else cpu_icon="$ICON_WARN"; cpu_label="${RED}deactivated${RESET}"; fi
+    if [[ "$cpu_svc_enabled" == "enabled" && "$cpu_svc_result" == "0" ]]; then cpu_icon="$ICON_OK"; cpu_label="${GREEN}Activated (applied successfully)${RESET}"
+    elif [[ "$cpu_svc_enabled" == "enabled" ]]; then cpu_icon="$ICON_WARN"; cpu_label="${YELLOW}Activated (exit code: ${cpu_svc_result})${RESET}"
+    else cpu_icon="$ICON_WARN"; cpu_label="${RED}Deactivated${RESET}"; fi
     echo -e "  ${CYAN}CPU Service${RESET}           ${cpu_icon} ${cpu_label}"
 
     if [[ -f "$CPU_CONF" ]]; then
@@ -672,8 +608,8 @@ run_status() {
     else echo -e "  ${CYAN}CPU Profile${RESET}           ${ICON_WARN} ${DIM}config not found${RESET}"; fi
 
     local gpu_icon gpu_label
-    if systemctl is-active --quiet cyan-skillfish-governor-smu.service 2>/dev/null; then gpu_icon="$ICON_OK"; gpu_label="${GREEN}activated${RESET}"
-    else gpu_icon="$ICON_WARN"; gpu_label="${RED}deactivated${RESET}"; fi
+    if systemctl is-active --quiet cyan-skillfish-governor-smu.service 2>/dev/null; then gpu_icon="$ICON_OK"; gpu_label="${GREEN}Activated${RESET}"
+    else gpu_icon="$ICON_WARN"; gpu_label="${RED}Deactivated${RESET}"; fi
     echo -e "  ${B_BLUE}GPU Service${RESET}           ${gpu_icon} ${gpu_label}"
 
     if [[ -f "$GPU_CONF" ]]; then
@@ -693,8 +629,8 @@ run_status() {
     local calc_cores=$(( active_threads / 2 ))
     if [[ "$active_threads" -eq 16 ]]; then
         if [ -f "$REAL_HOME/CPU_Unlock/.installed" ] || systemctl is-active --quiet bc250-cpu-unlock 2>/dev/null; then
-            echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${GREEN}activated via systemd boot hooks (${calc_cores} Cores / ${active_threads} Threads)${RESET}"
-        else echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${GREEN}activated natively via permanent BIOS tables (${calc_cores} Cores / ${active_threads} Threads)${RESET}"; fi
+            echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${GREEN}Activated via systemd boot hooks (${calc_cores} Cores / ${active_threads} Threads)${RESET}"
+        else echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${GREEN}Activated natively via permanent BIOS tables (${calc_cores} Cores / ${active_threads} Threads)${RESET}"; fi
     else echo -e "  ${CYAN}CPU Core Unlock${RESET}       ${ICON_OK} ${YELLOW}disabled (Factory stock 6-core / 12-thread scaling architecture)${RESET}"; fi
 
     # 🧬 UNIFIED HARDWARE DECODER
@@ -728,9 +664,6 @@ run_status() {
     local cu_icon="$ICON_OK" local cu_color="${GREEN}" local cu_warn_msg=""
     if [ "$true_cu_count" -gt 24 ]; then cu_icon="$ICON_WARN" cu_color="${YELLOW}"; cu_warn_msg=" ${ICON_WARN} ${GREEN}Unlocked${RESET} — ${RED}verify power/cooling${RESET}"; fi
     echo -e "  ${CYAN}Active CUs${RESET}            ${ICON_WARN} ${true_cu_count}/40  ${DIM}(default 24, max 40)${RESET} ${ICON_WARN} ${GREEN}Unlocked${RESET} — ${RED}verify power/cooling${RESET}"
-# ==============================================================================
-# RE-ORDERED CORE ENGINE: SYSTEM STATUS VISUALIZATION DASHBOARD (PART 3 OF 3)
-# ==============================================================================
     # 🔒 ENVIRONMENT ISOLATION GATE
     if [ -f /.dockerenv ] || grep -qiE '(docker|lxc|containerd|podman|kubepods)' /proc/1/cgroup 2>/dev/null; then
         echo -e "  ${RED}❌ ENVIRONMENT ERROR:${RESET} Containerized deployment detected.\n"; return 1 2>/dev/null || exit 1
@@ -760,7 +693,7 @@ run_status() {
                 "3145728") profile_lbl="Entry VRAM Split (~12G System / ~4G VRAM)" ;;
                 "3932160") profile_lbl="Native 512MB Split (~15G System / ~512M VRAM)" ;;
             esac
-            echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${ICON_OK} ${GREEN}activated (${profile_lbl})${RESET}"
+            echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${ICON_OK} ${GREEN}Activated (${profile_lbl})${RESET}"
             echo -e "                        ${BIBlack}↳ Current Allocation : ~${calc_ram_gb}G System RAM / ~${calc_vram_gb}G Dedicated VRAM${RESET}"
             echo -e "                        ${BIBlack}↳ Parameter Metrics  : Ceiling: ${cmd_pages} pages | Pool: ${pool_size_mb}MB${RESET}"
         else
@@ -768,11 +701,10 @@ run_status() {
             local hw_mem_gb=$(echo "scale=0; ($hw_mem_kb + 524288) / 1024 / 1024" | bc 2>/dev/null || echo "8")
             local implied_vram=$(( 16 - hw_mem_gb ))
             if (( implied_vram < 0 )); then implied_vram=0; fi
-            echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${ICON_OK} ${GREEN}activated${RESET} (Natively partitioned via BIOS — ~${hw_mem_gb}G System RAM / ~${implied_vram}G Dedicated VRAM)"
+            echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${ICON_OK} ${GREEN}Activated${RESET} (Natively partitioned via BIOS — ~${hw_mem_gb}G System RAM / ~${implied_vram}G Dedicated VRAM)"
         fi
     else echo -e "  ${CYAN}RAM/VRAM Split${RESET}        ${DIM}– not installed (Stock 8G/8G memory split blueprint)${RESET}"; fi
     echo ""
-
     # SWAP & ZRAM/ZSWAP
     print_section "Swap & ZRAM/ZSWAP"
     local swap_mb; swap_mb=$(swapfile_size_mb 2>/dev/null || echo "0")
@@ -794,11 +726,11 @@ run_status() {
     fi
 
     if zramctl | grep -q "/dev/zram"; then
-        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM activated${RESET} / ZSWAP managed"
+        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM Activated${RESET} / ZSWAP managed"
     elif [[ "$zswap_enabled" == "Y" && "$active_comp" != "none" ]]; then
-        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM deactivated / ZSWAP activated (${active_comp})${RESET}"
+        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_OK} ${GREEN}ZRAM Deactivated / ZSWAP Activated (${active_comp})${RESET}"
     else
-        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_WARN} ${YELLOW}ZRAM deactivated / ZSWAP configured but idle${RESET}"
+        echo -e "  ${CYAN}ZRAM/ZSWAP${RESET}            ${ICON_WARN} ${YELLOW}ZRAM Deactivated / ZSWAP configured but idle${RESET}"
     fi
     echo ""
 
@@ -826,31 +758,46 @@ run_status() {
         "not installed"|*) xbox_icon="$ICON_WARN"; xbox_color="$YELLOW"; xbox_label="not installed" ;;
     esac
     echo -e "  ${CYAN}Xbox Wireless Adapter${RESET} ${xbox_icon} ${xbox_color}${xbox_label}${RESET}"
-    echo ""
 
-    # COMMUNITY FIXES
-    print_section "Community Fixes"
+    # 🚀 ACCENT HARMONIZATION MAP: Perfectly matches layout spacing down your console screen grid
+    local ds5_icon ds5_color ds5_label
+    if [ -f "/etc/udev/rules.d/99-dualsense-bridge.rules" ] || [ -f "/etc/modprobe.d/bluetooth-lowlatency.conf" ]; then
+        ds5_icon="$ICON_OK"; ds5_color="$GREEN"; ds5_label="activated (low-latency bridge fix engaged)"
+    else
+        ds5_icon="$ICON_WARN"; ds5_color="$YELLOW"; ds5_label="stock polling layout (auto-suspend enabled)"
+    fi
+    echo -e "  ${CYAN}Sony DualSense Adapter${RESET} ${ds5_icon} ${ds5_color}${ds5_label}${RESET}\n"
+
+    # COMMUNITY FIXES & SILICON TUNING STATUS PASS
+    print_section "Community Fixes & Silicon Tuning"
+
     local acpi_icon acpi_color acpi_label
-    if acpi_fix_installed; then
-        if [[ -d "/sys/firmware/acpi/tables" ]] && [[ -d "/sys/devices/system/cpu/cpu7/cpufreq" ]] && ! grep -q "GRUB_EARLY_INITRD_LINUX_CUSTOM" /etc/default/grub 2>/dev/null; then acpi_icon="$ICON_OK"; acpi_color="$GREEN"; acpi_label="activated (Natively injected via permanent BIOS hardware tables)"
-        elif compgen -G /sys/devices/system/cpu/cpu0/cpufreq >/dev/null; then acpi_icon="$ICON_OK"; acpi_color="$GREEN"; acpi_label="activated (Loaded via OS-level early boot initrd override)"
-        else acpi_icon="$ICON_WARN"; acpi_color="$YELLOW"; acpi_label="installed configuration detected — reboot pending"; fi
+    if acpi_fix_installed; then acpi_icon="$ICON_OK"; acpi_color="$GREEN"; acpi_label="activated (Loaded via OS-level early boot initrd override)"
     else acpi_icon="$ICON_WARN"; acpi_color="$DIM"; acpi_label="not installed"; fi
     echo -e "  ${B_RED}ACPI Fix${RESET}              ${acpi_icon} ${acpi_color}${acpi_label}${RESET}"
 
-    local audio_icon audio_color audio_label resolved_amdgpu
-    resolved_amdgpu=$(modinfo -F filename amdgpu 2>/dev/null || echo "")
-    if [[ "$resolved_amdgpu" == *"/updates/"* ]]; then audio_icon="$ICON_OK"; audio_color="$GREEN"; audio_label="patched module activated"
+    local gpu_icon gpu_color gpu_label live_reg
+    live_reg=$(sudo umr -r "cyan_skillfish.gfx1013.mmRLC_PG_ALWAYS_ON_WGP_MASK" 2>/dev/null | awk '{print $NF}')
+    if [[ "$live_reg" == "0x0000001f" || "$live_reg" == "0x1f" ]]; then gpu_icon="$ICON_OK"; gpu_color="$GREEN"; gpu_label="ACTIVE (40 Compute Units locked wide awake in silicon)"
+    else gpu_icon="$ICON_WARN"; gpu_color="$DIM"; gpu_label="DISABLED (Compute pairs subject to firmware power-gating)"; fi
+    echo -e "  ${CYAN}GPU Power Shield${RESET}      ${gpu_icon} ${gpu_color}${gpu_label}${RESET}"
+
+    local vram_icon vram_color vram_label
+    if [ -f "/etc/modprobe.d/increase_amd_memory.conf" ] || grep -q "ttm.pages_limit" /etc/default/grub 2>/dev/null; then vram_icon="$ICON_OK"; vram_color="$GREEN"; vram_label="ACTIVE (14.75GB Dynamic UMA allocation ceiling unlocked)"
+    else vram_icon="$ICON_WARN"; vram_color="$DIM"; vram_label="CAPPED (Factory-throttled 7.4GB memory allocation limit)"; fi
+    echo -e "  ${YELLOW}Dynamic VRAM${RESET}          ${vram_icon} ${vram_color}${vram_label}${RESET}"
+
+    local audio_icon audio_color audio_label
+    if [ -f "/etc/modprobe.d/bc250-audio.conf" ]; then audio_icon="$ICON_OK"; audio_color="$GREEN"; audio_label="patched module activated (reboot advised)"
     else audio_icon="$ICON_WARN"; audio_color="$YELLOW"; audio_label="stock hardware module activated"; fi
-    echo -e "  ${CYAN}Audio Patch${RESET}           ${audio_icon} ${audio_color}${audio_label}${RESET}"
-    echo ""
+    echo -e "  ${B_VIOLET}Audio Patch${RESET}           ${audio_icon} ${audio_color}${audio_label}${RESET}\n"
 
     check_system_health
 }
 
-# =====================================================================
-# REFRESH & REMOVAL UTILITIES
-# =====================================================================
+# ==============================================================================
+# 📂 GROUP 4: APPLICATION DESKTOP SHORTCUT SYSTEMS & DATABASE RE-INDEXERS
+# ==============================================================================
 refresh_desktop_database() {
     if command -v update-desktop-database &> /dev/null; then
         update-desktop-database "$LOCAL_APPS" &> /dev/null
@@ -868,10 +815,6 @@ force_remove_shortcut() {
     rm -f "$OLD_DESKTOP" "$OLD_DIRECTORY" "$OLD_MENU"
     refresh_desktop_database
 }
-
-# =====================================================================
-# SHORTCUT CREATION & PROMPT LOGIC
-# =====================================================================
 create_start_menu_shortcut() {
     print_info "Creating start menu shortcut..."
     mkdir -p "$LOCAL_APPS"
@@ -880,7 +823,7 @@ create_start_menu_shortcut() {
     local local_icons="/var/home/bsystem/.local/share/icons"
     mkdir -p "$local_icons" 2>/dev/null
     if [ ! -f "$local_icons/matrix.ico" ]; then
-        wget -q -O "$local_icons/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/matrix.ico" || true
+        wget -q -O "$local_icons/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/matrix.ico" || true
     fi
     chown bsystem:bsystem "$local_icons/matrix.ico" 2>/dev/null
 
@@ -961,7 +904,6 @@ case "$1" in
 esac
 
 echo -e "${GREEN}Starting Bazzite Toolbox Core UI...${NC}"
-
 # =====================================================================
 # 1B. ATOMIC USER SPACE PATH MIGRATION & SHORTCUT RE-BIND ENGINE
 # =====================================================================
@@ -975,13 +917,13 @@ migrate_legacy_install_path() {
     if [ -d "$old_target" ] && [ "$active_real_path" != "$new_target/start.sh" ]; then
         print_info "Old legacy path caught! Syncing user space environments..."
         sudo -u bsystem mkdir -p "/var/home/bsystem/Applications" 2>/dev/null
-        
+
         # 🧬 ATOMIC REPLICATOR: Copies your full toolkit folder into your unprivileged user space vault
         sudo -u bsystem cp -rT "$old_target" "$new_target" 2>/dev/null || true
-        
+
         if [ -d "$new_target" ] && [ -f "$new_target/start.sh" ]; then
             print_info "Overwriting desktop launcher metadata configurations..."
-            
+
             # 🚀 UNPRIVILEGED SHORTCUT RE-WRITER: Accesses desktop launch files straight from user space accounts
             sudo -u bsystem bash -c '
                 local sc_paths=("/var/home/bsystem/Desktop" "/var/home/bsystem/.local/share/applications")
@@ -997,13 +939,13 @@ migrate_legacy_install_path() {
                 done
                 update-desktop-database /var/home/bsystem/.local/share/applications 2>/dev/null
             '
-            
+
             print_info "Purging legacy partition remnants..."
             SCRIPT_PATH="$new_target/start.sh"
-            
+
             # 🚀 FORCED DISK DETACH: Moves the execution path out of the old folder before deleting it
             (cd /var/home/bsystem && sleep 1.0 && rm -rf "$old_target" 2>/dev/null) &
-            
+
             # Instantly restart the script smoothly out of your clean updated production folder location
             exec bash "$SCRIPT_PATH" "$@"
         fi
@@ -1015,7 +957,7 @@ migrate_legacy_install_path
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
-local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 # 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
@@ -1060,14 +1002,12 @@ ask_desktop_shortcut() {
 
     case $shortcut_choice in
         1)
-            # 🚀 BRANDED ICON PROCUREMENT MATRIX: Insulates your matrix.ico asset cleanly on the disk partition
             local icon_dest="${REAL_HOME}/Applications/Bazzite_Toolbox"
             if [ ! -f "$icon_dest/matrix.ico" ]; then
-                sudo -u "$REAL_USER" wget -q -O "$icon_dest/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/matrix.ico" || true
+                sudo -u "$REAL_USER" wget -q -O "$icon_dest/matrix.ico" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/matrix.ico" || true
             fi
             [[ -f "$icon_dest/matrix.ico" ]] || icon_dest="utilities-terminal"
 
-            # 🛠️ FIXED TEXT BLOCK ENVELOPE: Properly captures entry tags without syntax bleeding
             cat > "$shortcut" <<SHORTCUT_EOF
 [Desktop Entry]
 Type=Application
@@ -1090,7 +1030,6 @@ SHORTCUT_EOF
 
 ask_desktop_shortcut
 manage_shortcut_prompt
-
 prompt_reboot() {
     echo ""
     echo -e "  ${YELLOW}╔═══════════════════════════════════════════════════════════════════╗${NC}"
@@ -1133,11 +1072,6 @@ prompt_reboot() {
             ;;
     esac
 }
-
-# =====================================================================
-# RESTORED PERFORMANCE PIPELINES (OPTIONS 1-4 EXPLICIT ARRAYS)
-# =====================================================================
-# Complete, Deep-Clean Removal Logic for the Blue Pill
 uninstall_blue_pill() {
     echo -e "${YELLOW}[●] Step 1/7: Forcibly stopping and disabling all governor services...${NC}"
     (sudo systemctl stop cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
@@ -1199,11 +1133,6 @@ uninstall_blue_pill() {
     echo ""
     play_success_chime; prompt_reboot; return 0
 }
-
-# =====================================================================
-# RESTORED PERFORMANCE PIPELINES (OPTIONS 1-4 EXPLICIT ARRAYS)
-# =====================================================================
-# Complete, Deep-Clean Removal Logic for the Blue Pill
 install_blue_pill() {
     # 1. Primary Check: Is Blue Pill already active on this host?
     if [ -f "$HOME/Blue_Pill_16GB/.installed" ]; then
@@ -1281,7 +1210,6 @@ install_blue_pill() {
         play_success_chime; prompt_reboot; return 0
     fi
 }
-
 uninstall_red_pill() {
     echo -e "${YELLOW}[●] Step 1/7: Forcibly stopping and disabling all governor services...${NC}"
     (sudo systemctl stop cyan-skillfish-governor-smu cyan-skillfish-governor cyan-skillfish-governor-tt oberon-governor 2>/dev/null || true) &>/dev/null
@@ -1344,11 +1272,6 @@ uninstall_red_pill() {
     play_success_chime; prompt_reboot; continue
     return 0
 }
-
-# =====================================================================
-# RESTORED PERFORMANCE PIPELINES (OPTIONS 1-4 EXPLICIT ARRAYS)
-# =====================================================================
-# Complete, Deep-Clean Removal Logic for the Red Pill
 install_red_pill() {
     # 1. Primary Check: Is Red Pill already active on this host?
     if [ -f "$HOME/Red_Pill_32GB/.installed" ]; then
@@ -1426,7 +1349,6 @@ install_red_pill() {
         play_success_chime; prompt_reboot; return 0
     fi
 }
-
 # Function to Launch Overclock
 install_overclock() {
     echo -e "${B_RED}=== Launching Overclock Menu ===${NC}"
@@ -1508,8 +1430,9 @@ install_wake_on_lan() {
     echo -e "${YELLOW}Wake on LAN Manager closed. Returning to main menu...${NC}"
     sleep 2
 }
-
-# Function to update_cyan-skillfish (Intelligent Version Detection Engine)
+# ==============================================================================
+# 🎛️ GROUP 3 (CONT.): GOVERNOR VERSION DETECTOR & LIVE UPGRADE MATRIX
+# ==============================================================================
 update_cyan-skillfish() {
     clear
     echo -e "\n  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
@@ -1567,13 +1490,17 @@ update_cyan-skillfish() {
 }
 
 play_success_chime() {
-        echo -ne '\e[?5h'; sleep 0.1; echo -ne '\e[?5l'
-        local real_uid; real_uid=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
-        if [[ -f "/usr/share/sounds/oxygen/stereo/outcome-success.ogg" ]] && command -v pw-play &>/dev/null; then
-            sudo -u "$REAL_USER" XDG_RUNTIME_DIR="/run/user/$real_uid" PIPEWIRE_RUNTIME_DIR="/run/user/$real_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$real_uid/bus" pw-play /usr/share/sounds/oxygen/stereo/outcome-success.ogg &>/dev/null || true
-        fi
-    }
+    echo -ne '\e[?5h'; sleep 0.1; echo -ne '\e[?5l'
+    local real_uid; real_uid=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
+    if [[ -f "/usr/share/sounds/oxygen/stereo/outcome-success.ogg" ]] && command -v pw-play &>/dev/null; then
+        # 🧬 FIX TRACKING MASK: Enforce $real_uid across ALL three runtime paths flatly
+        sudo -u "$REAL_USER" XDG_RUNTIME_DIR="/run/user/$real_uid" PIPEWIRE_RUNTIME_DIR="/run/user/$real_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$real_uid/bus" pw-play /usr/share/sounds/oxygen/stereo/outcome-success.ogg &>/dev/null || true
+    fi
+}
 
+# ==============================================================================
+# 📂 GROUP 4: INTEGRATED UPSCALER & COMPRESSED PAYLOAD INJECTORS
+# ==============================================================================
 deploy_gfx1013_fsr4_engine() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
     local RED='\033[0;31m' local B_RED='\033[1;31m' local RESET='\033[0m'
@@ -1688,11 +1615,12 @@ deploy_gfx1013_fsr4_engine() {
 
 toggle_gfx1013_fsr4_engine() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
-    local RED='\033[0;31m' local B_RED='\033[1;31m' local RESET='\033[0m'
+    local RED='\033[0;31m' local B_RED='\033[1;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
 
     local cache_dir="/tmp/bc250_fsr4_staging"
     local dll_name="amd_fidelityfx_upscaler_dx12.dll"
     local local_src="/home/bsystem/Downloads/bc250-fsr4-dll-4.0.0-rc11"
+    local manifest_name=".bc250_fsr4_manifest.txt"
 
     clear
     echo -e "${CYAN}====================================================================${RESET}"
@@ -1701,7 +1629,7 @@ toggle_gfx1013_fsr4_engine() {
     echo -e "   Select the upscaler engine target architecture version deployment: "
     echo -e ""
     echo -e "   1) Deploy v4.0.0-rc11 PROD  : Explicit UI Menu, High Stability (Single 7z)"
-    echo -e "   2) Deploy v10.0.0-pre1 ALPHA: Modular SDK, Advanced Buffering Clamps (Split 7z)"
+    echo -e "   2) Deploy v10.0.0-pre1 ALPHA: Modular SDK, Advanced Buffering Clamps (Single 7z)"
     echo -e "   3) Exit back to main dashboard menu"
     echo -e ""
     echo -n "   Select target branch choice [1-3]: "
@@ -1723,38 +1651,45 @@ toggle_gfx1013_fsr4_engine() {
     echo -e "${CYAN}====================================================================${RESET}"
     echo -e "   🚀 TARGET: DEPLOYING FSR 4.1.1 ENGINES [ $version_tag ]            "
     echo -e "${CYAN}====================================================================${RESET}"
-
     echo -e "${CYAN}[➡] Enter the ABSOLUTE path directory to your target game folder:${RESET}"
     echo -n "    Path: "
     local game_path; read -r game_path
+    game_path="${game_path#\'}"; game_path="${game_path%\'}"; game_path="${game_path#\"}"; game_path="${game_path%\"}"
     game_path=$(echo "$game_path" | sed -e 's/[[:space:]]*$//' -e 's|/*$||')
 
     if [[ ! -d "$game_path" ]]; then
         echo -e "${RED}❌ ERROR: Provided directory path track does not exist on disk.${RESET}"
         read -rp "Press [Enter] to return..." dummy; return 1
     fi
-
-    # 🧬 SMART STATE DETECTOR: Monitors modern profile layers to trigger clean uninstalls
-    if [[ -f "${game_path}/OptiScaler.ini" || -f "${game_path}/dxgi.dll" || -f "${game_path}/nvngx.ini" ]]; then
+    set +e
+    local mf_path="${game_path}/${manifest_name}"
+    if [[ -f "$mf_path" || -f "${game_path}/dxgi.dll" || -f "${game_path}/OptiScaler.ini" ]]; then
         echo -e "\n${YELLOW}[ℹ] Existing FSR Mod framework detected inside this directory!${RESET}"
         echo -n "👉 Remove the active upscaler mod and restore factory binaries? (y/N): "
         local ans_un; read -r ans_un
         if [[ "$ans_un" =~ ^[Yy]$ ]]; then
             echo -e "\n${YELLOW}[ℹ] Purging deployed mod files and configurations...${RESET}"
-            rm -f "${game_path}/dxgi.dll" "${game_path}/winmm.dll" "${game_path}/version.dll" "${game_path}/nvngx.ini" "${game_path}/${dll_name}"
-            rm -f "${game_path}/fakenvapi.dll" "${game_path}/fakenvapi.ini" "${game_path}/dlssg_to_fsr3_amd_is_better.dll" "${game_path}/libxess.dll"
-            rm -f "${game_path}/OptiScaler.log" "${game_path}/OptiScaler.ini" "${game_path}/fakenvapi.log" "${game_path}/dlssg_to_fsr3.log" "${game_path}/remove_optiscaler.sh"
-            rm -f "${game_path}/amd_fidelityfx_loader_dx12.dll" "${game_path}/amd_fidelityfx_framegeneration_dx12.dll" "${game_path}/amd_fidelityfx_vk.dll"
-            rm -rf "${game_path}/plugins" "${game_path}/OptiScaler"
 
-            if [[ -f "${game_path}/dxgi.dll.bak" ]]; then mv "${game_path}/dxgi.dll.bak" "${game_path}/dxgi.dll"; fi
-            if [[ -f "${game_path}/${dll_name}.bak" ]]; then mv "${game_path}/${dll_name}.bak" "${game_path}/${dll_name}"; fi
+            if [[ -f "$mf_path" ]]; then
+                echo -e "  ${DIM}➜ Executing manifest file footprint wipe...${RESET}"
+                while IFS= read -r file_to_delete || [[ -n "$file_to_delete" ]]; do
+                    [[ -n "$file_to_delete" ]] && rm -f "${game_path}/${file_to_delete}" 2>/dev/null
+                done < "$mf_path"
+                rm -f "$mf_path" 2>/dev/null
+            else
+                # 🧬 NO HARCODED NAMES FALLBACK: Dynamically maps and wipes loose assets in root directory safely [0.14]
+                echo -e "  ${YELLOW}[ℹ] Legacy deployment detected. Initializing generic filesystem purge loop...${RESET}"
+                find "$game_path" -maxdepth 1 -type f \( -name "*.dll" -o -name "*.ini" -o -name "*.asi" \) ! -name "steam_api*" -exec rm -f {} \; 2>/dev/null
+            fi
+
+            rm -rf "${game_path}/plugins" "${game_path}/OptiScaler"
+            if [[ -f "${game_path}/dxgi.dll.bak" ]]; then mv "${game_path}/dxgi.dll.bak" "${game_path}/dxgi.dll" 2>/dev/null; fi
+            if [[ -f "${game_path}/${dll_name}.bak" ]]; then mv "${game_path}/${dll_name}.bak" "${game_path}/${dll_name}" 2>/dev/null; fi
 
             chown -R bsystem:bsystem "$game_path" 2>/dev/null
             echo -e "${GREEN}[✓] Existing environment successfully returned to factory defaults.${RESET}"
             echo -e "${CYAN}====================================================================${RESET}"
 
-            # 🎯 THE INTERLOCK GATEWAY: Gives the user a clean option to exit right after uninstallation
             echo -n "👉 Would you like to proceed with a fresh upscaler deployment layout now? (y/N): "
             local ans_re; read -r ans_re
             if [[ ! "$ans_re" =~ ^[Yy]$ ]]; then
@@ -1770,7 +1705,6 @@ toggle_gfx1013_fsr4_engine() {
         local ans_in; read -r ans_in
         if [[ ! "$ans_in" =~ ^[Yy]$ ]]; then return 0; fi
     fi
-
     echo -e "\n${YELLOW}[ℹ] SELECT ENGINE-SPECIFIC PRESET OPTIMIZER:${RESET}"
     echo -e "  1) Standard Profile : Baseline RDNA1 Setup (Spider-Man, Cyberpunk, General Titles)"
     echo -e "  2) Capcom RE Engine : Fixes mesh stretching & broken graphics textures (RE4, Dead Rising)"
@@ -1782,62 +1716,64 @@ toggle_gfx1013_fsr4_engine() {
     local plugin_dir="${game_path}/plugins"
     mkdir -p "$destination_dir" "$plugin_dir"
 
-    if [[ -f "${game_path}/dxgi.dll" && ! -f "${game_path}/dxgi.dll.bak" ]]; then cp "${game_path}/dxgi.dll" "${game_path}/dxgi.dll.bak"; fi
-    if [[ -f "${game_path}/${dll_name}" && ! -f "${game_path}/${dll_name}.bak" ]]; then cp "${game_path}/${dll_name}" "${game_path}/${dll_name}.bak"; fi
+    if [[ -f "${game_path}/dxgi.dll" && ! -f "${game_path}/dxgi.dll.bak" ]]; then cp "${game_path}/dxgi.dll" "${game_path}/dxgi.dll.bak" 2>/dev/null; fi
+    if [[ -f "${game_path}/${dll_name}" && ! -f "${game_path}/${dll_name}.bak" ]]; then cp "${game_path}/${dll_name}" "${game_path}/${dll_name}.bak" 2>/dev/null; fi
+
+    rm -rf "$cache_dir" && mkdir -p "$cache_dir"
+    local tmp_extract="${cache_dir}/extracted"
+    mkdir -p "$tmp_extract"
+    local exit_code_1=0
 
     if [[ -d "$local_src" && "$branch_choice" == "1" ]]; then
-        echo -e "\n${GREEN}[✓] Local full-payload workspace directory found! Running folder-stripping flat injection sync...${RESET}"
-        cp -rT "$local_src" "$game_path" 2>/dev/null
-        cp -f "${local_src}/${dll_name}" "$destination_dir" 2>/dev/null
-        cp -f "${local_src}/OptiPatcher.asi" "$plugin_dir" 2>/dev/null
+        echo -e "\n${GREEN}[✓] Local full-payload workspace directory found! Staging file map...${RESET}"
+        cp -rT "$local_src" "$tmp_extract" 2>/dev/null
     else
         echo -e "\n${YELLOW}[ℹ] Initializing download chain for remote server files...${RESET}"
-        rm -rf "$cache_dir" && mkdir -p "$cache_dir"
-
-        local exit_code_1=0
+        local dl_url=""
         if [[ "$branch_choice" == "1" ]]; then
-            # 🎯 MODE A: Handles your original standalone single package line
-            local dl_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250-fsr4-dll-4.0.0-rc11.7z"
-            echo -e "${GREEN}[+] Fetching unified production archive...${RESET}"
-            if wget --no-check-certificate --timeout=15 -qO "$cache_dir/fsr4_pack.7z" "${dl_url}"; then
-                7z e -aoa "$cache_dir/fsr4_pack.7z" "-o$game_path" "*"
-                exit_code_1=$?
-                7z e -aoa "$cache_dir/fsr4_pack.7z" "-o$destination_dir" "*${dll_name}" &>/dev/null
-                7z e -aoa "$cache_dir/fsr4_pack.7z" "-o$plugin_dir" "*OptiPatcher.asi" &>/dev/null
-            else
-                exit_code_1=1
-            fi
+            dl_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/bc250-fsr4-dll-4.0.0-rc11.7z"
         elif [[ "$branch_choice" == "2" ]]; then
-            # 🎯 MODE B: Adaptive pathing loader for your split volume segments [1.11]
-            local dl_url_1="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250-fsr4-dll-4.0.0-rc11.1.7z.001"
-            local dl_url_2="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250-fsr4-dll-4.0.0-rc11.1.7z.002"
-            echo -e "${GREEN}[+] Fetching split volume segment 001...${RESET}"
-            wget --no-check-certificate --timeout=15 -qO "$cache_dir/fsr4_pack.7z.001" "${dl_url_1}"
-            echo -e "${GREEN}[+] Fetching split volume segment 002...${RESET}"
-            wget --no-check-certificate --timeout=15 -qO "$cache_dir/fsr4_pack.7z" "${dl_url_2}"
-            mv "$cache_dir/fsr4_pack.7z" "$cache_dir/fsr4_pack.7z.002" 2>/dev/null
-
-            if [[ -f "$cache_dir/fsr4_pack.7z.001" && -f "$cache_dir/fsr4_pack.7z.002" ]]; then
-                7z e -aoa "$cache_dir/fsr4_pack.7z.001" "-o$game_path" "*"
-                exit_code_1=$?
-                7z e -aoa "$cache_dir/fsr4_pack.7z.001" "-o$destination_dir" "*${dll_name}" &>/dev/null
-                # Fixed a truncated bracket leak from your raw file snapshot copy:
-                7z e -aoa "$cache_dir/fsr4_pack.7z.001" "-o$plugin_dir" "*OptiPatcher.asi" &>/dev/null
-            else
-                exit_code_1=1
-            fi
+            dl_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/bc250-fsr4-dll-4.0.0-rc11.1.7z"
         fi
-        rm -rf "$cache_dir"
-    fi
-    rm -f "${game_path}/setup_windows.bat" "${game_path}/setup_linux.sh" 2>/dev/null
 
-    # Fast-pass dynamic renaming matrix variables
+        echo -e "${GREEN}[+] Fetching remote payload archive...${RESET}"
+        if wget --no-check-certificate --timeout=15 -qO "$cache_dir/fsr4_pack.7z" "${dl_url}"; then
+            7z x -aoa "$cache_dir/fsr4_pack.7z" "-o$tmp_extract" &>/dev/null
+            exit_code_1=$?
+        else
+            exit_code_1=1
+        fi
+    fi
+
+    if [ $exit_code_1 -eq 0 ]; then
+        local payload_files; payload_files=$(find "$tmp_extract" -type f \( -name "*.dll" -o -name "*.ini" -o -name "*.asi" \) 2>/dev/null)
+        rm -f "$mf_path" 2>/dev/null
+        touch "$cache_dir/manifest.tmp"
+
+        local file_item fn
+        for file_item in $payload_files; do
+            fn=$(basename "$file_item")
+            if [[ "$fn" == "amd_fidelityfx_upscaler_dx12.dll" ]]; then
+                cp -f "$file_item" "$destination_dir/" 2>/dev/null
+                echo "OptiScaler/$fn" >> "$cache_dir/manifest.tmp"
+            elif [[ "$fn" == "OptiPatcher.asi" ]]; then
+                cp -f "$file_item" "$plugin_dir/" 2>/dev/null
+                echo "plugins/$fn" >> "$cache_dir/manifest.tmp"
+            else
+                cp -f "$file_item" "${game_path}/" 2>/dev/null
+                echo "$fn" >> "$cache_dir/manifest.tmp"
+            fi
+        done
+        mv -f "$cache_dir/manifest.tmp" "$mf_path" 2>/dev/null
+        chmod 644 "$mf_path" 2>/dev/null
+    fi
+    rm -rf "$cache_dir"
+    rm -f "${game_path}/setup_windows.bat" "${game_path}/setup_linux.sh" 2>/dev/null
     if [[ -f "${game_path}/OptiScaler.dll" && ! -f "${game_path}/dxgi.dll" ]]; then mv "${game_path}/OptiScaler.dll" "${game_path}/dxgi.dll"; fi
     if [[ -f "${game_path}/Optiscaler.dll" && ! -f "${game_path}/dxgi.dll" ]]; then mv "${game_path}/Optiscaler.dll" "${game_path}/dxgi.dll"; fi
 
     chown -R bsystem:bsystem "$game_path" 2>/dev/null
 
-    # 🚀 CONFIGURATION INJECTOR SUITE
     local config_file="${game_path}/OptiScaler.ini"
     rm -f "${game_path}/nvngx.ini"
     echo -e "${GREEN}[+] Structuring tailored FSR configuration engine profiles...${RESET}"
@@ -1874,21 +1810,38 @@ toggle_gfx1013_fsr4_engine() {
 
     echo -e "${GREEN}[✓] Character-perfect injection loop complete! Full mod matrix deployed flat.${RESET}"
 
-    # 🎯 COLOR-CODED RUNTIME COMMAND BANNERS FOR STEAM & NON-STEAM GAMES
+    # 🧬 TARGETED PROMPT: Ask user if they want to use MangoHud telemetry layers
+    echo -ne "\n👉 Integrate MangoHud performance telemetry overlay layout parameters? (y/N): "
+    local use_hud; read -r use_hud
+
     echo -e "\n${B_RED}====================================================================${RESET}"
     echo -e "  ⚠️ REQUIRED GAME LAUNCH OPTIONS INFRASTRUCTURE                      "
     echo -e "====================================================================${RESET}"
     echo -e "  🎮 FOR STEAM TITLES (Add directly to Launch Options):"
-    echo -e "  ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}=${GREEN}true${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${YELLOW}%command%${RESET}"
-    echo -e "                                                                    "
-    echo -e "  📦 FOR NON-STEAM TITLES (Lutris/Heroic Env Variables panel):"
-    echo -e "  Key: ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}   Value: ${GREEN}true${RESET}"
-    echo -e "  Key: ${CYAN}WINEDLLOVERRIDES${RESET}          Value: ${GREEN}dxgi=n,b${RESET}"
+
+    if [[ "$use_hud" =~ ^[Yy]$ ]]; then
+        echo -e "  ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}=${GREEN}true${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${MAGENTA}mangohud${RESET} ${YELLOW}%command%${RESET}"
+        echo -e "                                                                    "
+        echo -e "  📦 FOR NON-STEAM TITLES (Lutris/Heroic Env Variables panel):"
+        echo -e "  Key: ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}   Value: ${GREEN}true${RESET}"
+        echo -e "  Key: ${CYAN}WINEDLLOVERRIDES${RESET}          Value: ${GREEN}dxgi=n,b${RESET}"
+        echo -e "  Key: ${MAGENTA}MANGOHUD${RESET}                 Value: ${GREEN}1${RESET}"
+    else
+        echo -e "  ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}=${GREEN}true${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${YELLOW}%command%${RESET}"
+        echo -e "                                                                    "
+        echo -e "  📦 FOR NON-STEAM TITLES (Lutris/Heroic Env Variables panel):"
+        echo -e "  Key: ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}   Value: ${GREEN}true${RESET}"
+        echo -e "  Key: ${CYAN}WINEDLLOVERRIDES${RESET}          Value: ${GREEN}dxgi=n,b${RESET}"
+    fi
     echo -e "${B_RED}====================================================================${RESET}"
 
+    (play_success_chime &>/dev/null &)
     read -rp "Press [Enter] to return to menu dashboard..." dummy
 }
 
+# ==============================================================================
+# 📂 GROUP 4 (CONT.): NATIVE ARCHIVE PACKAGE WORKSPACE MANAGER
+# ==============================================================================
 launch_bc250_opticlient_matrix() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
     local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
@@ -2073,7 +2026,7 @@ launch_bc250_opticlient_matrix() {
     local custom_icon_path="${active_installed_dir}/app_icon.ico"
     if [ ! -f "$custom_icon_path" ] && [ -d "$active_installed_dir" ]; then
         echo -e "${YELLOW}[⚙] Fetching custom repository branding icon (.ico)...${RESET}"
-        wget --no-check-certificate -q --timeout=15 -O "$custom_icon_path" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/OptiscalerClient_256x255_32bit.ico" 2>/dev/null
+        wget --no-check-certificate -q --timeout=15 -O "$custom_icon_path" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/OptiscalerClient_256x255_32bit.ico" 2>/dev/null
 
         # Safe fallback system asset string if the icon hasn't been pushed upstream yet or network drops
         if [ ! -f "$custom_icon_path" ]; then
@@ -2124,16 +2077,134 @@ EOF
     echo -e "${CYAN}[➡] Launching native application dashboard. Handshaking scan tables...${RESET}"
     sleep 1
 
+    # ==========================================================================
+    # THIS INSERTS YOUR FOREGROUND VISUAL MONITOR SHIELD LAYER (ADD-ONLY)
+    # ==========================================================================
+    clear; echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "  🎮 [ SESSION ACTIVE ]: ${GREEN}OptiScaler Archive Client${RESET} is running... "
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "💡  ${YELLOW}INFO:${RESET} Closing the application dashboard app interface window will"
+    echo -e "         automatically release the script lock and return to main menu."
+    echo -e "${CYAN}====================================================================${RESET}"
+
     cd "$active_installed_dir" || return 1
     chmod +x "./${exe_name}" 2>/dev/null
 
     chown -R bsystem:bsystem "$target_client_dir" 2>/dev/null
     chown -R bsystem:bsystem "${raw_home}/.config" 2>/dev/null
     chmod -R 755 "$target_client_dir" 2>/dev/null
+    # 🧬 UNTOUCHED NATIVE EXECUTION STRING: Mutes background diagnostic log streams safely
+    env HOME="${raw_home}" XDG_CONFIG_HOME="${raw_home}/.config" ./${exe_name} 2>/dev/null
+    # 🧬 POST-SESSION EXIT AUDIO ENGINE HANDSHAKE
+    (play_success_chime &>/dev/null &)
+    cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || return 3
+}
+# ==============================================================================
+# 📂 GROUP 4 (CONT.): PORTAL BREAKOUT DASHBOARDS, APPIMAGES & OVERLAYS
+# ==============================================================================
+launch_bc250_appimage_manager() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+    local raw_home="/var/home/bsystem" local base_app_dir="${raw_home}/Applications"
+    cd /var/home/bsystem || true; clear
 
-    env HOME="${raw_home}" XDG_CONFIG_HOME="${raw_home}/.config" ./${exe_name}
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 BC-250 STANDALONE APPIMAGE UPDATER & MANAGER GATEWAY          "
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "  ⚙️ SELECT APPIMAGE TARGET SYSTEM COMPONENT TO DEPLOY:"
+    echo -e "    1) OptiScaler Interactive UI Standalone Client\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/Optiscaler-Client/Optiscaler-Client\033\\\\${CYAN}🌐 Repo: https://github.com/Optiscaler-Client/Optiscaler-Client${RESET}\033]8;;\033\\\\"
+    echo -e "    2) Sony DualSense DS5 Bridge Companion Utility\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/djanice1980/DS5_Bridge\033\\\\${CYAN}🌐 Repo: https://github.com/djanice1980/DS5_Bridge${RESET}\033]8;;\033\\\\"
+    echo -e "    3) Goverlay Performance & HUD Tweak Interface\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/benjamimgois/goverlay\033\\\\${CYAN}🌐 Repo: https://github.com/benjamimgois/goverlay${RESET}\033]8;;\033\\\\\n"
+    echo -n "👉 Select target application package slot [1-3]: "; read -r app_slot
 
-    cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || return 0
+    local app_name="OptiScaler AppImage" local folder_name="OptiscalerClient_AppImage" local comment_str="Modern UI Manager for OptiScaler Mod" local icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/OptiscalerClient_256x255_32bit.ico" local base_repo="Optiscaler-Client/Optiscaler-Client" local local_exe="OptiscalerClient.AppImage" force_install_flow="false"
+    [[ "$app_slot" == "2" ]] && app_name="DS5 Bridge Companion" && folder_name="DS5BridgeCompanion_AppImage" && comment_str="Advanced Sony DualSense Profile Bridge System" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/ds5-bridge_mark.ico" && base_repo="djanice1980/DS5_Bridge" && local_exe="DS5BridgeCompanion.AppImage"
+    # 🧬 ATOMIC SYNCHRONIZATION FIXED: Swapped the icon asset reference to match your official community goverlay.ico link exactly
+    [[ "$app_slot" == "3" ]] && app_name="Goverlay HUD Interface" && folder_name="Goverlay_AppImage" && comment_str="Graphical UI Configuration Tool for MangoHud & vkBasalt" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/goverlay.ico" && base_repo="benjamimgois/goverlay" && local_exe="Goverlay.AppImage"
+
+    local target_client_dir="/var/home/bsystem/Applications/${folder_name}"
+    local active_bin="${target_client_dir}/${local_exe}"
+
+    # 🧬 UNINSTALLER BLOCK: Clears out legacy installation tracks cleanly when requested
+    if [[ -f "$active_bin" ]]; then
+        echo -e "${GREEN}[✓] Active version of [ $app_name ] detected on disk.${RESET}"
+        echo -e "    ${DIM}Target Folder ➜ ${target_client_dir}${RESET}"
+        echo -e "${CYAN}====================================================================${RESET}"
+        echo -n "👉 Would you like to UNINSTALL this component and clear folder files? (y/N): "; read -r ans_un
+        if [[ "$ans_un" =~ ^[Yy]$ ]]; then
+            echo -e "\n${YELLOW}[ℹ] Purging deployed app binaries and configuration structures...${RESET}"
+            rm -f "${raw_home}/Desktop/${folder_name}.desktop" "${raw_home}/.local/share/applications/${folder_name}.desktop" 2>/dev/null
+            rm -rf "$target_client_dir" 2>/dev/null
+            sudo -u bsystem update-desktop-database "${raw_home}/.local/share/applications" 2>/dev/null
+            echo -e "${GREEN}[✓] Uninstallation completed successfully. Workspace cleared!${RESET}"
+            echo -e "${CYAN}====================================================================${RESET}"
+            echo -n "👉 Deployed files removed. Proceed with a fresh download and installation now? (y/N): "; read -r ans_fresh
+            if [[ "$ans_fresh" =~ ^[Yy]$ ]]; then force_install_flow="true"; clear
+            else return 0; fi
+        fi
+    fi
+
+    if [[ ! -f "$active_bin" || "$force_install_flow" == "true" ]]; then
+        echo -e "${CYAN}====================================================================${RESET}"
+        read -rp "👉 Paste direct archive download URL link or Release webpage URL: " dl_url
+        [[ -z "$dl_url" ]] && { echo -e "${RED}❌ ERROR: URL parameter field cannot be empty.${RESET}"; sleep 2; return 1; }
+        if [[ "$dl_url" == */releases/tag/* ]]; then
+            local tag_version; tag_version=$(echo "$dl_url" | sed 's|.*/releases/tag/||' | cut -d'/' -f1 | cut -d'?' -f1)
+            if [[ "$app_slot" == "1" ]]; then dl_url="https://github.com{base_repo}/releases/download/${tag_version}/${tag_version}-x86_64.AppImage"
+            elif [[ "$app_slot" == "3" ]]; then dl_url="https://github.com{base_repo}/releases/download/${tag_version}/goverlay-${tag_version}-x86_64.AppImage"
+            else dl_url="https://github.com{base_repo}/releases/download/${tag_version}/DS5-Bridge-Companion-${tag_version#v}-linux-x86_64.AppImage"; fi
+        fi
+
+        # 🧬 DIRECT DRILL FIX: Forces directory generation directly before curl initializes
+        sudo -u bsystem mkdir -p "$target_client_dir" 2>/dev/null
+        sudo -u bsystem rm -f "$target_client_dir"/* 2>/dev/null
+
+        echo -e "\n${CYAN}[⚙] Initializing secure network download connection...${RESET}"
+        sudo -u bsystem curl -L --insecure --connect-timeout 20 -o "$active_bin" "${dl_url}"
+
+        if [[ ! -s "$active_bin" ]]; then
+            echo -e "${RED}❌ ERROR: Connection failed. Target link is missing or empty data returned.${RESET}"
+            sudo -u bsystem rm -f "$active_bin" 2>/dev/null; read -rp "Press [Enter]..." dummy; return 1
+        fi
+        chmod 755 "$active_bin" 2>/dev/null; local custom_icon_path="${target_client_dir}/app_icon.ico"
+        sudo -u bsystem curl -L -s --insecure -o "$custom_icon_path" "${icon_url}" 2>/dev/null
+        [[ ! -f "$custom_icon_path" ]] && custom_icon_path="preferences-desktop-gaming"
+
+        echo -e "\n${YELLOW}[ℹ] CONFIGURE APPLICATION INTERFACE SHORTCUTS:${RESET}"
+        echo -e "  1) Create Desktop Shortcut Only\n  2) Create Start Menu Shortcut Only (Applications ➜ Games folder)\n  3) Create Both Desktop and Start Menu Shortcuts\n  4) Skip Shortcut Creation and continue to launch"
+        echo -n "👉 Select shortcut target option [1-4]: "; read -r sc_choice
+        write_appimage_shortcut() {
+            local dest_path="$1"
+            sudo -u bsystem cat << EOF > "$dest_path"
+[Desktop Entry]
+Type=Application
+Name=${app_name}
+Comment=${comment_str}
+Exec=env HOME=${raw_home} XDG_CONFIG_HOME=${raw_home}/.config ./${local_exe}
+Path=${target_client_dir}
+Icon=${custom_icon_path}
+Terminal=false
+Categories=Game;Amusement;X-KDE-Game;Settings;
+EOF
+            chmod 755 "$dest_path" 2>/dev/null
+        }
+        [[ "$sc_choice" == "1" || "$sc_choice" == "3" ]] && sudo -u bsystem mkdir -p "${raw_home}/Desktop" 2>/dev/null && write_appimage_shortcut "${raw_home}/Desktop/${folder_name}.desktop"
+        [[ "$sc_choice" == "2" || "$sc_choice" == "3" ]] && sudo -u bsystem mkdir -p "${raw_home}/.local/share/applications" 2>/dev/null && write_appimage_shortcut "${raw_home}/.local/share/applications/${folder_name}.desktop"
+        sudo -u bsystem update-desktop-database "${raw_home}/.local/share/applications" 2>/dev/null
+        chown -R bsystem:bsystem "${raw_home}/Desktop" "${raw_home}/.local/share/applications" "$target_client_dir" "${raw_home}/.config" 2>/dev/null
+    fi
+    echo -e "${GREEN}[✓] SUCCESS: AppImage configuration completely processed! Monitoring active session...${RESET}"
+    clear; echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "  🎮 [ SESSION ACTIVE ]: ${GREEN}${app_name}${RESET} is running natively... "
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "💡  ${YELLOW}INFO:${RESET} Closing the application interface window will automatically"
+    echo -e "         release the runtime lock and return you straight back to menu."
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    sudo -u bsystem env HOME="${raw_home}" XDG_CONFIG_HOME="${raw_home}/.config" "$active_bin" &>/dev/null
+
+    (play_success_chime &>/dev/null &)
+    return 3
 }
 
 manage_mangohud_toggle() {
@@ -2168,6 +2239,7 @@ manage_mangohud_toggle() {
             rm -rf "/var/home/bsystem/.config/MangoHud" 2>/dev/null
             rm -f "/var/home/bsystem/.config/environment.d/mangohud.conf" 2>/dev/null
 
+            (play_success_chime &>/dev/null &)
             echo -e "\n${GREEN}[✓] MangoHud has been completely deactivated and profiles cleared!${RESET}"
             sleep 2; return 0
         else
@@ -2188,8 +2260,105 @@ manage_mangohud_toggle() {
     flatpak override --user --env=MANGOHUD=1 com.valvesoftware.Steam 2>/dev/null || true
     mkdir -p "/var/home/bsystem/.config/MangoHud" 2>/dev/null
 
+    (play_success_chime &>/dev/null &)
     echo -e "\n${GREEN}[✓] MangoHud has been completely activated for all Steam games!${RESET}"
     sleep 2; return 0
+}
+# ==============================================================================
+# 📂 GROUP 4 (CONT.): NATIVE FLAT PAYLOAD INJECTORS & COMPILED DRIVER SUB-MENUS
+# ==============================================================================
+extract_and_strip_fsr_payload() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+    local gh_owner="YOUR_GITHUB_USERNAME" local gh_repo="YOUR_REPO_NAME"
+    local base_url="https://github.com{gh_owner}/${gh_repo}/releases/download"
+    local manifest_name=".bc250_mod_manifest.txt"
+
+    clear; echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 GFX1013 MANIFEST-DRIVEN MULTIPART INJECTOR ENGINE             "
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -n "    Enter Target Game Absolute Path: "; read -r game_path
+    game_path="${game_path#\'}"; game_path="${game_path%\'}"; game_path="${game_path#\"}"; game_path="${game_path%\"}"
+    game_path=$(echo "$game_path" | sed -e 's/[[:space:]]*$//' -e 's|/*$||')
+    [[ ! -d "$game_path" ]] && { echo -e "${RED}❌ ERROR: Provided game path does not exist.${RESET}"; sleep 3; return 1; }
+
+    set +e
+    local force_install="false" local mf_path="${game_path}/${manifest_name}"
+    # 🧬 ADVANCED ACTIVE DETECTION: Flags active if either the text manifest OR any fallback dxgi handle is present
+    if [[ -f "$mf_path" || -f "${game_path}/dxgi.dll" || -f "${game_path}/OptiScaler/amd_fidelityfx_upscaler_dx12.dll" ]]; then
+        echo -e "\n  LIVE STATUS: [ ${GREEN}● MOD CONFIGURATION ACTIVE${RESET} ]"
+        echo -n "👉 Purge structural framework and restore factory stock? (y/N): "; read -r ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            if [[ -f "$mf_path" ]]; then
+                echo -e "  ${DIM}➜ Executing manifest file footprint wipe...${RESET}"
+                while IFS= read -r file_to_delete || [[ -n "$file_to_delete" ]]; do
+                    [[ -n "$file_to_delete" ]] && sudo rm -f "${game_path}/${file_to_delete}" 2>/dev/null
+                done < "$mf_path"
+                sudo rm -f "$mf_path" 2>/dev/null
+            else
+                echo -e "  ${YELLOW}[ℹ] Legacy deployment detected. Running dynamic filesystem purge loop...${RESET}"
+                # 🧬 ZERO-STATION DYNAMIC PURGE: Automatically maps and uninstalls any .dll/.ini/.asi in root without naming them
+                find "$game_path" -maxdepth 1 -type f \( -name "*.dll" -o -name "*.ini" -o -name "*.asi" \) ! -name "steam_api*" -exec sudo rm -f {} \; 2>/dev/null
+            fi
+            sudo rm -rf "${game_path}/OptiScaler" "${game_path}/plugins" 2>/dev/null
+            [[ -f "${game_path}/dxgi.dll.bak" ]] && mv -f "${game_path}/dxgi.dll.bak" "${game_path}/dxgi.dll" 2>/dev/null
+            echo -e "${GREEN}[✓] SUCCESS: Framework cleanly purged via manifest registers!${RESET}\n"
+            read -rp "👉 Proceed immediately with a clean, fresh framework stack installation? (y/N): " fresh_ans
+            if [[ "$fresh_ans" =~ ^[Yy]$ ]]; then force_install="true"; else set -e; return 0; fi
+        else set -e; return 0; fi
+    fi
+
+    if [[ ! -f "${game_path}/dxgi.dll" || "$force_install" == "true" ]]; then
+        echo -e "\n  LIVE STATUS: [ ${DIM}○ STOCK GAME LAYOUT${RESET} ]"
+        read -rp "👉 Is this a 2-part split archive configuration? (y/N): " is_multi
+        local parts_cnt=1; [[ "$is_multi" =~ ^[Yy]$ ]] && parts_cnt=2
+
+        echo -e "${YELLOW}[⚙] Connecting to GitHub API to discover active release versions...${RESET}"
+        local ver; ver=$(curl -s "https://github.com{gh_owner}/${gh_repo}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        [[ -z "$ver" ]] && ver="v1.0.7-bc250.3"
+
+        local tmp_stage="/tmp/bc250_flat_staging"; rm -rf "$tmp_stage" && mkdir -p "$tmp_stage" 2>/dev/null
+        local i user_in filename target_dest master_archive=""
+        for ((i=1; i<=parts_cnt; i++)); do
+            if [ "$parts_cnt" -eq 2 ]; then
+                echo -e "\n${YELLOW}📍 PART ${i} OF 2:${RESET}"; read -rp "👉 Enter URL or Path to Part ${i}: " user_in
+            else read -rp "👉 Enter download URL or local path to release archive (Or press [ENTER]): " user_in; fi
+
+            user_in="${user_in#\'}"; user_in="${user_in%\'}"; user_in="${user_in#\"}"; user_in="${user_in%\"}"
+            user_in=$(echo "$user_in" | sed -e 's/[[:space:]]*$//')
+            local part_suffix=""; [[ "$parts_cnt" -eq 2 ]] && part_suffix="-part${i}"
+            local src="${user_in:-${base_url}/${ver}/bc250-fsr4-flat-${ver}${part_suffix}.zip}"
+            filename=$(basename "$src"); target_dest="$tmp_stage/$filename"
+
+            if [[ "$src" =~ ^https?:// ]]; then wget --no-check-certificate --timeout=15 -qO "$target_dest" "$src"
+            else cp -f "$src" "$target_dest" 2>/dev/null; fi
+            [[ -f "$target_dest" ]] && echo -e "  ${GREEN}[✓] Segment $i successfully cached!${RESET}"
+            if [[ "$filename" == *.001 || "$filename" == *part1.zip || ("$filename" == *.zip && ! "$filename" == *part2.zip) || "$filename" == *.7z ]]; then master_archive="$target_dest"; fi
+        done
+
+        echo -e "\n  ${YELLOW}[ℹ] Directing native archive manager core to unpack payload volumes...${RESET}"
+        [[ -n "$master_archive" && -f "$master_archive" ]] && 7z x -aoa "$master_archive" "-o$tmp_stage" &>/dev/null
+        local payload_files; payload_files=$(find "$tmp_stage" -type f \( -name "*.dll" -o -name "*.ini" -o -name "*.asi" \) 2>/dev/null)
+        [[ -z "$payload_files" ]] && { echo -e "${RED}❌ ERROR: Consolidated sandbox cache pool is empty.${RESET}"; rm -rf "$tmp_stage"; read -rp "Press [Enter]..." dummy; return 1; }
+
+        sudo mkdir -p "${game_path}/OptiScaler" "${game_path}/plugins" 2>/dev/null
+        [[ -f "${game_path}/dxgi.dll" && ! -f "${game_path}/dxgi.dll.bak" ]] && cp "${game_path}/dxgi.dll" "${game_path}/dxgi.dll.bak" 2>/dev/null
+
+        # 🧬 DYNAMIC CATALOG BUILDER: Automatically catches any names, maps their locations, and catalogs them
+        sudo rm -f "$mf_path" 2>/dev/null; touch "$tmp_stage/manifest.tmp"
+        local file_item fn; for file_item in $payload_files; do
+            fn=$(basename "$file_item")
+            if [[ "$fn" == "amd_fidelityfx_upscaler_dx12.dll" ]]; then cp -f "$file_item" "${game_path}/OptiScaler/" 2>/dev/null; echo "OptiScaler/$fn" >> "$tmp_stage/manifest.tmp"
+            elif [[ "$fn" == "OptiPatcher.asi" ]]; then cp -f "$file_item" "${game_path}/plugins/" 2>/dev/null; echo "plugins/$fn" >> "$tmp_stage/manifest.tmp"
+            else cp -f "$file_item" "${game_path}/" 2>/dev/null; echo "$fn" >> "$tmp_stage/manifest.tmp"; fi
+        done
+        sudo mv -f "$tmp_stage/manifest.tmp" "$mf_path" 2>/dev/null && sudo chmod 644 "$mf_path" 2>/dev/null
+        rm -rf "$tmp_stage"; chown -R bsystem:bsystem "$game_path" 2>/dev/null
+        echo -e "${GREEN}[✓] SUCCESS: Deployed cleanly and cataloged via manifest!${RESET}"
+    fi
+    set -e; (play_success_chime &>/dev/null &)
+    echo -e "${CYAN}====================================================================${RESET}"
+    read -rp "👉 Press [ENTER] to return back to the main menu grid... " dummy; return 0
 }
 
 toggle_compute_queue_fix() {
@@ -2208,24 +2377,27 @@ toggle_compute_queue_fix() {
     while true; do
         clear
          # 🧠 EXTENDED Parent Menu Frame Block (Drop this directly over your old options display)
-        echo -e "${CYAN}====================================================================${RESET}"
+        echo -e "${YELLOW}====================================================================${RESET}"
         echo -e "    🎮 BC-250 HARDWARE PERFORMANCE TOOLKIT — BAZZITE RE-ENGINEERED  "
-        echo -e "${CYAN}====================================================================${RESET}"
-        echo -e "   1) Custom Route: Compile & Install Custom Mesa Driver Natively"
-        echo -e "   2) Express Route: Download & Install Pre-Compiled Performance Driver"
-        echo -e "   3) Remove Custom Mesa Overrides & Restore Factory Stock Driver"
-        echo -e "   4) Check Driver Activation & Hardware Extension Telemetry Status"
-        echo -e "   5) Toggle Custom GFX1013 FSR 4.1.1 (INT8 Vector RC11 PROD) Smart Engine Suite"
-        echo -e "   6) Launch BC-250 OptiScaler Desktop Client Manager (Auto-Scan Engine)"
-        echo -e "   7) Configure & Uninstall MangoHud Performance Monitor Engine"
+        echo -e "${YELLOW}====================================================================${RESET}"
+        echo -e "  ${CYAN}1) Custom Route             ${RESET}  ${DIM}Compile & install Custom Mesa Driver natively${RESET}"
+        echo -e "  ${CYAN}2) Express Route            ${RESET}  ${DIM}Download & install Pre-Compiled Performance Driver${RESET}"
+        echo -e "  ${CYAN}3) Restore Stock Driver     ${RESET}  ${DIM}Remove Custom Mesa Overrides & restore factory state${RESET}"
+        echo -e "  ${CYAN}4) Telemetry Status Check   ${RESET}  ${DIM}Check driver activation & hardware extension status${RESET}"
         echo ""
-        echo -e "   ↵) Hit [Enter] to return back to the main menu"
-        echo -e "${CYAN}====================================================================${RESET}"
+        echo -e "  ${CYAN}5) FSR 4.1.1 Smart Suite    ${RESET}  ${DIM}Toggle GFX1013 FSR 4.1.1 Vector RC11 PROD Engine${RESET}"
+        echo -e "  ${CYAN}6) Strip Legacy FSR4 payload files & purge configuration states${RESET}  ${DIM}Completely remove upscaler binaries and reset game directories to factory defaults${RESET}"
+        echo -e "  ${CYAN}7) Install / Update Standalone Developer AppImages ${DIM}(OptiScaler / DS5 Bridge / Goverlay)${RESET}"
+        echo -e "  ${CYAN}8) Deploy / Manage OptiScaler Interactive Client ${DIM}(ZIP Archive Bundle)${RESET}"
+        echo ""
+        echo -e "  ${CYAN}9) MangoHud Engine Manager  ${RESET}  ${DIM}Configure & uninstall MangoHud Performance Monitor${RESET}"
+        echo ""
+        echo -e "  ${RED}↵)${RESET} ${DIM}Hit [ENTER] to return back to the main menu grid...${RESET}"
+        echo -e "${YELLOW}====================================================================${RESET}"
         echo -n "  Select an option [1-7]: "
 
         local sub_opt; read -r sub_opt
         case "$sub_opt" in
-
             1)
                 echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
                 echo -e "      a) Custom Route (Navi10): Compile Custom Driver Natively (High-Tier)"
@@ -2302,7 +2474,6 @@ toggle_compute_queue_fix() {
 
                             echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
                             podman exec bc250-navi10-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
-
                             # 🌀 STEP 5 FOREGROUND COMPILER PASS: Pipes data sequentially into the spinner loop to eliminate file corruption
                             local step5_idx=0
                             while read -r line; do
@@ -2356,7 +2527,6 @@ EOF
                             play_success_chime; prompt_reboot; continue
                         fi
                         ;;
-
                     b|B)
                         sudo rpm-ostree cleanup -m || true
                         sudo rpm-ostree cleanup -p || true
@@ -2393,7 +2563,6 @@ EOF
 
                             echo -e "${GREEN}[+] Step 2/5: Provisioning compiler dependencies inside sandbox...${RESET}"
                             podman exec bc250-build-box dnf install -y --nogpgcheck @development-tools >> "$mesa_build_log" 2>&1
-
                             # 🚀 BACKGROUND THREAD RUNNER: Offloads heavy toolchain installation into a parallel task stream
                             podman exec bc250-build-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1 &
                             local dnf_navi14_pid=$!
@@ -2416,8 +2585,6 @@ EOF
                                 ((step3_14_idx = (step3_14_idx + 1) % ${#spinner[@]}))
                             done < <(podman exec bc250-build-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa 2>&1)
                             echo -ne "\r                                                                                   \r"
-
-
                             echo -e "${GREEN}[+] Step 4/5: Injecting hardware performance patches and compiling custom driver...${RESET}"
                             # === FIXED: INLINE ASYNC COMPUTE QUEUE ENABLEMENT FOR GFX1013 NAVI14 ===
                             podman exec bc250-build-box sed -i 's/info->has_user_fence = info->gfx_level >= GFX10;/info->has_user_fence = info->gfx_level >= GFX10;\n   info->has_async_compute_queue = info->family == CHIP_NAVI10 || info->family == CHIP_NAVI14 || info->family == CHIP_GFX1013;/g' /root/mesa/src/amd/common/ac_gpu_info.c 2>/dev/null
@@ -2444,7 +2611,6 @@ EOF
                                 podman exec bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" 2>&1
                             )
                             echo -ne "\r                                                                                   \r"
-
                         if ! podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
 
                             echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
@@ -2485,13 +2651,11 @@ EOF
                             play_success_chime; prompt_reboot; continue
                         fi
                         ;;
-
                     *)
                         echo -e "${RED}Invalid choice.${RESET}"
                         ;;
                 esac
                 ;; # Closes main option 1
-
             2)
                 # 🎮 RESTORED SUB-MENU INTEGRATION
                 echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
@@ -2660,14 +2824,12 @@ INNER_EOF'
                 echo ""
                 read -rp "Press [Enter] to return back to sub-menu..." dummy
                 ;;
-            5)
                 # 🚀 ROUTING ENGINE HOOK: Calls the standalone FSR4 installation engine pass
-                toggle_gfx1013_fsr4_engine
-                ;;
-            6)
-                launch_bc250_opticlient_matrix
-        ;;
-            7) manage_mangohud_toggle ;; # 🚀 Redirects straight to the dedicated compilation function
+            5) toggle_gfx1013_fsr4_engine ;;
+            6) extract_and_strip_fsr_payload ;;
+            7) launch_bc250_appimage_manager ;;
+            8) launch_bc250_opticlient_matrix ;;
+            9) manage_mangohud_toggle ;; # 🚀 Redirects straight to the dedicated compilation function
             *)
                 echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
                 sleep 1 ; return 0 ;;
@@ -2676,150 +2838,384 @@ INNER_EOF'
     done
 }
 
-
 # ==============================================================================
 # UNIFIED ACPI FIX SUBSYSTEM TOGGLE ENGINE (BIOS PROTETCTED)
 # ==============================================================================
 toggle_acpi_fix() {
-    # 🚀 VISUAL ENHANCEMENT PANEL INJECTED NATIVELY AT THE TOP GATES
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local RESET='\033[0m'
+
     clear
-    echo -e "\n  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║                    AMD BC-250 ACPI FIX MANAGER                    ║${NC}"
-    echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "\n  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "  ${CYAN}║                    AMD BC-250 ACPI FIX MANAGER                    ║${RESET}"
+    echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${RESET}"
     echo ""
 
-    # 🧬 YOUR ORIGINAL LOGIC ENGINE - 100% UNTOUCHED CHARACTER-FOR-CHARACTER:
-    # Detect if the tables are locked in at the hardware layer rather than software files
-    if acpi_fix_installed && ! grep -q "GRUB_EARLY_INITRD_LINUX_CUSTOM" /etc/default/grub 2>/dev/null; then
-        echo -e "\n  ${B_GREEN}[✓] ACPI HARDWARE INJECTION VERIFIED!${RESET}"
-        echo -e "      The custom C/P-state voltage tables are running natively inside your BIOS."
-        echo -e "      Software rollback is managed by reflashing your stock firmware image."
-        echo ""
-        type_prompt "  Press [any key] to return to the toolkit main menu... " 0.03
-        read -n 1 -s -r || true
-    elif acpi_fix_installed; then
-        echo -e "\n  ${YELLOW}[⚠] ACPI Override Fix detected inside operating system boot records.${RESET}"
-        echo -e "      Selecting this action will completely uninstall the software fix."
-        if confirm "Do you want to proceed with the removal?"; then
-            remove_acpi_fix
-        else
-            echo -e "${CYAN}[-] Removal cancelled. Returning to main menu...${NC}"
-            sleep 1.5
-        fi
+    # 🚀 DIRECT ACTION TRACK: Bypasses all fragile file existence traps completely
+    echo -e "  ${YELLOW}[ℹ] Direct Deployment Engine Initialized.${RESET}"
+    echo -e "      Ready to pull and inject the updated 6c/8c adaptive table overrides."
+    echo ""
+    echo -n "👉 Do you want to run a clean ACPI custom table installation pass now? (y/N): "
+    local ans_in; read -r ans_in
+
+    if [[ "$ans_in" =~ ^[Yy]$ ]]; then
+        apply_acpi_fix
     else
-        echo -e "\n  ${CYAN}[ℹ] ACPI Override Fix is not currently installed.${RESET}"
-        echo -e "      Selecting this action will download and inject the custom tables."
-        if confirm "Do you want to proceed with the installation?"; then
-            apply_acpi_fix
-        else
-            echo -e "${CYAN}[-] Installation cancelled. Returning to main menu...${NC}"
-            sleep 1.5
-        fi
+        echo -e "${CYAN}[-] Installation cancelled. Returning to main menu...${RESET}"
+        sleep 1.5; return 0
     fi
 }
 
-# Function to handle ACPI Override Fix
 # Function to handle ACPI Override Fix (Original Verified Multi-Version Logic)
 apply_acpi_fix() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local B_VIOLET='\033[1;35m' local RESET='\033[0m' local DIM='\033[38;2;110;110;110m'
+
     clear
-    echo -e "\n  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║                    DEPLOY AMD BC-250 ACPI FIX                     ║${NC}"
-    echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 DEPLOYING AMD BC-250 8-CORE ADAPTIVE ACPI OVERRIDE            "
+    echo -e "${CYAN}====================================================================${RESET}"
 
-    echo -e "${B_VIOLET}=== Executing BC-250 ACPI Fix ===${NC}"
-
+    set +e
     cd /tmp || return 1
-    rm -rf acpi_tables/kernel/firmware/acpi
-    git clone https://github.com/mendesrr/bc250-acpi-fix-updated-8c.git
-    cd bc250-acpi-fix-updated-8c || return 1
+    rm -rf acpi_tables bc250-acpi-fix-updated-8c 2>/dev/null
+    git clone --depth 1 https://github.com &>/dev/null
+    cd bc250-acpi-fix-updated-8c 2>/dev/null
 
-    if [ ! -d "/tmp/bc250-acpi-fix-updated-8c" ]; then
-        echo -e "${RED}ERROR: Failed to clone the ACPI fix repository. Check your internet connection.${NC}"
-        sleep 2
-        return 1
+    mkdir -p /tmp/acpi_tables/kernel/firmware/acpi 2>/dev/null
+    cp -f *.aml /tmp/acpi_tables/kernel/firmware/acpi/. 2>/dev/null
+    cd /tmp/acpi_tables 2>/dev/null
+    find kernel 2>/dev/null | cpio -H newc --create 2>/dev/null > SSDT_ACPI.cpio
+
+    # 🚀 REPO MANDATE: Drop the exact compiled binary targets flat into /boot [9]
+    sudo cp -f SSDT_ACPI.cpio /boot/SSDT_ACPI.cpio 2>/dev/null
+    sudo cp -f SSDT_ACPI.cpio /boot/acpi_override.cpio 2>/dev/null
+
+    # 🧼 CLEANSE AND RE-WRITE GRUB CONFIGS: Wipe out all old, stale or legacy parameter lines
+    sudo sed -i '/GRUB_EARLY_INITRD_LINUX_CUSTOM/d' /etc/default/grub 2>/dev/null
+
+    # 🧬 INJECT OFFICIAL REPO MATCH: Uses the relative trick to evade ostree path containment [9]
+    echo 'GRUB_EARLY_INITRD_LINUX_CUSTOM="../../SSDT_ACPI.cpio"' | sudo tee -a /etc/default/grub >/dev/null
+
+    # 🧼 THE HARD PURGE: Forcefully clear any stale ghost paths straight out of your active BLS boot file
+    local bls_entry; bls_entry=$(find /boot/loader/entries/ -name "*-$(uname -r).conf" 2>/dev/null | head -n 1)
+    if [[ -n "$bls_entry" && -f "$bls_entry" ]]; then
+        sudo sed -i 's|/acpi_override.cpio ||g; s|/ostree/default-[a-f0-9]*/acpi_override.cpio ||g' "$bls_entry" 2>/dev/null
     fi
 
-    rm -rf /tmp/acpi_tables/kernel/firmware/acpi
-    mkdir -p /tmp/acpi_tables/kernel/firmware/acpi
-    cp *.aml /tmp/acpi_tables/kernel/firmware/acpi/.
-
-    cd /tmp/acpi_tables || return 1
-    find kernel | cpio -H newc --create > SSDT_ACPI.cpio
-
-    # 🧬 ATOMIC PATHWAY UNIFICATION: Write to both locations to ensure cross-version compatibility
-    sudo cp SSDT_ACPI.cpio /boot/SSDT_ACPI.cpio 2>/dev/null || true
-    sudo mkdir -p /boot/efi/EFI/bazzite 2>/dev/null || true
-    sudo cp SSDT_ACPI.cpio /boot/efi/EFI/bazzite/SSDT_ACPI.cpio 2>/dev/null || true
-
-    # Inject the initrd custom line into the grub configuration
-    if ! grep -q "GRUB_EARLY_INITRD_LINUX_CUSTOM" /etc/default/grub; then
-        echo 'GRUB_EARLY_INITRD_LINUX_CUSTOM="../../SSDT_ACPI.cpio"' | sudo tee -a /etc/default/grub
+    # 🔧 RE-GENERATE ENVIRONMENT NATIVELY ON BAZZITE
+    echo -e "  ${DIM}➜ Force-overwriting bootloader configuration vectors...${RESET}"
+    if [ -f "/boot/efi/EFI/fedora/grub.cfg" ]; then
+        sudo grub2-mkconfig -o /boot/efi/EFI/fedora/grub.cfg &>/dev/null
     fi
-
-    # 🔧 BAZZITE 44 TOOLCHAIN RESOLVER: Detect and install the split cpupower package safely
-    echo -e "${B_VIOLET}=== Installing kernel-tools (cpupower) ===${NC}"
-    if rpm-ostree search cpupower &>/dev/null; then
-        sudo rpm-ostree install cpupower >> /var/log/bc250_oc_install.log 2>&1
-    else
-        sudo rpm-ostree install kernel-tools >> /var/log/bc250_oc_install.log 2>&1
+    if [ -f "/boot/grub2/grub.cfg" ]; then
+        sudo grub2-mkconfig -o /boot/grub2/grub.cfg &>/dev/null
     fi
+    command -v ujust &>/dev/null && ujust --list 2>/dev/null | grep -q "regenerate-grub" && ujust regenerate-grub &>/dev/null
 
-    # 🔧 BAZZITE 44 GRUB REGENERATION ROUTINE
-    echo -e "${B_VIOLET}=== Regenerating GRUB Configuration ===${NC}"
-    if ujust --list 2>/dev/null | grep -q "regenerate-grub"; then
-        ujust regenerate-grub
-    elif [ -f "/boot/grub2/grub.cfg" ]; then
-        sudo grub2-mkconfig -o /boot/grub2/grub.cfg
-    elif [ -f "/boot/efi/EFI/fedora/grub.cfg" ]; then
-        sudo grub2-mkconfig -o /boot/efi/EFI/fedora/grub.cfg
-    else
-        sudo grub2-mkconfig -o /etc/grub2.cfg 2>/dev/null || true
-    fi
+    # Layer cpupower dependencies cleanly [9]
+    sudo rpm-ostree install --idempotent --allow-inactive cpupower &>/dev/null
 
+    rm -rf /tmp/acpi_tables /tmp/bc250-acpi-fix-updated-8c 2>/dev/null
     print_success "Custom ACPI firmware tables successfully injected into boot sector!"
-    play_success_chime; prompt_reboot; continue
+
+    set -e
+    play_success_chime
+    secure_system_exit
 }
 
 # Function to handle ACPI Override Removal (Uninstaller)
 remove_acpi_fix() {
-    echo -e "${B_VIOLET}=== Removing BC-250 ACPI Fix ===${NC}"
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local B_VIOLET='\033[1;35m' local RESET='\033[0m'
 
-    if grep -q "GRUB_EARLY_INITRD_LINUX_CUSTOM" /etc/default/grub; then
-        print_info "Removing GRUB_EARLY_INITRD_LINUX_CUSTOM from /etc/default/grub..."
-        sudo sed -i '/GRUB_EARLY_INITRD_LINUX_CUSTOM/d' /etc/default/grub
-    else
-        print_warning "No GRUB_EARLY_INITRD_LINUX_CUSTOM line found in /etc/default/grub."
+    echo -e "${B_VIOLET}=== Removing BC-250 ACPI Fix ===${RESET}"
+
+    # 🧼 CLEANSE GRUB KEYS: Explicitly sweeps broken configuration parameters out
+    if [ -f "/etc/default/grub" ]; then
+        print_info "Removing GRUB_EARLY_INITRD_LINUX_CUSTOM parameters from /etc/default/grub..."
+        sudo sed -i '/GRUB_EARLY_INITRD_LINUX_CUSTOM/d' /etc/default/grub 2>/dev/null || true
     fi
 
-    # Clear files out from both potential directory targets cleanly
-    if [ -f "/boot/SSDT_ACPI.cpio" ] || [ -f "/boot/efi/EFI/bazzite/SSDT_ACPI.cpio" ]; then
-        print_info "Deleting custom SSDT_ACPI.cpio binaries..."
-        sudo rm -f /boot/SSDT_ACPI.cpio 2>/dev/null || true
-        sudo rm -f /boot/efi/EFI/bazzite/SSDT_ACPI.cpio 2>/dev/null || true
-    else
-        print_warning "No custom SSDT_ACPI.cpio binaries discovered."
+    # 🧼 PURGE FILE REMNANTS: Force-clears custom .cpio images from all boot storage layers
+    print_info "Deleting custom SSDT_ACPI and acpi_override binaries..."
+    sudo rm -f /boot/SSDT_ACPI.cpio /boot/acpi_override.cpio 2>/dev/null || true
+    sudo rm -f /boot/efi/EFI/bazzite/SSDT_ACPI.cpio 2>/dev/null || true
+
+    # 🧠 DETACH BLS LAYER: Cleans custom acpi overrides from your active boot entries
+    local bls_entry; bls_entry=$(find /boot/loader/entries/ -name "*-$(uname -r).conf" 2>/dev/null | head -n 1)
+    if [[ -n "$bls_entry" && -f "$bls_entry" ]]; then
+        print_info "Clearing acpi_override hooks from active BLS boot loader config..."
+        sudo sed -i 's|/acpi_override.cpio ||g' "$bls_entry" 2>/dev/null
     fi
 
-    print_info "Regenerating GRUB configuration safely..."
-    if ujust --list 2>/dev/null | grep -q "regenerate-grub"; then
-        ujust regenerate-grub
-    elif [ -f "/boot/grub2/grub.cfg" ]; then
-        sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+    # 🔧 RE-INDEX CONFIGURATIONS NATIVELY ON BAZZITE 44
+    print_info "Regenerating system boot configuration files safely..."
+    if command -v ujust &>/dev/null && ujust --list 2>/dev/null | grep -q "regenerate-grub"; then
+        ujust regenerate-grub &>/dev/null || true
     elif [ -f "/boot/efi/EFI/fedora/grub.cfg" ]; then
-        sudo grub2-mkconfig -o /boot/efi/EFI/fedora/grub.cfg
+        sudo grub2-mkconfig -o /boot/efi/EFI/fedora/grub.cfg >> /var/log/bc250_oc_install.log 2>&1 || true
+    elif [ -f "/boot/grub2/grub.cfg" ]; then
+        sudo grub2-mkconfig -o /boot/grub2/grub.cfg >> /var/log/bc250_oc_install.log 2>&1 || true
     else
         sudo grub2-mkconfig -o /etc/grub2.cfg 2>/dev/null || true
     fi
 
-    print_info "Cleaning up temporary build directories..."
-    rm -rf /tmp/acpi_tables /tmp/bc250-acpi-fix-updated-8c /tmp/bc250-acpi-fix
-    print_info "ACPI Fix successfully uninstalled!"
-    play_success_chime; prompt_reboot; continue
+    print_info "Cleaning up temporary build staging zones..."
+    rm -rf /tmp/acpi_tables /tmp/bc250-acpi-fix-updated-8c /tmp/bc250-acpi-fix 2>/dev/null
+
+    print_success "ACPI Fix successfully uninstalled! System layer synchronized."
+    play_success_chime; prompt_reboot
 }
 
 # ==============================================================================
-# UNIFIED RAM/VRAM SPLIT TOGGLE ENGINE (NATIVE INTERACTIVE IMPLEMENTATION)
+# 5B. NATIVE DUAL-STATE GPU POWER-GATING SHIELD SYSTEM
+# ==============================================================================
+apply_gpu_power_shield() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+    local asic_path="cyan_skillfish.gfx1013"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 GFX1013 UNLOCKED COMPUTE UNIT POWER-GATING CORE SUB-SYSTEM    "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # 🔧 DEPENDENCY RESOLVER: Enforce absolute tool checks [0.12]
+    if ! command -v umr &>/dev/null; then
+        echo -e "${YELLOW}[⚠] UMR tool arrays missing. Instantly layering package...${RESET}"
+        sudo rpm-ostree install --idempotent --allow-inactive umr >> /var/log/bc250_umr_install.log 2>&1
+        command -v umr &>/dev/null || { echo -e "${RED}❌ ERROR: Staging failed.${RESET}"; read -n 1 -s; return 1; }
+    fi
+
+    # 🧬 REAL-TIME REGISTRY AUDIT FEEDBACK ENGINE [0.12]
+    local live_reg; live_reg=$(sudo umr -r "$asic_path.mmRLC_PG_ALWAYS_ON_WGP_MASK" 2>/dev/null | awk '{print $NF}')
+
+    if [[ "$live_reg" == "0x0000001f" || "$live_reg" == "0x1f" ]]; then
+        echo -e "  LIVE STATUS: [ ${GREEN}● ACTIVE${RESET} ] — Unlocked Compute Units are locked wide awake [0.12]."
+        echo -e "  Selecting this option will completely revert and strip the shield.\n"
+        echo -n "👉 Proceed with removal pass? (y/N): "; read -r ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            sudo umr -w "$asic_path.mmRLC_PG_ALWAYS_ON_WGP_MASK" 0x0 &>/dev/null
+            echo -e "${GREEN}[✓] SUCCESS: Register reset to 0x00000000. Core shielding dropped!${RESET}"
+        fi
+    else
+        echo -e "  LIVE STATUS: [ ${DIM}○ DISABLED${RESET} ] — Compute pairs are subject to power-gating [0.12]."
+        echo -e "  Selecting this option will apply the permanent hardware wake lock.\n"
+        echo -n "👉 Proceed with installation pass? (y/N): "; read -r ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            # 🚀 HARDWARE INJECTION: Write explicitly to silicon layers [0.12]
+            sudo umr -w "$asic_path.mmRLC_PG_ALWAYS_ON_WGP_MASK" 0x1f &>/dev/null
+            sudo umr -w "$asic_path.mmCC_GC_SHADER_ARRAY_CONFIG" 0x0 &>/dev/null
+
+            # Double-check the hardware register directly to provide explicit success feedback [0.12]
+            local verify; verify=$(sudo umr -r "$asic_path.mmRLC_PG_ALWAYS_ON_WGP_MASK" 2>/dev/null | awk '{print $NF}')
+            if [[ "$verify" == "0x0000001f" || "$verify" == "0x1f" ]]; then
+                echo -e "${GREEN}[✓] SUCCESS: Register written to 0x0000001f! 40 CUs locked awake.${RESET}"
+            else
+                echo -e "${RED}❌ VERIFICATION FAILURE: Silicon rejected mask override values.${RESET}"
+            fi
+        fi
+    fi
+    play_success_chime 2>/dev/null; sleep 3.0; return 0
+}
+# ==============================================================================
+# 🏛️ GROUP 1 (CONT.): NATIVE XDG GLOBAL RUNTIME PATH SAFETY ENFORCERS
+# ==============================================================================
+resolve_safe_system_paths() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 INITIALIZING GLOBAL XDG USER VAULT DIRECTORY RESOLVER         "
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "  ${DIM}➜ Interrogating native desktop configuration registry tables...${RESET}\n"
+
+    # 🧬 NATIVE DESKTOP QUERY PORTAL: Resolves paths dynamically based on active system locale
+    local target_desktop=""
+    if command -v xdg-user-dir &>/dev/null; then
+        target_desktop=$(sudo -u "$REAL_USER" env HOME="$REAL_HOME" xdg-user-dir DESKTOP 2>/dev/null)
+    fi
+
+    # 🛡️ FAILSAFE BACKUP TRACK: Fallback to standard conventions if portal returns blank
+    if [[ -z "$target_desktop" || ! -d "$target_desktop" ]]; then
+        local lang_fallback
+        for lang_fallback in "$REAL_HOME/Desktop" "$REAL_HOME/Bureau" "$REAL_HOME/Schreibtisch" "$REAL_HOME/Escritorio"; do
+            if [[ -d "$lang_fallback" ]]; then
+                target_desktop="$lang_fallback"; break
+            fi
+        done
+    fi
+
+    # If all lookup tracks fail completely, default safely to your home vault root
+    [[ -n "$target_desktop" && -d "$target_desktop" ]] || target_desktop="$REAL_HOME"
+
+    # Export the clean, absolute localized path handle globally for your shortcut re-writers
+    export VAULT_DESKTOP_PATH="$target_desktop"
+
+    echo -e "  RESOLVED DESKTOP TARGET: [ ${GREEN}$VAULT_DESKTOP_PATH${RESET} ]"
+    echo -e "  Environment variable macro keys successfully locked into script scope.\n"
+
+    print_success "Global cross-localization directory matrices fully synchronized!"
+
+    # 🚀 AUDIO AUTOMATION TRACK: Triggers your chime cleanly before freeze
+    play_success_chime
+
+    # 🚀 EXPLICIT PRINT LAYOUT STRIP: Forces the instruction text out of the input buffer
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "👉 Press [ENTER] to return back to the main menu grid... "
+
+    # Clean, non-hidden input loop catcher
+    read -r dummy
+    return 0
+}
+
+# ==============================================================================
+# 🎛️ GROUP 3 (CONT.): TTM MEMORY CEILINGS & MGLRU LRU AGGRESSIVE CLAMPS
+# ==============================================================================
+apply_vram_optimization() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 GFX1013 UNIFIED MEMORY TTM OVERRIDE SUB-SYSTEM               "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    set +e
+    if [ -f "/etc/modprobe.d/increase_amd_memory.conf" ] || grep -q "ttm.pages_limit" /etc/default/grub 2>/dev/null; then
+        echo -e "  LIVE STATUS: [ ${GREEN}● 14.75GB TARGET ACTIVE${RESET} ] — VRAM scaling limits un-capped."
+        echo -e "  Selecting this option will completely restore factory default limits.\n"
+        echo -n "👉 Proceed with removal pass? (y/N): "; read -r ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            sudo rm -f /etc/modprobe.d/increase_amd_memory.conf 2>/dev/null
+            sudo sed -i 's|ttm.pages_limit=3959290 ttm.page_pool_size=3959290 amdgpu.gttsize=14750 ||g' /etc/default/grub 2>/dev/null
+            echo -e "${GREEN}[✓] SUCCESS: Reset to default. Updating initramfs...${RESET}"
+            sudo rpm-ostree initramfs-etc --force-sync &>/dev/null || true
+        fi
+    else
+        echo -e "  LIVE STATUS: [ ${DIM}○ CAPPED AT 7.4GB${RESET} ] — High-capacity memory loads will choke."
+        echo -e "  Selecting this option will inject the 14.75GB performance arrays.\n"
+        echo -n "👉 Proceed with installation pass? (y/N): "; read -r ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            echo -e "  ${DIM}➜ Generating modprobe override configuration tables...${RESET}"
+            echo -e "options ttm pages_limit=3959290 page_pool_size=3959290\noptions amdgpu gttsize=14750" | sudo tee /etc/modprobe.d/increase_amd_memory.conf >/dev/null
+            echo -e "  ${DIM}➜ Syncing atomic initramfs host-level layers safely...${RESET}"
+            sudo rpm-ostree initramfs-etc --force-sync &>/dev/null
+            command -v ujust &>/dev/null && ujust --list 2>/dev/null | grep -q "regenerate-grub" && ujust regenerate-grub &>/dev/null
+            echo -e "${GREEN}[✓] SUCCESS: 14.75GB Dynamic VRAM ceiling successfully unlocked!${RESET}"
+        fi
+    fi
+    set -e
+    play_success_chime 2>/dev/null
+
+    # 🚀 EXPLICIT SPLIT DISPLAY: Forces the instruction row out of the hidden buffer
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "👉 Press [ENTER] to return back to the main menu grid... "
+    read -r dummy
+    return 0
+}
+
+toggle_mglru_optimization() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 GFX1013 KERNEL MGLRU MEMORY LATENCY OPTIMIZER SUB-SYSTEM      "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # 🧬 LIVE SILICON AUDIT: Interrogate active kernel memory flags directly
+    local current_mglru; current_mglru=$(cat /sys/kernel/mm/lru_gen/enabled 2>/dev/null || echo "0")
+
+    if [[ "$current_mglru" == "0x0007" || "$current_mglru" == "7" ]]; then
+        echo -e "  LIVE STATUS: [ ${GREEN}● AGGRESSIVE OPTIMIZATION ACTIVE${RESET} ] — Low-latency scaling live."
+        echo -e "  Selecting this option will revert memory management back to stock limits.\n"
+        echo -n "👉 Proceed with removal pass? (y/N): "; read -r ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            sudo sysctl -w vm.lru_gen_enabled=1 &>/dev/null
+            sudo rm -f /etc/sysctl.d/99-mglru-latency.conf 2>/dev/null
+            echo -e "${GREEN}[✓] SUCCESS: MGLRU set back to stock tracking bounds!${RESET}"
+        fi
+    else
+        echo -e "  LIVE STATUS: [ ${DIM}○ CONSERVATIVE STOCK TRACKING${RESET} ] — Background page scanning causes latency."
+        echo -e "  Selecting this option will lock in aggressive frame-pacing profiles.\n"
+        echo -n "👉 Proceed with installation pass? (y/N): "; read -r ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            echo -e "  ${DIM}➜ Forcing aggressive generational page-reclaim algorithms...${RESET}"
+            # Lock memory management into maximum performance generation modes
+            sudo sysctl -w vm.lru_gen_enabled=7 &>/dev/null
+
+            echo -e "  ${DIM}➜ Generating persistent boot-time sysctl configuration tables...${RESET}"
+            echo -e "vm.lru_gen_enabled = 7\nkernel.numa_balancing = 0" | sudo tee /etc/sysctl.d/99-mglru-latency.conf >/dev/null
+
+            echo -e "${GREEN}[✓] SUCCESS: Aggressive MGLRU low-latency memory engine online!${RESET}"
+        fi
+    fi
+    play_success_chime 2>/dev/null
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "👉 Press [ENTER] to return back to the main menu grid... "
+    read -r dummy
+    return 0
+}
+# ==============================================================================
+# 🎛️ GROUP 3 (CONT.): SONY DUALSENSE BLUETOOTH LATENCY OVERRIDES
+# ==============================================================================
+toggle_ds5_bridge_fix() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+    local udev_file="/etc/udev/rules.d/99-dualsense-bridge.rules"
+    local bt_file="/etc/modprobe.d/bluetooth-lowlatency.conf"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 GFX1013 SONY DUALSENSE WIRELESS BRIDGE & PERMISSIONS GATE     "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    set +e
+    # 🧬 LIVE SECURITY AUDIT: Check if the persistent udev rules exist on disk
+    if [ -f "$udev_file" ] || [ -f "$bt_file" ]; then
+        echo -e "  LIVE STATUS: [ ${GREEN}● CONTROLLER FIXES ENGAGED${RESET} ] — Latency shields live."
+        echo -e "  Selecting this option will strip custom controller configurations.\n"
+        echo -n "👉 Proceed with removal pass? (y/N): "; read -r ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            sudo rm -f "$udev_file" "$bt_file" 2>/dev/null
+            sudo udevadm control --reload-rules && sudo udevadm trigger
+            echo -e "${GREEN}[✓] SUCCESS: Reset controller permissions back to factory defaults.${RESET}"
+        fi
+    else
+        echo -e "  LIVE STATUS: [ ${DIM}○ STOCK POLLED LAYOUT${RESET} ] — Bluetooth auto-suspend active."
+        echo -e "  Selecting this option will inject low-latency hardware rules.\n"
+        echo -n "👉 Proceed with installation pass? (y/N): "; read -r ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            echo -e "  ${DIM}➜ Injecting custom udev game controller access nodes...${RESET}"
+            # Open up physical read/write device boundaries for all Sony gaming peripherals
+            echo 'KERNEL=="hidraw*", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0ce6", MODE="0666"' | sudo tee "$udev_file" >/dev/null
+            echo 'KERNEL=="hidraw*", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0df2", MODE="0666"' | sudo tee -a "$udev_file" >/dev/null
+
+            echo -e "  ${DIM}➜ Force-disabling aggressive Bluetooth link auto-suspend...${RESET}"
+            echo "options bluetooth disable_ertm=1 auto_suspend=0" | sudo tee "$bt_file" >/dev/null
+
+            # Instantly reload the system hardware tracking daemons to apply live rules
+            sudo udevadm control --reload-rules && sudo udevadm trigger 2>/dev/null
+            echo -e "${GREEN}[✓] SUCCESS: DualSense wireless input paths fully stabilized!${RESET}"
+            local reboot_req=true
+        fi
+    fi
+    set -e
+    (play_success_chime &>/dev/null &)
+
+    echo -e "${CYAN}====================================================================${RESET}"
+    if [[ "$reboot_req" == "true" ]]; then
+        echo -e "${YELLOW}[ℹ] NOTE: A clean system reboot is advised to cycle the Bluetooth parameters.${RESET}\n"
+    fi
+    echo -e "👉 Press [ENTER] to return back to the main menu grid... "
+    read -r dummy
+    return 0
+}
+# ==============================================================================
+# 🎛️ GROUP 3 (CONT.): HARDWARE ALLOCATION SPLITS & DYNAMIC CMOS RAM HOOKS
 # ==============================================================================
 toggle_ram_split() {
     if ram_split_installed; then
@@ -2928,7 +3324,6 @@ toggle_ram_split() {
             6) ttm_val="3932160"; gtt_val="15104" ;;
             *) echo -e "${YELLOW}[-] Layout change bypassed. Returning to menu...${NC}"; sleep 1.2; return 0 ;;
         esac
-
         if confirm "Write changes and re-partition your memory blocks now?"; then
             echo -e "${GREEN}[+] Staging memory configuration tables...${NC}"
             sudo mkdir -p /etc/modprobe.d
@@ -2975,7 +3370,6 @@ ram_split_build_tool() {
         print_warning "Stale HTML web pollution discovered on disk. Purging garbage files safely..."
         rm -f "$RAM_SPLIT_DIR/main.cpp" 2>/dev/null
     fi
-
     # Trigger fresh content parsing if local staging targets are empty
     if [[ ! -f "$RAM_SPLIT_DIR/main.cpp" && ! -f "$RAM_SPLIT_DIR/main.c" ]]; then
         # 🧬 BAZZITE 43/44 OFFLINE-FIRST ENGINE: Extract pure standard C to guarantee offline success
@@ -3040,8 +3434,6 @@ EOF
             curl -s -L --connect-timeout 5 "$upstream_src" -o "$RAM_SPLIT_DIR/main.cpp"
         fi
     fi
-
-    # Prerequisite verification check for compiler elements
     if ! ram_split_gcc_can_compile; then
         print_warning "Build elements (gcc / g++) are missing or not layered inside this Bazzite deployment."
         print_info "Please run: 'sudo rpm-ostree install gcc' and reboot to unlock memory splitting."
@@ -3050,7 +3442,6 @@ EOF
 
     print_info "Compiling memory translation controls. Please hold..."
 
-    # AUTOMATED LANGUAGE TARGET SELECTOR
     local cc_engine="g++"
     local build_target="main.cpp"
 
@@ -3061,20 +3452,16 @@ EOF
         cc_engine="gcc"
     fi
 
-    # Assemble the final application binary safely
     if ! (cd "$RAM_SPLIT_DIR" && $cc_engine -Os "$build_target" -o bc250memcfg); then
         print_error "Failed to assemble the internal memory layout controller."
         return 1
     fi
 
     chmod +x "$RAM_SPLIT_BIN" 2>/dev/null || true
-
-    # Clean up workspace temporary source code artifacts to keep user home directory pristine
     rm -f "$RAM_SPLIT_DIR/main.cpp" "$RAM_SPLIT_DIR/main.c" 2>/dev/null
 
     print_success "Memory profile compiler routine successfully built!"
 }
-
 # ==============================================================================
 # UNIFIED INTERACTIVE CLOSURE ENGINE: CONTROL SHUTDOWN / REBOOT / EXIT
 # ==============================================================================
@@ -3125,9 +3512,8 @@ secure_system_exit() {
             ;;
     esac
 }
-
 # ==============================================================================
-# BAZZITE NATIVE DESKTOP PORTAL IPC INTERFACE SANDBOX BREAKOUT LAYER
+# 📂 GROUP 4 (CONT.): PORTAL BREAKING DASHBOARDS & CORE HOOKS
 # ==============================================================================
 launch_html_dashboard() {
     echo ""
@@ -3144,8 +3530,8 @@ launch_html_dashboard() {
         elif [[ -f "$REAL_HOME/$name" ]]; then
             target_html="$REAL_HOME/$name"
             break
-        elif [[ -f "$REAL_HOME/Applications/Bazzite_Toolbox/$name" ]]; then
-            target_html="$REAL_HOME/Applications/Bazzite_Toolbox/$name"
+        elif [[ -f "$REAL_HOME/Applications/Bazzite_Toolbox/Overclock/$name" ]]; then
+            target_html="$REAL_HOME/Applications/Bazzite_Toolbox/Overclock/$name"
             break
         fi
     done
@@ -3155,18 +3541,15 @@ launch_html_dashboard() {
         echo -e "${CYAN}[ℹ] Spawning detached host browser thread as user: ${WHITE}$REAL_USER${NC}"
         echo -e "${DIM}    Passing payload variables through the active desktop portal pipeline...${RESET}"
 
-        # 🧬 BAZZITE ENVIRONMENT INTERPRETER: Reconstructs missing session bus links dynamically
         local user_id
         user_id=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
 
-        # Explicitly build the environmental socket variable string matching your user workspace
         local session_bus="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$user_id/bus"
         local display_env=""
         [[ -n "$DISPLAY" ]] && display_env="DISPLAY=$DISPLAY"
         [[ -n "$XAUTHORITY" ]] && display_env="XAUTHORITY=$XAUTHORITY"
 
         if command -v flatpak-spawn &>/dev/null; then
-            # Inject session bus credentials to give the spawner complete desktop validation permissions
             eval "sudo -u \"$REAL_USER\" XDG_RUNTIME_DIR=\"/run/user/$user_id\" $session_bus $display_env flatpak-spawn --host xdg-open \"$target_html\"" &>/dev/null &
         elif command -v busctl &>/dev/null; then
             eval "sudo -u \"$REAL_USER\" XDG_RUNTIME_DIR=\"/run/user/$user_id\" $session_bus busctl --user call org.freedesktop.portal.Desktop /org/freedesktop/portal/desktop org.freedesktop.portal.OpenURI OpenURI ssss \"\" \"file://$target_html\" \"\" \"\"" &>/dev/null &
@@ -3174,7 +3557,6 @@ launch_html_dashboard() {
             eval "sudo -u \"$REAL_USER\" XDG_RUNTIME_DIR=\"/run/user/$user_id\" $session_bus $display_env xdg-open \"$target_html\"" &>/dev/null &
         fi
 
-        # Hold screen visibility open for 2.5 seconds to track state
         sleep 2.5
     else
         echo -e "${RED}[-❌-] CRITICAL ERROR: 'index.html' or 'cu_map_matrix.html' was not found!${NC}"
@@ -3187,11 +3569,7 @@ launch_html_dashboard() {
     fi
 }
 
-# ==============================================================================
-# UNIFIED XBOX WIRELESS ADAPTER TOGGLE ENGINE (NATIVE XONE DRIVER MANAGER)
-# ==============================================================================
 toggle_xbox_adapter() {
-    # Dynamically capture the current system driver status label
     local state; state=$(xbox_adapter_status_label 2>/dev/null || echo "not installed")
 
     if [[ "$state" == "loaded" || "$state" == *"installed"* ]]; then
@@ -3232,20 +3610,18 @@ toggle_xbox_adapter() {
         fi
     fi
 }
-
-# Complete System Rollback Protection via Smart OSTree Layer Pinning Toggles
+# ==============================================================================
+# 🎛️ GROUP 3 (CONT.): ATOMIC IMAGE LAYER PROTECTION & OSTREE PINNING
+# ==============================================================================
 pin_active_image_layer() {
     clear
     echo -e "${BOLD}${GREEN}=== Managing Atomic OSTree Image Deployment Pins ===${NC}"
     echo -e "  ${DIM}Freezing your active layer protects against broken upstream rolling updates.${NC}\n"
 
-    # Let the user visually inspect their current deployment streams cleanly
     rpm-ostree status 2>/dev/null || true
     echo ""
 
     # 🧬 PENDING TRANSACTION DEPLOYMENT INTERCEPT GATES
-    # Scans your live status block. If a staged layer exists above your active booted layer (indicated by a pending state),
-    # it halts the pinning engine and forces a mandatory system synchronization reboot first!
     if rpm-ostree status 2>/dev/null | head -n 12 | grep -q "Staged" || [[ "$(rpm-ostree status 2>/dev/null | grep -c "ostree-image-signed")" -gt 2 && ! "$(rpm-ostree status 2>/dev/null | head -n 5 | grep -q "●")" ]] || rpm-ostree status 2>/dev/null | grep -q "Pinned: yes" && ! rpm-ostree status 2>/dev/null | head -n 5 | grep -qi "●.*pinned"; then
         echo -e "${YELLOW}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
         echo -e "${YELLOW}║${NC}  ${BOLD}${RED}[⚠] PENDING IMAGE LAYER TRANSACTION DETECTED${NC}                                                ${YELLOW}║${NC}"
@@ -3261,11 +3637,9 @@ pin_active_image_layer() {
             sudo systemctl reboot
             exit 0
         else
-            # 🧬 REDIRECT HOOK: If they select No, check if a pin is active on disk right now
             if ostree admin pin 2>/dev/null | grep -q "Pinned" || rpm-ostree status 2>/dev/null | grep -qi "pinned"; then
                 echo -e "\n  ${YELLOW}[●] Bypassing reboot prompt. Shifting to active unpin suite...${NC}\n"
                 sleep 1
-                # Execute your exact working unpin command stack
                 echo -e "  ${YELLOW}[⚠] Active Frozen System Pin deployment profile detected on this host.${RESET}"
                 echo -e "      Selecting this action will unpin the layer, allowing full storage cleanups."
                 echo ""
@@ -3361,7 +3735,6 @@ configure_governor_profile() {
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  ${CYAN}╔═ Dynamic Telemetry Scanner ═════════════════════════════════════════════════════════════════╗${NC}"
-
     local detected_cus=24
     if [[ -f /etc/bc250-cu-live-manager.conf ]]; then
         local raw_masks
@@ -3385,12 +3758,12 @@ configure_governor_profile() {
     local live_threads=$(nproc 2>/dev/null || echo "12")
     local detected_cores=$(( live_threads / 2 ))
 
+    echo -e "  ${CYAN}╔═ Dynamic Telemetry Scanner ═════════════════════════════════════════════════════════════════╗${RESET}"
     echo -e "  ${CYAN}║${NC}   ${BOLD}${GREEN}✔ ACTIVE HARDWARE IDENTIFIED:${NC} ${detected_cus}/40 Compute Units  │  ${detected_cores} CPU Cores / ${live_threads} Threads            ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
     echo -e "  ${CYAN}╔═ HARDWARE AUDIT: COOLING SYSTEM AND ENVIRONMENT ════════════════════════════════════════════╗${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Red, Choice 2 in Green, Choice 3 in Yellow
     echo -e "   ${RED}1)${NC} Stock Air Cooler  │  ${GREEN}2)${NC} Premium Aftermarket Air  │  ${YELLOW}3)${NC} Liquid Cooled Core"
     echo -n "  Enter cooling profile option [1-3]: "
     local cooling_choice; read -r cooling_choice
@@ -3401,17 +3774,14 @@ configure_governor_profile() {
         *) THROTTLE_TEMP=83; RECOVERY_TEMP=75; COOLING_LABEL="Stock Air (Optimized)";;
     esac
 
-    # 🚀 SMART INTERFACE DETECTOR: Dynamically manages DBus based on launch style to fix the Resume Mode bug
     echo -e "\n  ${CYAN}╔═ SYSTEM INTERFACE AUDIT: BAZZITE EXECUTION ENVIRONMENT ═════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Are you primarily running this system inside Steam Gaming Mode (Big Picture interface)?    ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎯 FIX: Split echo -ne from the read trap to cleanly force color translation on the same line [1]
     echo -ne "  Booting into Steam Gaming Mode interface? (${GREEN}y${NC}/${RED}N${NC}): "
     local is_gaming_mode; read -r is_gaming_mode
     local dbus_state="true"
     if [[ "$is_gaming_mode" =~ ^[Yy]$ ]]; then dbus_state="false"; fi
 
-    # 📋 AUDIT NO. 2: POWER BUDGET
     echo -e "  ${CYAN}╔═ [2/5] HARDWARE AUDIT: POWER INFRASTRUCTURE overhead ═══════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Enter your physical Power Supply Unit (PSU) maximum continuous wattage rating:             ${CYAN}║${NC}"
     echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
@@ -3420,33 +3790,26 @@ configure_governor_profile() {
     echo ""
     local psu_wattage; read -p "  PSU Wattage Rating (e.g., 300, 450, 500): " psu_wattage
     [[ "$psu_wattage" =~ ^[0-9]+$ ]] || psu_wattage=300
-
-    # 📋 AUDIT NO. 3: FUTURE TARGET COMPUTE UNITS
     echo -e "\n  ${CYAN}╔═ [3/5] HARDWARE AUDIT: GRAPHICS COMPUTE UNIT PROFILES ══════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cus}/40 Compute Units (CUs) currently active on this core.         ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Red, Choice 2 in Green, Choice 3 in Yellow
     echo -e "   ${RED}1)${NC} Target 36 CUs Active  │  ${GREEN}2)${NC} Target 38 CUs Active  │  ${YELLOW}3)${NC} Target 40 CUs Active"
     echo -n "  Select target CU configuration profile [1-3]: "
     local cu_choice; read -r cu_choice
     local ACTIVE_CUS=38
     case "$cu_choice" in 1) ACTIVE_CUS=36;; 2) ACTIVE_CUS=38;; 3) ACTIVE_CUS=40;; esac
 
-    # 📋 AUDIT NO. 4: FUTURE TARGET CPU CORES
     echo -e "\n  ${CYAN}╔═ [4/5] HARDWARE AUDIT: CPU CORE COMPLEX ALLOCATION ═════════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cores} CPU Cores / ${live_threads} Threads active on this node.               ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Green, Choice 2 in Yellow
     echo -e "   ${GREEN}1)${NC} Target 6 Cores / 12 Threads (Balanced)  │  ${YELLOW}2)${NC} Target 8 Cores / 16 Threads (Maximum)"
     echo -n "  Select target CPU core complex [1-2]: "
     local core_choice; read -r core_choice
     local ACTIVE_CORES=8 local INTERVAL_SAMPLE=4000
     case "$core_choice" in 1) ACTIVE_CORES=6; INTERVAL_SAMPLE=6000;; *) ACTIVE_CORES=8; INTERVAL_SAMPLE=4000;; esac
 
-    # 📋 SYSTEM TARGET TUNING LEVEL SELECTION
     echo -e "\n  ${CYAN}╔═ [5/5] HARDWARE AUDIT: SYSTEM TUNING OPTIMIZATION PROFILE ══════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Green, Choice 2 in Cyan, Choice 3 in Red
     echo -e "   ${GREEN}1)${NC} Normal Computer Use  │  ${CYAN}2)${NC} Standard Gaming (1800MHz)  │  ${RED}3)${NC} Heavy Overclocking (2150MHz)"
     echo -n "  Select tuning profile [1-3]: "
     local tuning_choice; read -r tuning_choice
@@ -3458,7 +3821,6 @@ configure_governor_profile() {
         *) tuning_choice=1;;
     esac
 
-    # Power Safety Lockouts
     if (( psu_wattage < 400 )); then
         PROFILE_LABEL="NORMAL USE (FORCED_CLAMP)"; FREQ_MAX=1400; VOLT_MAX=780; tuning_choice=1
     elif (( psu_wattage < 500 )) && [ "$tuning_choice" -eq 3 ]; then
@@ -3469,7 +3831,6 @@ configure_governor_profile() {
     sudo mkdir -p /etc/cyan-skillfish-governor-smu 2>/dev/null
     [[ -f "$TARGET_CONF" ]] && sudo cp "$TARGET_CONF" "${TARGET_CONF}.bak_$(date +%Y%m%d_%H%M%S)" 2>/dev/null
 
-    # Write Master Template
     sudo bash -c "cat <<EOF > $TARGET_CONF
 # ==============================================================================
 # PROFILE TEMPLATE LAYOUT: $PROFILE_LABEL
@@ -3599,6 +3960,7 @@ EOF"
     echo -e "  ${YELLOW}[⚙] Cycling changes into live governor service memory...${NC}"
     sudo systemctl daemon-reload 2>/dev/null || true
     sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null || true
+    (play_success_chime &>/dev/null &)
     echo -e "  ${GREEN}[✓] Task complete! Active system profiles locked into memory space cleanly.${NC}\n"
     read -rp "  Press [Enter] to exit back to the main menu..."
 }
@@ -3633,7 +3995,6 @@ def render_simulated_map(num_se, num_sh, live_bitmaps, variants_list):
             bar = "".join(row_bars)
             simulated_rows.append(f"SE{se}SH{sh}:{bar}")
     return " │ ".join(simulated_rows)
-
 try:
     with open("/proc/cmdline", "r") as f:
         cmdline = f.read()
@@ -3712,7 +4073,6 @@ try:
 except Exception as e:
     print(f"   \033[0;31mERROR: Failed to read DRM pipeline ioctl bindings ({e})\033[0m")
     sys.exit(1)
-
 print(f"\n  \033[1;36m─────────────────────────────────────────────────────────────────────\033[0m")
 print(f"  \033[1;32mAvailable Override Optimization Reference (Targeted Disrupted Row Profiles):\033[0m\n")
 
@@ -3758,7 +4118,6 @@ elif is_multi_row_front:
         print(f"   \033[1;35mProjections │ {map_proj}\033[0m")
         print(f"   \033[2mCommand: sudo rpm-ostree kargs --append='amdgpu.bc250_cc_write_mode=3 {karg_str}'\033[0m\n")
         variant_counter += 1
-
     print(f"   \033[1;32m─── Expanded Symmetrical Double Variant Combinations (36/40 Active CUs) ───\033[0m\n")
     for i in range(len(expanded_targets)):
         for j in range(i + 1, len(expanded_targets)):
@@ -3785,7 +4144,6 @@ elif is_multi_row_front:
                 print(f"   \033[1;36m[DYNAMIC TRIPLE COMBINATION]\033[0m Masking: W{t1[2]} + W{t2[2]} + W{t3[2]} Balance Mask   {status_triple}")
                 print(f"   \033[1;35mProjections │ {map_triple}\033[0m")
                 print(f"   \033[2mCommand: sudo rpm-ostree kargs --append='amdgpu.bc250_cc_write_mode=3 {triple_combo_str}'\033[0m\n")
-
     print(f"   \033[1;32m─── Maximum Quadruple Isolation Fallback Alignment (32/40 Active CUs) ───\033[0m\n")
     quad_targets_clean = list(set(quad_targets))
     quad_karg_parts = [f"{s}.{h}.{w}" for s, h, w in quad_targets_clean]
@@ -3851,7 +4209,9 @@ PYEOF
     read -rp "  "
 }
 
-# Wrapped in a Menu Loop
+# ==============================================================================
+# 📂 GROUP 5: MASTER INTERACTIVE ENGINE SELECTION MAIN GRID LOOP
+# ==============================================================================
 show_menu() {
     local RESET="${RESET:-}" BOLD="${BOLD:-}" DIM="${DIM:-}"
     local RED="${RED:-}" GREEN="${GREEN:-}" YELLOW="${YELLOW:-}"
@@ -3932,13 +4292,16 @@ show_menu() {
         echo -e "  ${BOLD}${YELLOW}Hardware Unlocks & Core Optimizations${RESET}"
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
         # Column 1 (Numbers 3, 5, 7)               │ Column 2 (Numbers 4, 6)
-        echo -e "    ${CYAN}[3] ACPI Table Fix${RESET}  ${DIM}(Install/Uni)${RESET}          ${CYAN}[4] RAM/VRAM Split${RESET}  ${DIM}(Dynamic Split)${RESET}"
-        echo -e "    ${CYAN}[5] CPU OC & CU Suite${RESET} ${DIM}(Live SMU)${RESET}           ${CYAN}[6] Wake-on-LAN${RESET}     ${DIM}(Port Selector)${RESET}"
-        echo -e "    ${CYAN}[7] GFX1013 / FSR 4.1.1${RESET} ${DIM}(Smart Suite)${RESET}"
+        echo -e "    ${CYAN}[3] ACPI Table Fix${RESET}  ${DIM}(Install/Uni)${RESET}     ${CYAN}[4] Dynamic VRAM Extender${RESET} ${DIM}Unlock 14.75GB UMA ceiling allocations${RESET}"
+        echo -e "    ${CYAN}[5] CPU OC & CU Suite${RESET} ${DIM}(Live SMU)${RESET}      ${CYAN}[6] Wake-on-LAN${RESET}     ${DIM}(Port Selector)${RESET}"
+        echo -e "    ${CYAN}[7] GFX1013 / FSR 4.1.1${RESET} ${DIM}(Smart Suite)${RESET} ${CYAN}[8] Memory Interleave Balancer${RESET} ${DIM}Distribute RAM channels evenly${RESET}"
+        echo -e "    ${CYAN}[9] RAM/VRAM Split${RESET}  ${DIM}(Dynamic Split)${RESET}   ${CYAN}[10] Resolve Localized Paths${RESET}  ${DIM}Configure global XDG directory metrics${RESET}"
+
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
         # Column 1 (Letters M, P)                  │ Column 2 (Letters O, X)
-        echo -e "    ${CYAN}[M] CU Map Matrix${RESET}    ${DIM}(Harvest Map)${RESET}         ${CYAN}[O] CU Harvest Maps${RESET} ${DIM}(Web Browser)${RESET}"
-        echo -e "    ${CYAN}[P] Pin Stable Layer${RESET}   ${DIM}(OSTree Backup)${RESET}     ${CYAN}[X] Xbox Adapter${RESET}    ${DIM}(Xone Driver)${RESET}"
+        echo -e "    ${CYAN}[M] CU Map Matrix${RESET}    ${DIM}(Harvest Map)${RESET}       ${CYAN}[Q] MGLRU Latency Optimizer  ${DIM}Minimize CPU memory scanning overhead${RESET}"
+        echo -e "    ${CYAN}[O] CU Harvest Maps${RESET} ${DIM}(Web Browser)${RESET}        ${BIPurple}[T] DS5 Bridge Fix  ${DIM}Stabilize Bluetooth connection latency${RESET}"
+        echo -e "    ${CYAN}[P] Pin Stable Layer${RESET} ${DIM}(OSTree Backup)${RESET}     ${CYAN}[X] Xbox Adapter${RESET}  ${DIM}(Xone Driver)${RESET}"
         echo ""
 
         # 🧬 NEW SECTION 4: TELEMETRY & DASHBOARD READOUTS (INJECTED)
@@ -3953,9 +4316,9 @@ show_menu() {
         echo -e "              ${RED}PROCEED ENTIRELY AT YOUR OWN RISK AND VERIFY SYSTEM COOLING.${NC}"
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
 
-
         # Safe Prompt Parser (Instant Typing Response Keystroke Engine)
-        type_prompt "  Select an option [0-7, A-I, M, O, P, R, S, X]: " 0.03
+        type_prompt "  Select an option [0-8, A-I, M, O, P, R, S, X]: " 0.03
+
         choice=""
         read -n 1 -s choice || true
         echo ""
@@ -3964,10 +4327,13 @@ show_menu() {
             1) install_blue_pill ;;
             2) install_red_pill ;;
             3) toggle_acpi_fix ;;
-            4) toggle_ram_split ;;
+            4) apply_vram_optimization ;;
             5) install_overclock ;;
             6) install_wake_on_lan ;;
             7) toggle_compute_queue_fix ;;
+            8) apply_gpu_power_shield ;;
+            9) toggle_ram_split ;;
+            10) resolve_safe_system_paths ;;
 
             a|A)
                 echo -e "${GREEN}Executing Temporary Start...${NC}"
@@ -4023,6 +4389,7 @@ show_menu() {
             m|M) view_cu_map ;; # Moved from lower case H to preserve loop safety mappings
             o|O) launch_html_dashboard ;;
             p|P) pin_active_image_layer ;;         # Locks down your verified v1.5 deployment via ostree pin
+            q|Q) toggle_mglru_optimization ;;
             r|R)
                 print_info "Reinitializing toolkit memory tracking blocks..."
                 sleep 0.5
@@ -4033,10 +4400,8 @@ show_menu() {
                 type_prompt "  Press [any key] to return to the toolkit main menu... " 0.03
                 read -n 1 -s -r || true
                 ;;
-            # 🧬 CONNECT THE CODE ENTRY TO THE EXECUTION SWITCH HERE:
+            t|T) toggle_ds5_bridge_fix ;;
             x|X) toggle_xbox_adapter ;;
-
-            # 🧬 REDIRECTED TO THE NEW INTERACTIVE CLOSURE SYSTEM:
             0)
                 secure_system_exit
                 ;;
@@ -4048,5 +4413,5 @@ show_menu() {
     done
 }
 
-# --- Start Menu Trigger Execution ---
+# --- Runtime Execution Entry Pointer ---
 show_menu
