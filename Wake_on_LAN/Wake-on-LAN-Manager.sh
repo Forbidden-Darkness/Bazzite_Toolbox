@@ -4,7 +4,7 @@ clear
 # ==============================================================================
 # PREMIUM SYSTEM GRAPHICAL TERMINAL PROPERTIES & STYLING LOGIC
 # ==============================================================================
-# 🧬 FIXED GLOBAL CARDS: Removed 'local' keywords to stop initialization errors
+# 🧬 FIXED GLOBAL CARDS: Removed accidental 'local' keywords to prevent global runtime compilation errors
 RED='\033[0;31m'    B_RED='\033[1;31m'     GREEN='\033[0;32m'
 YELLOW='\033[1;33m' B_BLUE='\033[1;34m'    CYAN='\033[0;36m'
 BIYellow='\033[1;93m' BICyan='\033[1;96m'  BIWhite='\033[1;97m'
