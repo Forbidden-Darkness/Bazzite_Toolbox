@@ -2,48 +2,39 @@
 clear
 
 # ==============================================================================
-# PREMIUM TERMINAL COLOR PALETTE & VISUAL PROPERTIES
+# PREMIUM SYSTEM GRAPHICAL TERMINAL PROPERTIES & STYLING LOGIC
 # ==============================================================================
-RED='\033[0;31m'
-B_RED='\033[1;31m'
-GREEN='\033[0;32m'
-B_GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-B_BLUE='\033[1;34m'
-B_VIOLET='\033[1;35m'
-CYAN='\033[0;36m'
-BIBlack='\033[1;90m'
-BIRed='\033[1;91m'
-BIGreen='\033[1;92m'
-BIYellow='\033[1;93m'
-BIBlue='\033[1;94m'
-BIPurple='\033[1;95m'
-BICyan='\033[1;96m'
-BIWhite='\033[1;97m'
-NC='\033[0m'
-RESET='\033[0m'
-
+RED='\033[0;31m'    local B_RED='\033[1;31m'     local GREEN='\033[0;32m'
+YELLOW='\033[1;33m' local B_BLUE='\033[1;34m'    local CYAN='\033[0;36m'
+BIYellow='\033[1;93m' local BICyan='\033[1;96m'  local BIWhite='\033[1;97m'
+NC='\033[0m'        local RESET='\033[0m'        local BOLD='\033[1m'
 DIM='\033[38;2;110;110;110m'
-BOLD='\033[1m'
 
-# Verify root/sudo privileges
+# Verify high-privilege administrative boundary permissions
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}Error: This script must be run with sudo or as root."
-    echo -e "Please run: sudo bash $0${NC}"
+    echo -e "${RED}❌ ERROR: High-privilege access execution layer constraint violation."
+    echo -e "          Please invoke this network manager via: sudo bash $0${NC}"
     exit 1
 fi
 
-# Establish Execution Context
 REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 SCRIPT_PATH=$(realpath "$0")
 
-print_info() { echo -e "  ${CYAN}→${RESET}  $1"; }
+# 🧬 AUDIO CONFIRMATION CORE: Routes signals cleanly down Pipewire session buses [1.14]
+play_success_chime() {
+    echo -ne '\e[?5h'; sleep 0.1; echo -ne '\e[?5l'
+    local real_uid; real_uid=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
+    if [[ -f "/usr/share/sounds/oxygen/stereo/outcome-success.ogg" ]] && command -v pw-play &>/dev/null; then
+        sudo -u "$REAL_USER" XDG_RUNTIME_DIR="/run/user/$real_uid" PIPEWIRE_RUNTIME_DIR="/run/user/$real_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$real_uid/bus" pw-play /usr/share/sounds/oxygen/stereo/outcome-success.ogg &>/dev/null || true
+    fi
+}
+
 print_success() { echo -e "\n  ${BOLD}${GREEN}✔  $1${RESET}\n"; }
 print_error() { echo -e "\n  ${BOLD}${RED}✘  $1${RESET}\n"; }
 
 # ==============================================================================
-# INTERACTIVE DESKTOP SHORTCUT HOOK
+# INTERACTIVE DESKTOP SHORTCUT DEPLOYER INFRASTRUCTURE
 # ==============================================================================
 ask_desktop_shortcut() {
     local desktop_dir
@@ -54,22 +45,21 @@ ask_desktop_shortcut() {
     local shortcut="$desktop_dir/Start Wake on LAN Manager.desktop"
     [[ -f "$shortcut" ]] && return 0
 
-    echo -e "  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║                  DESKTOP SHORTCUT CONFIGURATION                   ║${NC}"
-    echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "  ${CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║                     ⚙️ DESKTOP ACCELERATOR LAUNCHER SHORTCUT CONFIGURATOR                    ║${NC}"
+    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "  ${BIYellow}Would you like to add an application shortcut to your desktop?${NC}"
-    echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
-    echo -e "    ${CYAN}1)${NC} Yes, create desktop shortcut     ${BIBlack}(Generates native launcher file)${NC}"
+    echo -e "    ${BIYellow}Would you like to deploy an unprivileged application desktop shortcut launcher?${NC}"
+    echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
+    echo -e "     ${CYAN}1)${NC} Yes, build a native desktop launcher file   ${DIM}(Automates console escalation path)${NC}"
     echo ""
-    echo -e "    ${CYAN}2)${NC} No, skip shortcut creation"
+    echo -e "     ${CYAN}2)${NC} No, skip shortcut configuration layout"
     echo ""
-    echo -e "    ${RED}[Enter]${NC} Skip and continue to dashboard parameters"
-    echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
+    echo -e "     ${RED}[Enter]${NC} Skip accelerator deployment and pass straight to active dashboard"
+    echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
     echo ""
 
-    read -rp "$(echo -e "  ${CYAN}Select an option [1-2]: ${NC}")" shortcut_choice
-
+    local shortcut_choice; read -r -p "   Select configuration target index option [1-2]: " shortcut_choice
     case $shortcut_choice in
         1)
             sudo -u "$REAL_USER" tee "$shortcut" > /dev/null <<SHORTCUT_EOF
@@ -85,51 +75,44 @@ SHORTCUT_EOF
             chmod +x "$shortcut"
             chown "$REAL_USER":"$REAL_USER" "$shortcut" 2>/dev/null || true
             sudo -u "$REAL_USER" gio set "$shortcut" metadata::trusted true >/dev/null 2>&1 || true
-            print_success "Wake on LAN Manager shortcut created successfully!"
-            sleep 1.5
+            print_success "Wake on LAN Manager user interface launcher deployed smoothly!"
+            sleep 1.2
             ;;
-        2|*)
-            print_info "Skipping desktop shortcut generation."
-            sleep 1
-            ;;
+        *) sleep 0.2 ;;
     esac
 }
 
 ask_desktop_shortcut
 clear
-
 # ==============================================================================
-# MAIN DEPLOYMENT ACTIONS INTERFACE
+# MAIN DEPLOYMENT ACTIONS INTERFACE (93-CHARACTER WIDE GRID)
 # ==============================================================================
-echo -e "  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "  ${CYAN}║                  WAKE-on-LAN CONFIGURATION MANAGER                ║${NC}"
-echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
+echo -e "  ${CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+echo -e "  ${CYAN}║                     📡 WAKE-ON-LAN HARDWARE REGISTER OVERRIDE MANAGER                       ║${NC}"
+echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  ${BOLD}${YELLOW}Deployment Actions & Settings${NC}"
-echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
-echo -e "    ${CYAN}[1]${NC} Enable WoL (magic packet)       ${BIBlack}(Recommended for remote power-on)${NC}"
+echo -e "    ${BOLD}${YELLOW}Deployment Actions & Core Firmware Settings${NC}"
+echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
+echo -e "     ${CYAN}[1]${NC} Enable WoL Magic Packet Receiver   ${DIM}(Recommended link mode for remote power plane on)${RESET}"
 echo ""
-echo -e "    ${CYAN}[2]${NC} Disable WoL (ignore)            ${BIBlack}(Standard power-saving state)${NC}"
+echo -e "     ${CYAN}[2]${NC} Disable WoL Network Requests       ${DIM}(Forced clamp to drop standby power rail drain)${RESET}"
 echo ""
-echo -e "    ${RED}[Enter]${NC} Abort Tweak and Return to Primary Menu"
-echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
+echo -e "     ${RED}[Enter]${NC} Abort Adapter Tweaks and Return Back to Master Dashboard"
+echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
 echo ""
 
-read -rp "$(echo -e "  ${CYAN}Select an option [1-2]: ${NC}")" ACTION_CHOICE
+local ACTION_CHOICE; read -r -p "   Select target network power plane option [1-2]: " ACTION_CHOICE
+local WOL_SETTING="" local ACTION_TEXT=""
 
-# 🧬 FIXED LOGIC STEP: Safely intercepts unassigned inputs to route cleanly back up to start.sh
 if [ "$ACTION_CHOICE" = "1" ]; then
-    WOL_SETTING="magic"
-    ACTION_TEXT="Enabling"
+    WOL_SETTING="magic"; ACTION_TEXT="Enabling"
 elif [ "$ACTION_CHOICE" = "2" ]; then
-    WOL_SETTING="ignore"
-    ACTION_TEXT="Disabling"
+    WOL_SETTING="ignore"; ACTION_TEXT="Disabling"
 elif [ -z "$ACTION_CHOICE" ]; then
-    echo -e "  ${YELLOW}[-] Operation canceled. Returning safely to master toolkit...${NC}"
-    sleep 1.2
-    exit 0
+    echo -e "\n  ${YELLOW}[-] Operation aborted. Returning safely to master toolkit interface...${NC}"
+    sleep 1.0; exit 0
 else
-    print_error "Invalid option selected. Aborting."
+    print_error "Invalid operational constraint array choice selection. Aborting execution thread."
     exit 1
 fi
 
@@ -146,23 +129,21 @@ while read -r conn_name; do
 done < <(nmcli -g NAME connection show)
 
 if [ ${#CONNECTIONS[@]} -eq 0 ]; then
-    print_error "No active NetworkManager Ethernet or Wireless profiles discovered."
-    echo "  ------------------------------------------------"
-    nmcli connection show
+    print_error "No active NetworkManager Network profiles discovered inside host configuration matrices."
     exit 1
 fi
 
-echo -e "\n  ${BOLD}${YELLOW}Discovered Host Network Interfaces:${RESET}"
-echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
-echo -e "    ${CYAN}[0]${NC} CONFIGURE ALL DISCOVERED INTERFACES"
+echo -e "\n    ${BOLD}${YELLOW}Discovered Active Host Network Interface Configurations:${RESET}"
+echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
+echo -e "     ${CYAN}[0]${NC} CONFIGURE ALL DISCOVERED SYSTEM INTERFACES FLAT"
 for i in "${!CONNECTIONS[@]}"; do
-    printf "    ${CYAN}[%d]${NC} %s\n" "$((i+1))" "${CONNECTIONS[$i]}"
+    printf "     ${CYAN}[%d]${NC} %s\n" "$((i+1))" "${CONNECTIONS[$i]}"
 done
-echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
+echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
+echo -e "  ${DIM}  * Enter multiple target indexes separated flatly by spaces (e.g., '1 2') or select '0' *${RESET}"
 echo ""
-echo -e "  ${DIM}Enter profile indices separated by spaces (e.g., '1 3') or select '0'.${RESET}"
-read -rp "$(echo -e "  ${CYAN}Selection Array: ${NC}")" -a USER_SELECTIONS
 
+read -r -p "   Selection Bus Matrix Array: " -a USER_SELECTIONS
 TARGET_CONNECTIONS=()
 if [[ " ${USER_SELECTIONS[*]} " =~ " 0 " ]]; then
     TARGET_CONNECTIONS=("${CONNECTIONS[@]}")
@@ -171,25 +152,25 @@ else
         if [[ "$sel" =~ ^[0-9]+$ ]] && [ "$sel" -le "${#CONNECTIONS[@]}" ] && [ "$sel" -gt 0 ]; then
             TARGET_CONNECTIONS+=("${CONNECTIONS[$((sel-1))]}")
         else
-            echo -e "  ${RED}[⚠] Warning: Ignoring out-of-bounds index link selection '$sel'.${NC}"
+            echo -e "  ${RED}[⚠] Warning: Out of bounds tracking logical link node index selection '$sel' skipped.${NC}"
         fi
     done
 fi
 
 if [ ${#TARGET_CONNECTIONS[@]} -eq 0 ]; then
-    print_error "No valid interface targets assigned. Exiting."
+    print_error "No valid network hardware adapter interfaces assigned to the array pipeline. Exiting."
     exit 1
 fi
 
 # ==============================================================================
-# PARAMETER MODIFICATION & COMMIT PIPELINE
+# PARAMETER MODIFICATION & COMMIT TUNING PIPELINE
 # ==============================================================================
-echo -e "\n  ${GREEN}[+] Synchronizing bus properties across selected adapters...${NC}"
-echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
+echo -e "\n  ${GREEN}[+] Synchronizing interface bus properties across selected adapters...${NC}"
+echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
 
 for CONN in "${TARGET_CONNECTIONS[@]}"; do
     [ -z "$CONN" ] && continue
-    echo -e "  ⚡ Processing: ${BIWhite}'$CONN'${NC}"
+    echo -e "  ⚡ Target Node: ${BIWhite}'$CONN'${NC}"
 
     CONN_TYPE=$(nmcli -g connection.type connection show "$CONN" 2>/dev/null)
     if [[ "$CONN_TYPE" == *"ethernet"* ]]; then
@@ -197,48 +178,46 @@ for CONN in "${TARGET_CONNECTIONS[@]}"; do
     elif [[ "$CONN_TYPE" == *"wireless"* ]]; then
         PROP_PREFIX="802-11-wireless"
     else
-        echo -e "  ${RED}❌ Skipping unsupported interface archetype: $CONN_TYPE${NC}"
-        echo "  ------------------------------------------------"
+        echo -e "  ${RED}❌ Skipping un-mappable interface adapter profile: $CONN_TYPE${NC}"
+        echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
         continue
     fi
 
-    echo -e "     ↳ ${ACTION_TEXT} hardware register configurations..."
+    echo -e "     ↳ ${ACTION_TEXT} hardware magic packet wake registers..."
     nmcli c modify "$CONN" "${PROP_PREFIX}.wake-on-lan" "$WOL_SETTING"
 
-    echo -e "     ↳ Live Status Verification:"
+    echo -e "     ↳ Active Runtime Configuration Verification State:"
     nmcli c show "$CONN" | grep -i "wake-on-lan" | sed 's/^/       /'
-    echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
+    echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
 done
-
 # ==============================================================================
-# POST-CONFIGURATION ENVIRONMENT STATE TRANSITIONS
+# POST-CONFIGURATION DAEMON RESTART INTERFACE
 # ==============================================================================
-print_success "Network interface tuning complete!"
-echo -e "  ${BOLD}${YELLOW}What would you like to do next?${NC}"
-echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
-echo -e "    ${CYAN}[1]${NC} Restart NetworkManager service  ${DIM}(Apply custom layers immediately)${RESET}"
-echo ""
-echo -e "    ${CYAN}[2]${RESET} Reboot the entire system"
-echo ""
-echo -e "    ${RED}[3] Do nothing (Clean exit)${NC}"
-echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
-echo ""
-read -rp "$(echo -e "  ${CYAN}Select option index [1-3]: ${NC}")" POST_CHOICE
+# 🚀 CHIME INITIALIZATION: Fire audio notification loop exactly upon task success [1.14]
+play_success_chime
 
+print_success "Network hardware silicon adapter tuning parameter injection cycle complete!"
+echo -e "    ${BOLD}${YELLOW}What post-processing state transition would you like to execute?${NC}"
+echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
+echo -e "     ${CYAN}[1]${NC} Hot-Reload NetworkManager daemon sub-systems  ${DIM}(Flushes connection tables instantly)${RESET}"
+echo ""
+echo -e "     ${CYAN}[2]${RESET} Execute a clean full system hardware reboot"
+echo ""
+echo -e "     ${RED}[3]${RESET} Exit installer engine immediately          ${DIM}(Changes lock and load on next boot)${RESET}"
+echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
+echo ""
+
+local POST_CHOICE; read -r -p "   Select hardware post-processing action target [1-3]: " POST_CHOICE
 case "$POST_CHOICE" in
     1)
-        echo -e "\n  ${GREEN}[+] Restarting NetworkManager daemon sub-systems...${NC}"
+        echo -e "\n  ${GREEN}[+] Flushing NetworkManager routing profiles into operating system memory space...${NC}"
         systemctl restart NetworkManager
-        print_success "NetworkManager registers successfully flushed and reloaded."
-        sleep 1.5
-        ;;
+        print_success "Network stack parameters successfully cleared and initialized!"
+        sleep 1.2; exit 0 ;;
     2)
-        echo -e "\n  ${GREEN}[+] Flushing disk state memory maps. Rebooting device...${NC}"
-        sleep 1.5
-        reboot
-        ;;
+        echo -e "\n  ${GREEN}[+] Commencing hard kernel synchronization pass... Rebooting device now...${NC}"
+        sleep 1.5; reboot ;;
     *)
-        echo -e "\n  ${YELLOW}[-] Exiting cleanly. Changes will persist upon next network/system reload.${NC}"
-        sleep 1.5
-        ;;
+        echo -e "\n  ${YELLOW}[-] Terminating session pipeline. Modifications locked into static system storage profiles.${NC}"
+        sleep 1.2; exit 0 ;;
 esac
