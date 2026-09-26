@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMD BC-250 Silicon Harvest Dashboard</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --card-bg: #1e1e1e;
+            --accent-blue: #007acc;
+            --accent-green: #00ff66;
+            --text-main: #e0e0e0;
+            --border-dim: #333333;
+        }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            border: 2px solid var(--accent-blue);
+            background-color: var(--card-bg);
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+        h1, h2, h3 { color: var(--accent-blue); margin-top: 0; }
+        .alert { color: #ff3333; font-weight: bold; border-left: 4px solid #ff3333; padding-left: 10px; }
+        .controls {
+            margin-bottom: 25px;
+            display: flex;
+            gap: 15px;
+        }
+        input, button {
+            background: var(--card-bg);
+            border: 1px solid var(--border-dim);
+            color: var(--text-main);
+            padding: 10px 20px;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        input { cursor: text; width: 300px; }
+        button:hover, button.active {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-dim);
+            padding: 20px;
+            border-radius: 4px;
+        }
+        .card:hover { border-color: var(--accent-blue); }
+        .matrix { color: var(--accent-green); font-weight: bold; white-space: pre-wrap; margin: 10px 0; }
+        .cmd-box {
+            background: #000;
+            padding: 10px;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .copy-btn {
+            background: var(--accent-blue);
+            border: none;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border-radius: 3px;
+        }
+        .copy-btn:hover { background: var(--accent-green); color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📟 AMD BC-250 Silicon Harvest Dashboard 📟</h1>
+    <p class="alert">⚠ CRITICAL RECOVERY DRILL IF SYSTEM HANGS:</p>
+    <p>If a combination crashes your boot layer, hold <b>ESC</b> on power-up, input NORMAL inside the console frame, and boot back into your working pinned tree deployment. Then reconfigure arguments safely.</p>
+</div>
+
+<div class="controls">
+    <input type="text" id="search" placeholder="Filter by address (e.g. 0.1.1)..." oninput="filterCards()">
+    <button id="btn-all" class="active" onclick="setView('all')">Show All</button>
+    <button id="btn-single" onclick="setView('single')">Section 1 (38 CU)</button>
+    <button id="btn-double" onclick="setView('double')">Section 2 (36 CU)</button>
+    <span id="counter" style="align-self: center; margin-left: auto; color: var(--accent-green);"></span>
+</div>
+
+<div class="grid" id="matrix-grid"></div>
+
+<script>
+// Compact structural map mapping all 20 basic hardware WGPs systematically
+const wgpList = [];
+for (let se = 0; se < 2; se++) {
+    for (let sh = 0; sh < 2; sh++) {
+        for (let wgp = 0; wgp < 5; wgp++) {
+            wgpList.push({ se, sh, wgp });
+        }
+    }
+}
+
+let currentFilter = 'all';
+
+function generateMatrixString(masks) {
+    let output = "";
+    for (let se = 0; se < 2; se++) {
+        for (let sh = 0; sh < 2; sh++) {
+            let row = "";
+            for (let wgp = 0; wgp < 5; wgp++) {
+                // Check if this specific WGP is masked by any element in the active variant scenario
+                const isMasked = masks.some(m => m.se === se && m.sh === sh && m.wgp === wgp);
+                row += isMasked ? "□□" : "■■";
+            }
+            output += `SE${se} SH${sh}: ${row}\n`;
+        }
+    }
+    return output.trim();
+}
+
+function copyToClipboard(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = "Copied!";
+        btn.style.background = "#00ff66";
+        btn.style.color = "#000";
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.style.background = "";
+            btn.style.color = "";
+        }, 1500);
+    });
+}
+
+function buildDashboard() {
+    const grid = document.getElementById('matrix-grid');
+    grid.innerHTML = '';
+    let cardsHTML = '';
+
+    // SECTION 1 GENERATOR: Single Variants (20 Total)
+    wgpList.forEach((w, index) => {
+        const idStr = `${w.se}.${w.sh}.${w.wgp}`;
+        const numStr = String(index + 1).padStart(2, '0');
+        const matrixText = generateMatrixString([w]);
+        const fullCmd = `sudo rpm-ostree kargs --append='amdgpu.bc250_cc_write_mode=3 amdgpu.disable_cu=${idStr}' && sudo systemctl reboot`;
+
+        cardsHTML += `
+            <div class="card" data-type="single" data-search="${idStr} single variant ${numStr}">
+                <h3>Single Variant ${numStr}: Disable SE${w.se} SH${w.sh} WGP${w.wgp}</h3>
+                <div class="matrix">${matrixText}</div>
+                <div><b>38/40 CUs active, 2 CUs disabled</b></div>
+                <div class="cmd-box">
+                    <code>${fullCmd}</code>
+                    <button class="copy-btn" onclick="copyToClipboard('${fullCmd}', this)">Copy</button>
+                </div>
+            </div>`;
+    });
+
+    // SECTION 2 GENERATOR: Double Variants (190 Combinations)
+    let doubleCounter = 1;
+    for (let i = 0; i < wgpList.length; i++) {
+        for (let j = i + 1; j < wgpList.length; j++) {
+            const w1 = wgpList[i];
+            const w2 = wgpList[j];
+            const idStr1 = `${w1.se}.${w1.sh}.${w1.wgp}`;
+            const idStr2 = `${w2.se}.${w2.sh}.${w2.wgp}`;
+            const numStr = String(doubleCounter).padStart(3, '0');
+            const matrixText = generateMatrixString([w1, w2]);
+            const fullCmd = `sudo rpm-ostree kargs --append='amdgpu.bc250_cc_write_mode=3 amdgpu.disable_cu=${idStr1},${idStr2}' && sudo systemctl reboot`;
+
+            cardsHTML += `
+                <div class="card" data-type="double" data-search="${idStr1} ${idStr2} double variant ${numStr}">
+                    <h3>Double Variant ${numStr}: Disable SE${w1.se} SH${w1.sh} WGP${w1.wgp} + SE${w2.se} SH${w2.sh} WGP${w2.wgp}</h3>
+                    <div class="matrix">${matrixText}</div>
+                    <div><b>36/40 CUs active, 4 CUs disabled</b></div>
+                    <div class="cmd-box">
+                        <code>${fullCmd}</code>
+                        <button class="copy-btn" onclick="copyToClipboard('${fullCmd}', this)">Copy</button>
+                    </div>
+                </div>`;
+            doubleCounter++;
+        }
+    }
+
+    grid.innerHTML = cardsHTML;
+    filterCards();
+}
+
+function setView(view) {
+    currentFilter = view;
+    ['all', 'single', 'double'].forEach(v => {
+        document.getElementById(`btn-${v}`).classList.toggle('active', v === view);
+    });
+    filterCards();
+}
+
+function filterCards() {
+    const query = document.getElementById('search').value.toLowerCase();
+    const cards = document.querySelectorAll('.card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const type = card.getAttribute('data-type');
+        const searchSpace = card.getAttribute('data-search');
+
+        const matchesType = (currentFilter === 'all' || type === currentFilter);
+        const matchesQuery = searchSpace.includes(query);
+
+        if (matchesType && matchesQuery) {
+            card.style.display = 'block';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    document.getElementById('counter').innerText = `Showing ${visibleCount} of 210 variants`;
+}
+
+// Instantiate database layers asynchronously on window completion
+window.onload = buildDashboard;
+</script>
+</body>
+</html>
