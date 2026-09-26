@@ -4,10 +4,11 @@ clear
 # ==============================================================================
 # PREMIUM SYSTEM GRAPHICAL TERMINAL PROPERTIES & STYLING LOGIC
 # ==============================================================================
-RED='\033[0;31m'    local B_RED='\033[1;31m'     local GREEN='\033[0;32m'
-YELLOW='\033[1;33m' local B_BLUE='\033[1;34m'    local CYAN='\033[0;36m'
-BIYellow='\033[1;93m' local BICyan='\033[1;96m'  local BIWhite='\033[1;97m'
-NC='\033[0m'        local RESET='\033[0m'        local BOLD='\033[1m'
+# 🧬 FIXED GLOBAL CARDS: Removed accidental 'local' keywords to prevent global runtime compilation errors
+RED='\033[0;31m'    B_RED='\033[1;31m'     GREEN='\033[0;32m'
+YELLOW='\033[1;33m' B_BLUE='\033[1;34m'    CYAN='\033[0;36m'
+BIYellow='\033[1;93m' BICyan='\033[1;96m'  BIWhite='\033[1;97m'
+NC='\033[0m'        RESET='\033[0m'        BOLD='\033[1m'
 DIM='\033[38;2;110;110;110m'
 
 # Verify high-privilege administrative boundary permissions
@@ -21,7 +22,7 @@ REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 SCRIPT_PATH=$(realpath "$0")
 
-# 🧬 AUDIO CONFIRMATION CORE: Routes signals cleanly down Pipewire session buses [1.14]
+# 🧬 AUDIO CONFIRMATION CORE: Routes signals cleanly down Pipewire session buses
 play_success_chime() {
     echo -ne '\e[?5h'; sleep 0.1; echo -ne '\e[?5l'
     local real_uid; real_uid=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
