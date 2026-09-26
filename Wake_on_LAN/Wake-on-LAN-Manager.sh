@@ -47,7 +47,7 @@ ask_desktop_shortcut() {
     [[ -f "$shortcut" ]] && return 0
 
     echo -e "  ${CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║                    ⚙️ DESKTOP ACCELERATOR LAUNCHER SHORTCUT CONFIGURATOR                   ║${NC}"
+    echo -e "  ${CYAN}║                    ⚙️ DESKTOP ACCELERATOR LAUNCHER SHORTCUT CONFIGURATOR                    ║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "    ${BIYellow}Would you like to deploy an unprivileged application desktop shortcut launcher?${NC}"
