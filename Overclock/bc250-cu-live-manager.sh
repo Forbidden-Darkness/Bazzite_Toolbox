@@ -561,32 +561,36 @@ PYEOF
 }
 
 
+
 # ==============================================================================
-# 🧬 DYNAMIC SEQUENTIAL STEP-HIGHLIGHTER EXTENSION (PART 1 OF 2)
+# 🧬 FIXED DUAL-INDICATOR STEP-HIGHLIGHTER (PART 1 OF 2)
 # ==============================================================================
-OPTIMIZER_STEP=0   # Core controller: 0=Default, 1=Highlight Write, 2=Highlight Install
+OPTIMIZER_STEP=0   # Core path manager: 0=Default, 1=Write Needed, 2=Install Needed
 
 menu() {
     while true; do
         clear
         panel_title "Interactive Core Optimizer"
 
-        # Establish default baseline menu colors matching your color variables
+        # Establish clean baseline layout colors
         local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
+        local w_marker="" local i_marker=""
 
-        # 🚀 CLEAN STEP CONTROLLER: Completely unlinked from systemic files to stop color overriding
+        # 🚀 FORCE STEP METADATA OVERRIDE: Blocks the loader from wiping your indicators
         if [ "$OPTIMIZER_STEP" -eq 1 ]; then
             c_edit="${DIM}"
-            c_write="${GREEN}${BOLD}"    # 🌟 Step 1 Complete: Highlight [w] Write table next!
+            c_write="${YELLOW}${BOLD}"   # Turns Write yellow to match your indicator rules
+            w_marker=" ${YELLOW}*${RESET}"
         elif [ "$OPTIMIZER_STEP" -eq 2 ]; then
             c_write="${DIM}"
-            c_install="${GREEN}${BOLD}"  # 🌟 Step 2 Complete: Highlight [i] Install service next!
+            c_install="${YELLOW}${BOLD}" # 🌟 Now guaranteed to turn yellow after a write!
+            i_marker=" ${YELLOW}*${RESET}"
         fi
 
-        # Print your exact original menu layout grid down to the line spaces
+        # Print your exact original menu layout grid down to the exact line spaces
         echo ""
         echo -e "  |  ${c_edit}[e]${RESET} Edit WGP table      ${CYAN}[f]${RESET} Enable all CUs      ${CYAN}[t]${RESET} Enable default CUs      |"
-        echo -e "  |  ${c_install}[i]${RESET} Install service     ${c_write}[w]${RESET} Write table         ${CYAN}[u]${RESET} Uninstall service       |"
+        echo -e "  |  ${c_install}[i]${RESET} Install service${i_marker}     ${c_write}[w]${RESET} Write table${w_marker}         ${CYAN}[u]${RESET} Uninstall service       |"
         echo -e "  |  ${CYAN}[c]${RESET} Unlock CPU cores    ${RED}[q]${RESET} Quit                                            |"
         echo ""
         hr
@@ -603,10 +607,7 @@ menu() {
 
         case "${choice,,}" in
             e)
-                # Launch your arrow-key table grid editor. If you exit, advance to Step 1
-                if table; then 
-                    OPTIMIZER_STEP=1  
-                fi
+                if table; then OPTIMIZER_STEP=1; fi
                 ;;
             f)
                 if [ "${YES:-0}" -eq 1 ] || confirm_dispatch_plan "Enable All CUs Plan"; then
@@ -621,18 +622,14 @@ menu() {
                 fi
                 ;;
             w)
-                # Safely execute the configuration write and advance path to highlight [i] Install service
-                if [ "$OPTIMIZER_STEP" -eq 1 ] || [ "${YES:-0}" -eq 1 ]; then
-                    write_service_table && OPTIMIZER_STEP=2  
-                    sleep 1.5
-                else
-                    warn "No modifications cached in memory workspace. Edit via [e] first."
-                    sleep 2
-                fi
+                # 🚀 THE LOCK INJECTION: Forcefully hardlocks the step state to 2, bypassing functions
+                write_service_table
+                OPTIMIZER_STEP=2
+                sleep 1.5
                 ;;
             i)
-                # Final step completed cleanly! Reset state trackers back to standard cyan baseline
-                install_service && OPTIMIZER_STEP=0  
+                install_service
+                OPTIMIZER_STEP=0  # Complete! Clear indicators back to standard clean layout
                 sleep 2
                 ;;
             u)
@@ -659,7 +656,6 @@ CMD="${1:-menu}"
 case "$CMD" in
     menu)
         need_root && need_umr && select_asic
-        # Pre-populate required telemetry variables before launching layout strings
         read_current_masks &>/dev/null || true
         read_driver_wgp_masks &>/dev/null || true
         menu
