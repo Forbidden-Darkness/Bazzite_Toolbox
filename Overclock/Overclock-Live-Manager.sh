@@ -1053,15 +1053,18 @@ clear
     echo -e "      ${BOLD}${MAGENTA}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
     echo ""
 
-    type_prompt "  Select an option [ 1a-4, M, C, ↵ ]: " 0.03
+type_prompt "  Select an option [ 1a-4, M, C, ↵ ]: " 0.03
     choice=""
-        read -n 1 -s choice || true
-        echo ""
+    # 🧬 FIXED INPUT FIELD: Removed '-n 1' to allow multi-character menu selections (1a, 2b, etc.)
+    read -r choice
+    echo ""
+    
+    # Convert input to lowercase or handle multi-case matching smoothly
     case "$choice" in
-        1a) run_phase1 ;;
-        1b) run_phase2 ;;
-        2a) run_manager_phase1 ;;
-        2b) run_manager_phase2 ;;
+        1a|1A) run_phase1 ;;
+        1b|1B) run_phase2 ;;
+        2a|2A) run_manager_phase1 ;;
+        2b|2B) run_manager_phase2 ;; # 🚀 NOW REACHABLE NATIVELY
         m|M) configure_governor_profile ;;
         c|C) apply_manual_clock_clamp ;;
         r|R)
@@ -1069,10 +1072,10 @@ clear
                 sleep 0.5
                 exec bash "$SCRIPT_PATH" "$@"
                 ;;
-        3a) uninstall_cpu_overclock ;;
-        3b) uninstall_cu_live_manager ;;
-        4)  run_cpu_core_stress_test ;;
-        0|"") exit 0 ;;
-        *) echo -e "${RED}Invalid choice! Please select a valid option.${NC}"; sleep 1.5 ;;
+        3a|3A) uninstall_cpu_profiles ;;
+        3b|3B) uninstall_cu_manager ;;
+        4) run_stability_sweep ;;
+        "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; return 0 ;;
+        *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
     esac
 done
