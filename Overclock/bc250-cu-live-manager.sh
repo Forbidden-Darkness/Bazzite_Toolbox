@@ -592,14 +592,20 @@ menu() {
         hr
         echo ""
 
+        local w_marker=""
+        if [ "$OPTIMIZER_STEP" -eq 1 ]; then
+            w_marker=" ${YELLOW}*${RESET}"
+        fi
+
         prompt_line "Enter selection: "
         local choice; read -r choice
         choice=$(echo "$choice" | tr -d '\r')
 
         case "${choice,,}" in
             e)
+                # Launch your arrow-key table grid editor. If you exit, advance to Step 1
                 if table; then 
-                    OPTIMIZER_STEP=1  # Advance path to highlight [w] Write table
+                    OPTIMIZER_STEP=1  
                 fi
                 ;;
             f)
@@ -615,8 +621,9 @@ menu() {
                 fi
                 ;;
             w)
-                if [ "$OPTIMIZER_STEP" -eq 1 ] || [ "${YES:-0}" -eq 1 ] || [ "$has_conf" -eq 1 ]; then
-                    write_service_table && OPTIMIZER_STEP=2  # Advance path to highlight [i] Install service
+                # Safely execute the configuration write and advance path to highlight [i] Install service
+                if [ "$OPTIMIZER_STEP" -eq 1 ] || [ "${YES:-0}" -eq 1 ]; then
+                    write_service_table && OPTIMIZER_STEP=2  
                     sleep 1.5
                 else
                     warn "No modifications cached in memory workspace. Edit via [e] first."
@@ -624,7 +631,8 @@ menu() {
                 fi
                 ;;
             i)
-                install_service && OPTIMIZER_STEP=0  # Step sequence fully completed, reset to baseline!
+                # Final step completed cleanly! Reset state trackers back to standard cyan baseline
+                install_service && OPTIMIZER_STEP=0  
                 sleep 2
                 ;;
             u)
@@ -641,6 +649,31 @@ menu() {
                 echo -e "\n  ${RED}❌ ERROR: Invalid menu option choice '$choice'.${RESET}"; sleep 1.2
                 ;;
         esac
+    done
+}
+
+# ==============================================================================
+# 🚀 CORE RUNTIME ARGUMENT DISPATCHER BRIDGE
+# ==============================================================================
+CMD="${1:-menu}"
+case "$CMD" in
+    menu)
+        need_root && need_umr && select_asic
+        # Pre-populate required telemetry variables before launching layout strings
+        read_current_masks &>/dev/null || true
+        read_driver_wgp_masks &>/dev/null || true
+        menu
+        ;;
+    status) need_umr_root status && status ;;
+    table) need_umr_root table && table ;;
+    cpu-unlock) cpu_unlock ;;
+    install-service) install_service ;;
+    write-service-table) write_service_table ;;
+    apply-service) load_service_masks && apply_service ;;
+    uninstall-service) uninstall_service ;;
+    stock-dispatch) stock-dispatch ;;
+    *) usage; exit 1 ;;
+esac
     done
 }
 
