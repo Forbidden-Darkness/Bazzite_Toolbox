@@ -4304,7 +4304,7 @@ show_menu() {
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
 
         # Safe Prompt Parser (Instant Typing Response Keystroke Engine)
-        type_prompt "  Select an option [0-8, A-I, M, O, P, R, S, X]: " 0.03
+        type_prompt "  Select an option [0-8, A-I, M, O, P, Q, S, T, X]: " 0.03
 
         choice=""
         read -n 1 -s choice || true
