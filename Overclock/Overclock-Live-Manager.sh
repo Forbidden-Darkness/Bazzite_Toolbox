@@ -1075,7 +1075,7 @@ clear
         3a|3A) uninstall_cpu_profiles ;;
         3b|3B) uninstall_cu_manager ;;
         4) run_stability_sweep ;;
-        "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; return 0 ;;
+        "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; exit 0 ;;
         *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
     esac
 done
