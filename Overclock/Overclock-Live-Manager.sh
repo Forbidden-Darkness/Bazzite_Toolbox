@@ -1,1081 +1,664 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# BC-250 live CU/WGP manager.
+#
+# This is a self-contained runtime manager. It uses UMR to read/write the
+# BC-250 gfx1013 registers that control CU enumeration and WGP dispatch.
 
-clear
-# Color definitions
-RED='\033[0;31m'
-B_RED='\033[1;31m'   # Bold Red for high-visibility Red Pill elements
-GREEN='\033[0;32m'
-B_GREEN='\033[1;32m' # Bold Green for verified/active status
-YELLOW='\033[0;33m'
-B_YELLOW='\033[1;33m'
-B_BLUE='\033[1;34m'  # Bold Blue for high-visibility Blue Pill elements
-B_VIOLET='\033[1;35m' # Bold Violet for ACPI Fix elements
-CYAN='\033[0;36m'
-BIBlack='\033[1;90m'      # Black
-BIRed='\033[1;91m'        # Red
-BIGreen='\033[1;92m'      # Green
-BIYellow='\033[1;93m'     # Yellow
-BIBlue='\033[1;94m'       # Blue
-BIPurple='\033[1;95m'     # Purple
-BICyan='\033[1;96m'       # Cyan
-BIWhite='\033[1;97m'      # White
-NC='\033[0m' # No Color (Reset)
+set -euo pipefail
 
-# 🧬 DYNAMIC GITHUB STRINGS FOR MODDED PYTHON OVERRIDES
-MODDED_APPLY_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250_apply.py"
-MODDED_LIMITS_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250_limits.py"
+SCRIPT_NAME="$(basename "$0")"
+BC250_PCI_ID="13fe"
+ASIC="${UMR_ASIC:-cyan_skillfish.gfx1013}"
+REG_CC="mmCC_GC_SHADER_ARRAY_CONFIG"
+REG_SPI="mmSPI_PG_ENABLE_STATIC_WGP_MASK"
+REG_RLC="mmRLC_PG_ALWAYS_ON_WGP_MASK"
+SERVICE_NAME="bc250-cu-live-manager.service"
+SERVICE_PATH="/etc/systemd/system/$SERVICE_NAME"
+SERVICE_BIN="/usr/local/bin/bc250-cu-live-manager"
+SERVICE_CONF="/etc/bc250-cu-live-manager.conf"
+OLD_UDEV_RULE="/etc/udev/rules.d/99-bc250-cu-live-manager.rules"
 
-# 🧬 FIXED CEILING ANCHOR: Uniform global mapping for your un-faked testing driver
-MODDED_DETECT_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250_detect.py"
+SMN_PCI_DEV="0000:00:00.0"
+CPU_MASK_REG=$((0x0115A870))
+SMU_MSG_WRITE_FF=$((0x98))
+SMU_Q3_CMD=$((0x03B10A20))
+SMU_Q3_RSP=$((0x03B10A80))
+SMU_Q3_ARG=$((0x03B10A88))
+GOVERNOR_SERVICE="cyan-skillfish-governor-smu.service"
+LAST_REG_PATH=""
+WGP_FULL_MASK=0x1f
+UMR="${UMR:-}"
+UMR_INSTANCE="${UMR_INSTANCE:-}"
+UMR_INSTANCE_SOURCE="${UMR_INSTANCE:+env}"
+YES=0
+DRY_RUN=0
+FORCE=0
+DISCLAIMER_ACCEPTED=0
+DISCLAIMER_NONINTERACTIVE_SHOWN=0
+UMR_INSTALL_OFFERED=0
+UMR_INSTANCE_ARGS=()
 
-# Verify root/sudo privileges
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}Error: This script must be run with sudo or as root."
-    echo -e "Please run: sudo bash $0${NC}"
-    exit 1
+# 🧬 DYNAMIC STEP WORKSPACE TRACKERS: Added to map history states across the menu logic
+TABLE_DIRTY=0       # Set to 1 when a table is edited to light up [w] Write Table
+SERVICE_PENDING=0   # Set to 1 when a table is written to light up [i] Install Service
+
+if [ -t 1 ]; then
+	BOLD=$'\033[1m'; DIM=$'\033[2m'; RESET=$'\033[0m'
+	RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'
+	CYAN=$'\033[36m'; REV=$'\033[7m'
+else
+	BOLD=""; DIM=""; RESET=""; RED=""; GREEN=""; YELLOW=""
+	CYAN=""; REV=""
 fi
 
-# --- SPECIFIC WINDOW SIZE WRAPPER (Pixels) ---
-if [ -z "$TERMINAL_RESIZE_FORCED" ] && [ -t 0 ]; then
-    export TERMINAL_RESIZE_FORCED=1
+info() { printf '%s[ OK ]%s %s\n' "$GREEN" "$RESET" "$*"; }
+warn() { printf '%s[WARN]%s %s\n' "$YELLOW" "$RESET" "$*"; }
+err()  { printf '%s[ERR ]%s %s\n' "$RED" "$RESET" "$*" >&2; }
+die()  { err "$@"; exit 1; }
 
-    # Set your desired width and height in pixels
-    WIDTH=800
-    HEIGHT=600
-
-    if command -v wmctrl &> /dev/null; then
-        wmctrl -r :ACTIVE: -b remove,maximized_vert,maximized_horz
-        wmctrl -r :ACTIVE: -e 0,-1,-1,$WIDTH,$HEIGHT
-    fi
-fi
-REAL_USER="${SUDO_USER:-$USER}"
-REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
-
-print_info() {
-    echo -e "${GREEN}[INFO] $1${NC}"
+hr() {
+	printf '%s+------------------------------------------------------------------------------+%s\n' "$DIM" "$RESET"
 }
 
-# 🧬 EXPLICIT DISPLAYPORT BREAKOUT ENGINE: Routes digital audio signals straight past the sudo security container blocks
-    play_success_chime() {
-        # 🔔 VISUAL PASS: Blinks the terminal screen for immediate visual verification
-        echo -ne '\e[?5h'; sleep 0.1; echo -ne '\e[?5l'
-
-        # 🔊 AUDIO PASS: Bypasses container locks to throw your native .ogg chime straight down your DisplayPort lines
-        local real_uid; real_uid=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
-        if [[ -f "/usr/share/sounds/oxygen/stereo/outcome-success.ogg" ]] && command -v pw-play &>/dev/null; then
-            sudo -u "$REAL_USER" XDG_RUNTIME_DIR="/run/user/$real_uid" PIPEWIRE_RUNTIME_DIR="/run/user/$real_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$real_uid/bus" pw-play /usr/share/sounds/oxygen/stereo/outcome-success.ogg &>/dev/null || true
-        fi
-    }
-
-ensure_bazzite_dependencies() {
-    local missing_packages=()
-
-    if ! command -v umr &> /dev/null; then
-        print_info "UMR debugger tool is not installed on host."
-        missing_packages+=("umr")
-    fi
-
-    if ! command -v stress &> /dev/null; then
-        print_info "Stress testing utility is not installed."
-        missing_packages+=("stress")
-    fi
-
-    if [ ${#missing_packages[@]} -eq 0 ]; then
-        return 0
-    fi
-
-    echo -e "${BIYellow}==================================================${NC}"
-    echo -e "${BIYellow}         SYSTEM DEPENDENCY DEPLOYMENT             ${NC}"
-    echo -e "${BIYellow}==================================================${NC}"
-    echo -e "The toolkit requires: ${missing_packages[*]}"
-    echo -e "Bazzite requires containerization or system layering to resolve this."
-    echo ""
-    echo " 1) Install dependencies automatically (Uses Distrobox container fallback)"
-    echo " 2) Skip deployment and attempt to proceed anyway"
-    echo ""
-    read -rp "Select an option [1-2]: " dep_choice
-
-    case "$dep_choice" in
-        1)
-            if [[ " ${missing_packages[*]} " =~ " stress " ]]; then
-                print_info "Staging stress utility via host rpm-ostree..."
-                if runuser -l "$REAL_USER" -c "rpm-ostree install stress"; then
-                    print_info "Stress utility staged successfully!"
-                else
-                    echo -e "${RED}Error: Host package staging failed.${NC}"
-                fi
-            fi
-
-            if [[ " ${missing_packages[*]} " =~ " umr " ]]; then
-                print_info "Configuring UMR environment inside a safe Distrobox profile..."
-                runuser -l "$REAL_USER" -c "distrobox-create --name amd-toolkit --image archlinux:latest --yes"
-                print_info "Updating container and acquiring developer build engines..."
-                runuser -l "$REAL_USER" -c "distrobox-enter -n amd-toolkit -- sudo pacman -Syu --noconfirm base-devel git"
-                print_info "Compiling and exposing UMR to host system..."
-                runuser -l "$REAL_USER" -c "distrobox-enter -n amd-toolkit -- 'git clone https://freedesktop.org && cd umr && ./autogen.sh && ./configure && make && sudo make install'"
-                runuser -l "$REAL_USER" -c "distrobox-export -n amd-toolkit --bin /usr/local/bin/umr"
-                echo -e "${B_GREEN}UMR tool successfully containerized and linked to host!${NC}"
-            fi
-
-            echo -e "${BIYellow}Deployment routine complete.${NC}"
-            if [[ " ${missing_packages[*]} " =~ " stress " ]]; then
-                echo -e "${BIYellow}Your system must reboot now to finish initializing the stress layer.${NC}"
-                read -rp "Press [Enter] to reboot immediately, or Ctrl+C to stop..."
-                systemctl reboot
-                exit 0
-            fi
-            ;;
-        *)
-            print_info "Proceeding with caution without enforcing verification loops."
-            ;;
-    esac
+panel_title() {
+	local title="$1"
+	hr
+	printf '%s|%s %-76s %s|%s\n' "$DIM" "$RESET$BOLD" "$title" "$DIM" "$RESET"
+	hr
 }
 
-# Configuration
-LOG_FILE="/var/log/bc250_oc_install.log"
-REPO_URL="https://github.com/bc250-collective/bc250_smu_oc.git"
-SERVICE_FILE="/etc/systemd/system/bc250-resume.service"
-SCRIPT_PATH=$(realpath "$0")
-
-log() {
-    echo -e "$1" | tee -a "$LOG_FILE"
+prompt_line() {
+	printf '%s>%s %s' "$CYAN" "$RESET" "$1"
 }
 
-ask_desktop_shortcut() {
-    local desktop_dir
-    desktop_dir="$(sudo -u "$REAL_USER" xdg-user-dir DESKTOP 2>/dev/null || echo "")"
-    [[ -n "$desktop_dir" ]] || desktop_dir="$REAL_HOME/Desktop"
-    [[ -d "$desktop_dir" ]] || mkdir -p "$desktop_dir" 2>/dev/null || return 0
-
-    local shortcut="$desktop_dir/Overclock Manager.desktop"
-
-    if [[ -f "$shortcut" ]]; then
-        return 0
-    fi
-
-    echo -e "${DIM}┌──────────────────────────────────────────────────┐${RESET}"
-    echo -e "${DIM}│${RESET}          ${BOLD}${MAGENTA}DESKTOP SHORTCUT CONFIGURATION${RESET}          ${DIM}│${RESET}"
-    echo -e "${DIM}└──────────────────────────────────────────────────┘${RESET}"
-    echo ""
-    echo -e "  ${BOLD}${WHITE}Would you like to add a shortcut to your desktop?${RESET}"
-    echo -e "  ${DIM}──────────────────────────────────────────────────────────────────${RESET}"
-    echo ""
-    echo -e "    ${CYAN}[1]${RESET} Yes, create desktop shortcut"
-    echo -e "    ${CYAN}[2]${RESET} No, skip shortcut creation"
-    echo ""
-    echo -e "    ${DIM}[Press Enter]${NC} To continue to BC-250 TUNING & CONFIGURATION${RESET}"
-    echo -e "  ${DIM}──────────────────────────────────────────────────────────────────${RESET}"
-    echo ""
-    read -rp "  Select an option [1-2]: " shortcut_choice
-
-    case $shortcut_choice in
-        1)
-            cat > "$shortcut" <<SHORTCUT_EOF
-[Desktop Entry]
-Type=Application
-Name=Overclock Manager
-Comment=Overclock Manager
-Exec=konsole -e sudo bash "$SCRIPT_PATH"
-Icon=utilities-terminal
-Terminal=false
-Categories=System;
-SHORTCUT_EOF
-
-            chmod +x "$shortcut"
-            chown "$REAL_USER":"$REAL_USER" "$shortcut" 2>/dev/null || true
-            sudo -u "$REAL_USER" gio set "$shortcut" metadata::trusted true >/dev/null 2>&1 || true
-            print_info "Overclock Manager shortcut created successfully!"
-            sleep 2
-            ;;
-        2)
-            print_info "Skipping desktop shortcut generation."
-            sleep 1.5
-            ;;
-        *)
-            print_info "Invalid choice. Skipping shortcut setup for now."
-            sleep 1.5
-            ;;
-    esac
+find_umr() {
+	local p
+	if [ -n "$UMR" ] && [ -x "$UMR" ]; then return 0; fi
+	for p in /usr/bin/umr /usr/local/bin/umr /opt/umr/build/src/app/umr; do
+		if [ -x "$p" ]; then UMR="$p"; return 0; fi
+	done
+	return 1
 }
-ask_desktop_shortcut
 
-clear
+need_umr() {
+	find_umr || die "umr not found. Run: sudo ./$SCRIPT_NAME install-umr"
+	select_umr_instance "${1:-default}"
+}
 
-show_warning() {
-    echo -e "${RED}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo "WARNING: OVERCLOCKING AND UNDERVOLTING CAN DAMAGE YOUR HARDWARE!"
-    echo "NEVER EXCEED 1.325V (VID) UNDER ANY CIRCUMSTANCES!"
-    echo "PROCEED ENTIRELY AT YOUR OWN RISK."
-    echo -e "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}"
-    echo "Source: github.com/bc250-collective/bc250_smu_oc"
-    echo "Logs will be saved to: $LOG_FILE"
-    echo ""
-    read -p "Press [Enter] to accept the risk and continue, or Ctrl+C to abort..."
+validate_umr_instance() { [[ "$1" =~ ^[0-9]+$ ]]; }
+init_umr_instance_args() { UMR_INSTANCE_ARGS=(); if [ -n "$UMR_INSTANCE" ]; then UMR_INSTANCE_ARGS=(-i "$UMR_INSTANCE"); fi; }
+umr_cmd_string() { printf '%s' "$UMR"; if [ -n "$UMR_INSTANCE" ]; then printf ' -i %s' "$UMR_INSTANCE"; fi; }
+
+detect_umr_instance() {
+	local debug_root="/sys/kernel/debug/dri" line bdf dir inst local -a seen=()
+	[ -d "$debug_root" ] || return 1
+	while IFS= read -r line; do
+		bdf="${line%% *}" [ -n "$bdf" ] || continue
+		for dir in "$debug_root"/[0-9]*; do
+			[ -e "$dir/name" ] || continue
+			inst="${dir##*/}" [[ "$inst" =~ ^[0-9]+$ ]] || continue
+			[ "$inst" -lt 128 ] || continue
+			if grep -Fqi "$bdf" "$dir/name" 2>/dev/null; then printf '%s\n' "$inst"; return 0; fi
+		done
+	done < <(lspci -Dnn 2>/dev/null | grep -i '\[1002:13fe\]' || true)
+	for dir in "$debug_root"/[0-9]*; do
+		[ -e "$dir/name" ] || continue
+		inst="${dir##*/}" [[ "$inst" =~ ^[0-9]+$ ]] || continue
+		[ "$inst" -lt 128 ] || continue
+		seen+=("$inst")
+	done
+	[ "${#seen[@]}" -eq 1 ] || return 1
+	printf '%s\n' "${seen[0]}"; return 0
+}
+
+select_umr_instance() {
+	local mode="${1:-default}" detected configured_instance="" configured_source=""
+	if [ -n "$UMR_INSTANCE" ]; then
+		validate_umr_instance "$UMR_INSTANCE" || die "invalid --umr-instance '$UMR_INSTANCE'"
+		UMR_INSTANCE_SOURCE="${UMR_INSTANCE_SOURCE:-env}" configured_instance="$UMR_INSTANCE" configured_source="$UMR_INSTANCE_SOURCE"
+		if [ "$mode" != "apply-service" ] || [ "$UMR_INSTANCE_SOURCE" = "cli" ]; then init_umr_instance_args; return 0; fi
+	fi
+	detected="$(detect_umr_instance || true)"
+	if [ -n "$detected" ]; then UMR_INSTANCE="$detected" UMR_INSTANCE_SOURCE="auto"
+	elif [ -n "$configured_instance" ]; then UMR_INSTANCE="$configured_instance" UMR_INSTANCE_SOURCE="$configured_source"
+	else UMR_INSTANCE="" UMR_INSTANCE_SOURCE="default"; fi
+	init_umr_instance_args
+}
+
+need_root() { [ "$(id -u)" = "0" ] || die "register writes require root"; }
+need_umr_root() { [ "$(id -u)" = "0" ] || die "umr register access requires root."; }
+needs_root_command() { local cmd="$1"; root_reason_for_command "$cmd" >/dev/null; }
+
+root_reason_for_command() {
+	local cmd="$1"
+	case "$cmd" in
+		""|menu|status|table|apply-service|stock-dispatch|enable|disable|enable-wgp|disable-wgp) printf '%s' "it needs live UMR register access"; return 0 ;;
+		install-service|write-service-table|uninstall-service) printf '%s' "it needs root to write systemd files"; return 0 ;;
+		cpu-unlock) printf '%s' "it needs root for SMU access through PCI config space"; return 0 ;;
+		install-umr) printf '%s' "it needs root to install host packages"; return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+reexec_with_sudo_if_needed() {
+	local cmd="$1"; shift; local reason script_path
+	[ "$(id -u)" = "0" ] && return 0
+	reason="$(root_reason_for_command "$cmd" || true)" [ -n "$reason" ] || return 0
+	command -v sudo >/dev/null 2>&1 || die "this command requires root, and sudo was not found"
+	script_path="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
+	info "re-running with sudo: $reason"
+	exec sudo --preserve-env=UMR,UMR_ASIC,UMR_INSTANCE "$script_path" "$@"
+}
+print_disclaimer() {
+	panel_title "Safety Disclaimer"
+	printf '| %-76s |\n' "This tool writes low-level AMDGPU registers on BC-250 hardware."
+	printf '| %-76s |\n' "Incorrect values can freeze the GPU, crash the system, or force a reboot."
+	printf '| %-76s |\n' "You may lose unsaved work and can increase power draw and thermals."
+	printf '| %-76s |\n' "No warranty is provided by the authors or contributors of this script."
+	printf '| %-76s |\n' "You are fully responsible for validation, monitoring, and any outcomes."
+	printf '| %-76s |\n' "Recommended: stable PSU, active cooling, and a remote shell fallback."
+	hr
+}
+
+confirm_disclaimer() {
+	local ans
+	[ "${DISCLAIMER_ACCEPTED:-0}" -eq 1 ] && return 0
+	if [ "${YES:-0}" -eq 1 ]; then
+		if [ "${DISCLAIMER_NONINTERACTIVE_SHOWN:-0}" -eq 0 ]; then
+			printf '\n'; print_disclaimer
+			warn "--yes is set; continuing without interactive acknowledgment"
+			DISCLAIMER_NONINTERACTIVE_SHOWN=1
+		fi
+		DISCLAIMER_ACCEPTED=1; return 0
+	fi
+	while true; do
+		printf '\n'; print_disclaimer
+		prompt_line "Type 'accept' to continue or 'no' to cancel: "
+		read -r ans
+		case "$ans" in
+			accept|ACCEPT|Accept) DISCLAIMER_ACCEPTED=1; return 0 ;;
+			n|N|no|NO|No|cancel|CANCEL|Cancel) warn "cancelled"; return 1 ;;
+			*) warn "type accept or no" ;;
+		esac
+	done
+}
+
+confirm_service_install() {
+	confirm_disclaimer || return 1
+	[ "${YES:-0}" -eq 1 ] && return 0
+	local ans
+	while true; do
+		printf '\n'; panel_title "Confirm Service Install"
+		printf '| %-76s |\n' "This will install and enable the boot service."
+		printf '| %-76s |\n' "Use write-service-table when you want to change the saved WGP table."
+		hr; prompt_line "Install/update service? [y/n]: "
+		read -r ans
+		case "$ans" in
+			y|Y|yes|YES) return 0 ;;
+			n|N|no|NO) warn "cancelled"; return 1 ;;
+			*) warn "type y or n" ;;
+		esac
+	done
+}
+
+confirm_write_service_table() {
+	[ "${YES:-0}" -eq 1 ] && return 0
+	local ans
+	while true; do
+		printf '\n'; panel_title "Confirm Boot Table Save"
+		printf '| %-76s |\n' "This will save the current live WGP table as the boot profile."
+		printf '| %-76s |\n' "The installed service will use this table on the next start/boot."
+		hr; prompt_line "Write current table to service config? [y/n]: "
+		read -r ans
+		case "$ans" in
+			y|Y|yes|YES) return 0 ;;
+			n|N|no|NO) warn "cancelled"; return 1 ;;
+			*) warn "type y or n" ;;
+		esac
+	done
+}
+
+mask_tokens() {
+	local mask="$1" driver_mask="${2:-0}" wgp bit token out=""
+	for wgp in 0 1 2 3 4; do
+		bit=$((1 << wgp))
+		if [ $((driver_mask & bit)) -ne 0 ] && [ $((mask & bit)) -ne 0 ]; then token="D+"
+		elif [ $((driver_mask & bit)) -ne 0 ]; then token="D!"
+		elif [ $((mask & bit)) -ne 0 ]; then token="S+"
+		else token="--"
+		fi
+		out="${out}${out:+ }$token"
+	done
+	printf '%s\n' "$out"
+}
+
+mask_change_label() {
+	local old="$1" new="$2" wgp bit out=""
+	for wgp in 0 1 2 3 4; do
+		bit=$((1 << wgp))
+		if [ $((old & bit)) -eq 0 ] && [ $((new & bit)) -ne 0 ]; then out="${out}${out:+,}W${wgp}+"
+		elif [ $((old & bit)) -ne 0 ] && [ $((new & bit)) -eq 0 ]; then out="${out}${out:+,}W${wgp}-"
+		fi
+	done
+	printf '%s\n' "${out:-none}"
+}
+
+dispatch_total() {
+	local idx total=0
+	for idx in 0 1 2 3; do total=$((total + $(wgp_mask_cu_count "${target_masks[$idx]}"))); done
+	printf '%s\n' "$total"
+}
+mask_csv() {
+	local -n ref="$1"
+	printf '%s,%s,%s,%s\n' "$(hex_mask "${ref[0]}")" "$(hex_mask "${ref[1]}")" "$(hex_mask "${ref[2]}")" "$(hex_mask "${ref[3]}")"
+}
+
+mask_summary() {
+	local -n ref="$1"
+	printf '%s=%s %s=%s %s=%s %s=%s\n' "SE0.SH0" "$(hex_mask "${ref[0]}")" "SE0.SH1" "$(hex_mask "${ref[1]}")" "SE1.SH0" "$(hex_mask "${ref[2]}")" "SE1.SH1" "$(hex_mask "${ref[3]}")"
+}
+
+load_service_masks() {
+	local line csv item idx value local -a _service_items
+	service_masks=() [ -f "$SERVICE_CONF" ] || return 1
+	while IFS= read -r line; do
+		case "$line" in BC250_WGP_MASKS=*) csv="${line#BC250_WGP_MASKS=}"; break ;; esac
+	done <"$SERVICE_CONF"
+	[ -n "${csv:-}" ] || return 1
+	IFS=',' read -ra _service_items <<<"$csv"
+	[ "${#_service_items[@]}" -eq 4 ] || return 1
+	for idx in 0 1 2 3; do
+		item="${_service_items[$idx]}" [[ "$item" =~ ^(0x[0-9a-fA-F]+|[0-9]+)$ ]] || return 1
+		value=$((item)) [ "$value" -ge 0 ] && [ "$value" -le 31 ] || return 1
+		service_masks[$idx]="$value"
+	done
+	return 0
+}
+
+service_masks_match_current() {
+	local idx
+	[ "${#service_masks[@]}" -eq 4 ] || return 1
+	[ "${#current_masks[@]}" -eq 4 ] || return 1
+	for idx in 0 1 2 3; do [ "$((service_masks[idx] & 31))" -eq "$((current_masks[idx] & 31))" ] || return 1; done
+	return 0
+}
+
+confirm_dispatch_plan() {
+	local title="$1" idx ans current target driver
+	confirm_disclaimer || return 1
+	[ "${YES:-0}" -eq 1 ] && return 0
+	while true; do
+		printf '\n'; panel_title "$title"
+		printf '  Legend: D+=driver+routed, S+=SPI+routed, D!=driver+off, --=off\n\n'
+		printf '  +---------+----------------+----------------+-----------------------+\n'
+		printf '  | Row     | Current        | Target         | Change                |\n'
+		printf '  +---------+----------------+----------------+-----------------------+\n'
+		for idx in 0 1 2 3; do
+			current="${current_masks[$idx]}" target="${target_masks[$idx]}" driver="${driver_masks[$idx]:-0}"
+			local row_lbl="SE0.SH0"; [ "$idx" -eq 1 ] && row_lbl="SE0.SH1"; [ "$idx" -eq 2 ] && row_lbl="SE1.SH0"; [ "$idx" -eq 3 ] && row_lbl="SE1.SH1"
+			printf '  | %-7s | %-14s | %-14s | %-21s |\n' "$row_lbl" "$(mask_tokens "$current" "$driver")" "$(mask_tokens "$target" "$driver")" "$(mask_change_label "$current" "$target")"
+		done
+		printf '  +---------+----------------+----------------+-----------------------+\n'
+		printf '\n  Target total: %s%s/40 CUs%s\n' "$BOLD" "$(dispatch_total)" "$RESET"
+		prompt_line "Apply changes? [y/n]: "
+		read -r ans
+		case "$ans" in
+			y|Y|yes|YES) return 0 ;;
+			n|N|no|NO) warn "cancelled"; return 1 ;;
+			*) warn "type y or n" ;;
+		esac
+	done
+}
+check_bc250() { if command -v lspci >/dev/null 2>&1 && lspci -nn 2>/dev/null | grep -qi "$BC250_PCI_ID"; then return 0; fi; warn "BC-250 PCI ID 13fe was not detected by lspci."; return 1; }
+require_bc250_for_write() { if check_bc250; then return 0; fi; [ "${FORCE:-0}" -eq 1 ] || die "refusing register writes on unknown hardware. Use --force only if this is a BC-250 and lspci detection is wrong."; warn "forcing register writes despite failed BC-250 PCI detection"; }
+
+install_umr() {
+	need_root
+	if command -v dpkg >/dev/null 2>&1 && dpkg -s umr >/dev/null 2>&1; then info "umr is already installed."; return 0; fi
+	if command -v pacman >/dev/null 2>&1 && pacman -Qi umr >/dev/null 2>&1; then info "umr is already installed."; return 0; fi
+	if command -v apt-get >/dev/null 2>&1; then
+		info "Installing umr build dependencies with apt-get..."
+		apt-get update -qq || true
+		DEBIAN_FRONTEND=noninteractive apt-get install -y git build-essential cmake libncurses-dev libpciaccess-dev libdrm-dev llvm-dev libnanomsg-dev libgl-dev libegl-dev libgles-dev libopengl-dev libgbm-dev libedit-dev libz3-dev libzstd-dev libcurl4-gnutls-dev libsdl2-dev python3-sphinx
+		info "Cloning and building umr from source..."
+		( build_tmp="$(mktemp -d)"; cd "$build_tmp"; git clone https://freedesktop.org; cd umr; cmake -DUMR_GUI=OFF -B build-dir -S .; cmake --build build-dir; info "Packaging and installing umr..."; cd build-dir; sed -i 's/set(CPACK_DEBIAN_PACKAGE_DEPENDS ".*")/set(CPACK_DEBIAN_PACKAGE_DEPENDS "")/' CPackConfig.cmake; sed -i 's/set(CPACK_GENERATOR "RPM;DEB")/set(CPACK_GENERATOR "DEB")/' CPackConfig.cmake; cpack; dpkg -i umr-*-Linux.deb; cd /; rm -rf "$build_tmp" ) && return 0
+		die "Failed to build and install umr from source."
+	fi
+	if command -v pacman >/dev/null 2>&1; then if pacman -Si umr >/dev/null 2>&1; then info "Installing umr with pacman..."; pacman -S --needed umr; return 0; fi; fi
+	if command -v paru >/dev/null 2>&1; then local user_name="${SUDO_USER:-}"; [ -n "$user_name" ] || die "paru install needs SUDO_USER set"; info "Installing umr with paru as $user_name..."; sudo -u "$user_name" paru -S --needed umr; return 0; fi
+	if command -v rpm-ostree >/dev/null 2>&1; then if rpm-ostree status 2>/dev/null | grep -q "umr"; then info "umr is already layered via rpm-ostree."; return 0; fi; info "Installing umr with rpm-ostree (reboot required)..."; if rpm-ostree install umr; then info "umr was staged successfully. Reboot, then run this script again."; return 0; fi; die "rpm-ostree could not layer umr automatically."; fi
+	if command -v dnf >/dev/null 2>&1; then info "Installing umr with dnf..."  dnf install -y umr && return 0; die "dnf could not install umr."; fi
+	die "could not install umr automatically; please install it manually first"
+}
+have_setpci() { command -v setpci >/dev/null 2>&1 && [ -e "/sys/bus/pci/devices/$SMN_PCI_DEV/config" ]; }
+pci_cfg_write32() { setpci -s "$SMN_PCI_DEV" "$1.L=$(printf '%08x' "$2")"; }
+pci_cfg_read32() { local out; out="$(setpci -s "$SMN_PCI_DEV" "$1.L")" || return 1; printf '0x%s\n' "$out"; }
+smn_read32() { pci_cfg_write32 B8 "$1" || return 1; pci_cfg_read32 BC; }
+smn_write32() { pci_cfg_write32 B8 "$1" && pci_cfg_write32 BC "$2"; }
+smu_rsp_done() { case "$(( $1 ))" in 1|252|253|254|255) return 0 ;; esac; return 1; }
+
+smu_q3_send() {
+	local msg="$1" arg="$2" deadline rsp; deadline=$((SECONDS + 6))
+	while :; do rsp="$(smn_read32 "$SMU_Q3_RSP")" || return 1; smu_rsp_done "$rsp" && break; [ "$SECONDS" -lt "$deadline" ] || break; sleep 0.002; done
+	smn_write32 "$SMU_Q3_RSP" 0 || return 1; smn_write32 "$SMU_Q3_ARG" "$arg" || return 1; smn_write32 "$((SMU_Q3_ARG + 4))" 0 || return 1; smn_write32 "$SMU_Q3_CMD" "$msg" || return 1; deadline=$((SECONDS + 6))
+	while [ "$SECONDS" -lt "$deadline" ]; do rsp="$(smn_read32 "$SMU_Q3_RSP")" || return 1; if smu_rsp_done "$rsp"; then printf '%s\n' "$rsp"; return 0; fi; sleep 0.002; done
+	return 2
+}
+
+cpu_present_threads() {
+	local present part lo hi total=0 local -a parts; present="$(cat /sys/devices/system/cpu/present 2>/dev/null)" || { printf '0\n'; return; }
+	IFS=',' read -ra parts <<<"$present"
+	for part in "${parts[@]}"; do if [[ "$part" == *-* ]]; then lo="${part%-*}" hi="${part#*-}" total=$((total + hi - lo + 1)); else total=$((total + 1)); fi; done
+	printf '%s\n' "$total"
+}
+cpu_unlock_now() {
+	need_root; local present; present="$(cpu_present_threads)"
+	if [ "$present" -ge 16 ]; then info "CPU cores are already unlocked and active ($present threads present)"; return 0; fi
+	if ! have_setpci; then err "setpci or PCI device $SMN_PCI_DEV unavailable; cannot unlock CPU cores"; return 1; fi
+	local before after st rc=0 governor_was_active=0
+	if systemctl is-active --quiet "$GOVERNOR_SERVICE" 2>/dev/null; then governor_was_active=1; info "stopping $GOVERNOR_SERVICE for SMU mailbox access"; systemctl stop "$GOVERNOR_SERVICE"; fi
+	if before="$(smn_read32 "$CPU_MASK_REG")"; then
+		info "core presence mask: $before"
+		if [ $((before & 0xFF)) -eq $((0xFF)) ]; then info "mask is already 0xFF; reboot to bring up all 8 cores (16 threads)"; CPU_UNLOCK_REBOOT_NEEDED=1
+		elif [ $((before & 0xFF)) -ne $((0x77)) ]; then err "unexpected core mask $(printf '0x%02X' $((before & 0xFF))), expected 0x77; aborting"; rc=1
+		elif [ "${DRY_RUN:-0}" -eq 1 ]; then printf 'dry-run: setpci SMU Q3 msg 0x%02X arg 0x%08X on %s\n' "$SMU_MSG_WRITE_FF" "$CPU_MASK_REG" "$SMN_PCI_DEV"
+		else
+			st="$(smu_q3_send "$SMU_MSG_WRITE_FF" "$CPU_MASK_REG")" || rc=$?
+			if [ "$rc" -eq 2 ]; then err "SMU mailbox timeout; aborting, do not retry before a reboot"
+			elif [ "$rc" -ne 0 ]; then err "PCI config access failed during SMU message"
+			elif [ $((st)) -ne 1 ]; then err "SMU Q3 0x98 returned $(printf '0x%02X' $((st))); is the governor stopped?"; rc=1
+			else
+				sleep 0.2; after="$(smn_read32 "$CPU_MASK_REG")" || after=""
+				info "core mask after write: ${after:-read failed}"
+				if [ -n "$after" ] && [ $((after & 0xFF)) -eq $((0xFF)) ]; then info "CPU core unlock written"; CPU_UNLOCK_REBOOT_NEEDED=1; else err "core mask did not take"; rc=1; fi
+			fi
+		fi
+	else err "failed to read core presence mask via setpci"; rc=1; fi
+	if [ "$governor_was_active" -eq 1 ]; then systemctl start "$GOVERNOR_SERVICE" || warn "failed to restart $GOVERNOR_SERVICE"; fi
+	return "$rc"
+}
+
+confirm_cpu_unlock() {
+	confirm_disclaimer || return 1; [ "${YES:-0}" -eq 1 ] && return 0
+	local ans
+	while true; do
+		printf '\n'; panel_title "Confirm CPU Core Unlock"
+		printf '| %-76s |\n' "This sends SMU message 0x98 to raise the core presence mask 0x77 -> 0xFF,"
+		printf '| %-76s |\n' "enabling the 2 factory-disabled CPU cores (6c/12t -> 8c/16t) on next reboot."
+		printf '| %-76s |\n' "Those cores may have been disabled for a reason; stress-test before trusting."
+		printf '| %-76s |\n' "The unlock is volatile: re-run it after a cold power cycle."
+		hr; prompt_line "Unlock CPU cores now? [y/n]: " read -r ans
+		case "$ans" in y|Y|yes|YES) return 0 ;; n|N|no|NO) warn "cancelled"; return 1 ;; *) warn "type y or n" ;; esac
+	done
+}
+
+offer_cpu_unlock_reboot() {
+	local ans; [ "${YES:-0}" -eq 1 ] && { info "reboot when ready to bring up all 8 cores"; return 0; }
+	while true; do
+		printf '\n'; prompt_line "Reboot now to bring up all 8 cores? [y/n]: " read -r ans
+		case "$ans" in y|Y|yes|YES) info "rebooting..."; systemctl reboot; return 0 ;; n|N|no|NO) info "reboot skipped; the cores will come up on the next reboot"; return 0 ;; *) warn "type y or n" ;; esac
+	done
+}
+
+cpu_unlock() { need_root; require_bc250_for_write; confirm_cpu_unlock || return 0; cpu_unlock_now || return 1; if [ "${CPU_UNLOCK_REBOOT_NEEDED:-0}" -eq 1 ]; then offer_cpu_unlock_reboot; fi; }
+
+cpu_status() {
+	local present online mask lo state; present="$(cpu_present_threads)" online="$(nproc 2>/dev/null || printf '?')"
+	if [ "$present" -ge 16 ]; then state="unlocked 8c/16t"
+	elif systemctl is-active --quiet "$GOVERNOR_SERVICE" 2>/dev/null; then state="mask not probed (governor active)"
+	elif ! have_setpci; then state="mask unavailable (setpci missing)"
+	elif mask="$(smn_read32 "$CPU_MASK_REG" 2>/dev/null)"; then
+		lo=$((mask & 0xFF))
+		if [ "$lo" -eq $((0xFF)) ]; then state="unlock armed; reboot pending"
+		elif [ "$lo" -eq $((0x77)) ]; then state="stock 6c/12t"
+		else state="unknown mask $(printf '0x%02X' "$lo")"; fi
+	else state="mask read failed"; fi
+	printf '  CPU        : %s threads present, %s online; %s\n' "$present" "$online" "$state"
+}
+install_service() {
+	need_root; need_umr; confirm_service_install || return 0
+	local source_path; source_path="$(readlink -f "$0")"
+	if ! install -m 0755 "$source_path" "$SERVICE_BIN"; then if [ -d /var/usrlocal/bin ]; then SERVICE_BIN="/var/usrlocal/bin/bc250-cu-live-manager"; install -m 0755 "$source_path" "$SERVICE_BIN"; else die "failed to install service binary"; fi; fi
+	cat > "$SERVICE_PATH" <<EOF
+[Unit]
+Description=BC-250 CU saved enumeration and dispatch
+After=systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-$SERVICE_CONF
+ExecStartPre=/usr/bin/bash -c 'for _ in {1..30}; do compgen -G "/dev/dri/renderD*" >/dev/null && exit 0; sleep 1; done; exit 1'
+ExecStart=$SERVICE_BIN --yes apply-service
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+	rm -f "$OLD_UDEV_RULE"; systemctl daemon-reload; systemctl enable "$SERVICE_NAME"
+	if [ -f "$SERVICE_CONF" ]; then info "installed and enabled $SERVICE_NAME"; info "saved boot table will be applied on next boot; use apply-service to apply it now"
+	else info "installed and enabled $SERVICE_NAME"; warn "no boot table is saved yet; use write-service-table before rebooting"; fi
+}
+
+write_service_table() {
+	need_root; need_umr; select_asic; require_bc250_for_write; local -a current_masks; read_current_masks; confirm_write_service_table || return 0
+	cat > "$SERVICE_CONF" <<EOF
+# BC-250 live manager boot profile.
+# Format: SE0.SH0,SE0.SH1,SE1.SH0,SE1.SH1 SPI WGP masks.
+BC250_WGP_MASKS=$(mask_csv current_masks)
+UMR_ASIC=$ASIC
+UMR_INSTANCE=
+UMR=$UMR
+EOF
+	chmod 0644 "$SERVICE_CONF"; info "saved boot table: $(mask_summary current_masks)"
+}
+
+uninstall_service() { need_root; systemctl disable --now "$SERVICE_NAME" >/dev/null 2>&1 || true; rm -f "$SERVICE_PATH" "$SERVICE_BIN" "/var/usrlocal/bin/bc250-cu-live-manager" "$SERVICE_CONF" "$OLD_UDEV_RULE"; systemctl daemon-reload; info "removed $SERVICE_NAME"; }
+select_asic() { local out value; out="$("$UMR" "${UMR_INSTANCE_ARGS[@]}" -r "$ASIC.$REG_SPI" 2>&1 || true)" value="$(printf '%s\n' "$out" | parse_hex)"; [ -n "$value" ] && return 0; die "failed to read $ASIC.$REG_SPI with umr."; }
+reg_candidates() { printf '%s\n' "$1"; }
+parse_hex() { awk '{ for (i = NF; i >= 1; i--) { if ($i ~ /^0x[0-9a-fA-F]+$/) { print $i; exit } } }'; }
+umr_output_failed() { local out="$1"; printf '%s\n' "$out" | grep -Eqi '(\[ERROR\]|error|failed|invalid|unknown|cannot|no such)'; }
+read_reg_bank() { local reg="$1" se="$2" sh="$3" value; if value="$(try_read_reg_bank "$reg" "$se" "$sh")"; then printf '%s\n' "$value"; return 0; fi; die "failed to read $reg"; }
+
+try_read_reg_bank() {
+	local reg="$1" se="$2" sh="$3" candidate out value; LAST_REG_PATH=""
+	while IFS= read -r candidate; do
+		out="$("$UMR" "${UMR_INSTANCE_ARGS[@]}" -r "$ASIC.$candidate" -b "$se" "$sh" 0xffffffff 2>&1 || true)" value="$(printf '%s\n' "$out" | parse_hex)"
+		if [ -z "$value" ]; then out="$("$UMR" "${UMR_INSTANCE_ARGS[@]}" -r "$ASIC.$candidate" -b "$se" "$sh" 2>&1 || true)"; value="$(printf '%s\n' "$out" | parse_hex)"; fi
+		if [ -n "$value" ]; then LAST_REG_PATH="$ASIC.$candidate"; printf '%s\n' "$value"; return 0; fi
+	done < <(reg_candidates "$reg")
+	return 1
+}
+try_write_reg_global() {
+	local reg="$1" value="$2" candidate out; LAST_REG_PATH=""
+	while IFS= read -r candidate; do
+		LAST_REG_PATH="$ASIC.$candidate"; if [ "${DRY_RUN:-0}" -eq 1 ]; then printf 'dry-run: %s -w %s %s\n' "$(umr_cmd_string)" "$LAST_REG_PATH" "$value"; return 0; fi
+		out="$("$UMR" "${UMR_INSTANCE_ARGS[@]}" -w "$LAST_REG_PATH" "$value" 2>&1 || true)" if ! umr_output_failed "$out"; then return 0; fi
+	done < <(reg_candidates "$reg")
+	return 1
+}
+
+write_reg_bank() {
+	local reg="$1" value="$2" se="$3" sh="$4" candidate out; LAST_REG_PATH=""
+	while IFS= read -r candidate; do
+		LAST_REG_PATH="$ASIC.$candidate"; if [ "${DRY_RUN:-0}" -eq 1 ]; then printf 'dry-run: %s -w %s %s -b %s %s 0xffffffff\n' "$(umr_cmd_string)" "$LAST_REG_PATH" "$value" "$se" "$sh"; return 0; fi
+		out="$("$UMR" "${UMR_INSTANCE_ARGS[@]}" -w "$LAST_REG_PATH" "$value" -b "$se" "$sh" 0xffffffff 2>&1 || true)" if ! umr_output_failed "$out"; then return 0; fi
+	done < <(reg_candidates "$reg")
+	die "failed to write $reg=$value"
+}
+
+hex_to_dec() { printf '%d' "$(( $1 ))"; }
+hex_mask() { printf '0x%02x' "$(( $1 & 31 ))"; }
+wgp_mask_cu_count() { local mask="$1" wgp count=0; for wgp in 0 1 2 3 4; do if [ $((mask & (1 << wgp))) -ne 0 ]; then count=$((count + 2)); fi; done; printf '%s\n' "$count"; }
+module_status() { local mode enum; mode="$(cat /sys/module/amdgpu/parameters/bc250_cc_write_mode 2>/dev/null || true)" enum="$(dmesg 2>/dev/null | grep -o 'active_cu_number [0-9]*' | tail -1 | awk '{print $2}' || true)"; printf '  amdgpu     : bc250_cc_write_mode=%s, active_cu_number=%s\n' "${mode:-not exposed}" "${enum:-unknown}"; }
+live_table_rule() { printf '  +---------+------+------+------+------+------+------+------------+--------+\n'; }
+live_table_header() { live_table_rule; printf '  | Row     | WGP0 | WGP1 | WGP2 | WGP3 | WGP4 | SPI  | CC         | CUs    |\n'; printf '  |         | 0-1  | 2-3  | 4-5  | 6-7  | 8-9  |      |            |        |\n'; live_table_rule; }
+
+live_wgp_dispatch_cell() {
+	local spi_on="$1" driver_on="${2:-0}"
+	if [ "$driver_on" -ne 0 ] && [ "$spi_on" -ne 0 ]; then printf '  %sD+%s  |' "$GREEN$BOLD" "$RESET"
+	elif [ "$driver_on" -ne 0 ] && [ "$spi_on" -eq 0 ]; then printf '  %sD!%s  |' "$RED$BOLD" "$RESET"
+	elif [ "$spi_on" -ne 0 ]; then printf '  %sS+%s  |' "$CYAN" "$RESET"
+	else printf '  %s--%s  |' "$DIM" "$RESET"; fi
+}
+read_driver_wgp_masks() {
+	local line idx mask local -a out=()
+	while IFS= read -r line; do out+=("$line"); done < <(python3 <<'PYEOF'
+import ctypes, os, struct, sys
+def open_render_node():
+    candidates = ["/dev/dri/renderD128"]
+    dri = "/dev/dri"
+    if os.path.isdir(dri):
+        for name in sorted(os.listdir(dri)):
+            if name.startswith("renderD"):
+                path = os.path.join(dri, name)
+                if path not in candidates: candidates.append(path)
+    last = None
+    for path in candidates:
+        try: return os.open(path, os.O_RDWR)
+        except OSError as exc: last = exc
+    raise RuntimeError(f"no DRM render node could be opened: {last}")
+try:
+    libdrm = None
+    for lib_path in ["libdrm_amdgpu.so.1", "/usr/lib64/libdrm_amdgpu.so.1", "/usr/lib/x86_64-linux-gnu/libdrm_amdgpu.so.1"]:
+        try: libdrm = ctypes.CDLL(lib_path); break
+        except OSError: continue
+    if libdrm is None: raise RuntimeError("libdrm_amdgpu driver library not found natively on this host filesystem.")
+    fd = open_render_node()
+    dev = ctypes.c_void_p()
+    maj, min_ = ctypes.c_uint32(), ctypes.c_uint32()
+    rc = libdrm.amdgpu_device_initialize(fd, ctypes.byref(maj), ctypes.byref(min_), ctypes.byref(dev))
+    if rc != 0: raise RuntimeError(f"amdgpu_device_initialize failed: {rc}")
+    buf = (ctypes.c_uint8 * 1024)()
+    rc = libdrm.amdgpu_query_info(dev, 0x16, 1024, ctypes.byref(buf))
+    if rc != 0: raise RuntimeError(f"amdgpu_query_info(CU_INFO) failed: {rc}")
+    raw = bytes(buf)
+    num_se = struct.unpack_from("<I", raw, 20)[0]
+    num_sh = struct.unpack_from("<I", raw, 24)[0]
+    rows = []
+    for se in range(min(num_se, 2)):
+        for sh in range(min(num_sh, 2)):
+            bm = struct.unpack_from("<I", raw, 56 + (se * 4 + sh) * 4)[0]
+            wgp_mask = 0
+            for wgp in range(5):
+                if bm & (0x3 << (wgp * 2)): wgp_mask |= 1 << wgp
+            rows.append((se * 2 + sh, wgp_mask))
+    for idx, mask in rows: print(f"{idx} {mask}")
+except Exception: sys.exit(1)
+finally:
+    try:
+        if 'dev' in locals() and dev: libdrm.amdgpu_device_deinitialize(dev)
+    except Exception: pass
+    try:
+        if 'fd' in locals() and fd >= 0: os.close(fd)
+    except Exception: pass
+PYEOF
+	)
+	[ "${#out[@]}" -gt 0 ] || return 1
+	for idx in 0 1 2 3; do driver_masks[$idx]=0; done
+	for line in "${out[@]}"; do read -r idx mask <<<"$line"; [[ "$idx" =~ ^[0-3]$ ]] || continue; driver_masks[$idx]="$mask"; done
+	return 0
 }
 
 # ==============================================================================
-# 🧬 HARDENED SERVICE ACTIVATION ENGINE (PREVENTS MISSING SERVICE ALERTS)
+# 🚀 STEP-HIGHLIGHTER INTERACTIVE MENU INTERFACE INTERPRETER
 # ==============================================================================
-finalize_settings() {
-    log "${GREEN}[Step 9] Finalizing and activating SMU service...${NC}"
-    
-    # 🧬 DYNAMIC PATH RESOLVER: Detects if the config file is inside a sub-toolbox directory
-    local local_conf="overclock.conf"
-    if [ -f "$REAL_HOME/Bazzite_Toolbox/Overclock/overclock.conf" ]; then
-        local_conf="$REAL_HOME/Bazzite_Toolbox/Overclock/overclock.conf"
-    fi
-
-    # Pass the fully verified path explicitly to the toolchain application binary
-    bc250-apply --install "$local_conf" >> "$LOG_FILE" 2>&1
-    
-    # Check if the service actually exists before trying to touch it!
-    if [[ -f "/etc/systemd/system/bc250-smu-oc.service" ]]; then
-        sudo systemctl daemon-reload >> "$LOG_FILE" 2>&1
-        sudo systemctl restart bc250-smu-oc.service >> "$LOG_FILE" 2>&1
-        sudo systemctl enable bc250-smu-oc.service >> "$LOG_FILE" 2>&1
-        clear
-        echo -e "${YELLOW}--- Current SMU Service Status ${RED}Press [Enter] to return to menu ---${NC}"
-        sudo systemctl status bc250-smu-oc.service
-    else
-        clear
-        echo -e "${GREEN}[✓] Settings applied to local conf! Toolchain installation required to activate as boot service.${NC}"
-    fi
-    read -p "Press [Enter] to return to the tuning menu..."
-}
-
-# ==============================================================================
-# 🎛️ SURGICAL HARDWARE SMU GOVERNOR CEILING MANUAL OVERRIDES
-# ==============================================================================
-apply_manual_clock_clamp() {
-    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
-    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
-    local BOLD='\033[1m' local BIGreen='\033[1;92m' local BIBlack='\033[1;90m'
-    local SMU_CONF="/etc/cyan-skillfish-governor-smu/config.toml"
-
-    clear
-    echo -e  "       ${CYAN}====================================================================${RESET}"
-    echo -e  "              🚀 GFX1013 LIVE GOVERNOR CEILING MANUAL OVERRIDE INJECTOR        "
-    echo -e  "       ${CYAN}====================================================================${RESET}"
-    
-    if [[ ! -f "$SMU_CONF" ]]; then
-        echo -e "${RED}❌ ERROR: Governor profile template missing at $SMU_CONF${RESET}"
-        echo -e "         Please run Option [M] from the menu first to seed the template."
-        echo ""
-        read -rp "Press [Enter] to return..." dummy; return 1
-    fi
-
-    # 🧬 PREMIUM SYMMETRICAL HARDWARE OVERRIDE REFERENCE TARGETS
-    echo -e "  ${CYAN}╔════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║             ${BOLD}${BICyan}BC-250 SMU MANUAL CLOCK TUNING SAFE REFERENCE MATRIX${NC}               ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    printf "  ${CYAN}║${NC}   %b%-10s%b │ %-20s │ %-39s  ${CYAN}║${NC}\n" "${BOLD}" "GPU Clock" "${RESET}" "Safe Voltage (VID)" "Target Silicon Profile Performance"
-    echo -e "  ${CYAN}║${BIBlack}   ──────────────┼──────────────────────┼───────────────────────────────────    ${CYAN}║${NC}"
-    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s       ${CYAN}║${NC}\n" "1400 MHz" "750" "780" "Factory Baseline (Dead Silent)"
-    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s       ${CYAN}║${NC}\n" "1600 MHz" "780" "820" "Balanced Power Eco Layout"
-    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-31s%b       ${CYAN}║${NC}\n" "${BIGreen}" "1800 MHz" "${NC}" "${BIGreen}" "880" "900" "${NC}" "${BIGreen}" "🎯 EFFICIENCY GAMING SWEET SPOT" "${NC}"
-    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-31s%b       ${CYAN}║${NC}\n" "${BIGreen}" "1850 MHz" "${NC}" "${BIGreen}" "900" "920" "${NC}" "${BIGreen}" "🎯 TUNED VOLTAGE HEADROOM CLAMP" "${NC}"
-    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s   ${CYAN}║${NC}\n" "2000 MHz" "940" "965" "Aggressive Profile (High Fan Speed)"
-    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-31s       ${CYAN}║${NC}\n" "2100 MHz" "980" "1005" "Extreme Overclock Air Ceiling"
-    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-31s%b       ${CYAN}║${NC}\n" "${RED}" "2150 MHz" "${NC}" "${RED}" "1010" "1025" "${NC}" "${RED}" "⚠️ MAXIMUM VOLTAGE LIMIT SHIELD" "${NC}"
-    echo -e "  ${CYAN}╚════════════════════════════════════════════════════════════════════════════════╝${NC}\n"
-    read -rp "👉 Enter Target Maximum GPU Frequency (MHz) [e.g. 1800, 2150]: " target_freq
-    read -rp "👉 Enter Target Maximum GPU Voltage (mV)     [e.g. 900, 1025]: " target_volt
-
-    if [[ ! "$target_freq" =~ ^[0-9]+$ ]] || [[ ! "$target_volt" =~ ^[0-9]+$ ]]; then
-        echo -e "${RED}❌ ERROR: Parameters must be explicit integers.${RESET}"; sleep 2; return 1
-    fi
-
-    if (( target_freq > 2200 )) || (( target_volt > 1050 )); then
-        echo -e "${RED}❌ CRITICAL LIMIT SHIELD: Ceilings exceeded! Aborting injection.${RESET}"; sleep 3; return 1
-    fi
-
-    echo -e "${YELLOW}[⚙] Hot-patching governor boundary tables securely...${RESET}"
-    # 🧬 ANCHORED LINE BOUNDARIES: Matches strict line starts to isolate fields perfectly
-    sudo sed -i "s/^max = .*/max = $target_freq/g" "$SMU_CONF" 2>/dev/null
-    sudo sed -i "s/^max_voltage = .*/max_voltage = $target_volt/g" "$SMU_CONF" 2>/dev/null
-    
-    # 🧬 RE-GENERATE DYNAMIC RE-INDEX PASS
-    sudo systemctl daemon-reload 2>/dev/null || true
-    sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null
-    
-    echo -e "${GREEN}[✓] SUCCESS: Silicon parameters locked! Service refreshed smoothly.${RESET}"
-    sleep 2; return 0
-}
-
-run_cpu_core_stress_test() {
-    clear
-    echo -e "${BOLD}${YELLOW}=== Launching Silicon Per-Core Stability Sweep ===${NC}"
-    echo -e "  ${DIM}This utility runs heavy computation verification matrices to stress-test locks.${NC}\n"
-
-    local test_dir="$REAL_HOME/Bazzite_Toolbox/Diagnostics"
-    mkdir -p "$test_dir" 2>/dev/null
-    cd "$test_dir" || return 1
-
-    echo -e "${YELLOW}[●] Step 1/3: Staging verification dependencies via system package layers...${NC}"
-    (sudo rpm-ostree cleanup -p 2>/dev/null || true) &>/dev/null
-    (sudo rpm-ostree install -y stress-ng 2>/dev/null || true) &>/dev/null
-
-    echo -e "${YELLOW}[●] Step 2/3: Fetching upstream stability configuration maps...${NC}"
-    (sudo rm -f test-cores.sh) &>/dev/null
-    (sudo -u "$REAL_USER" wget https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/main.cpp 2>/dev/null || true) &>/dev/null
-
-    echo -e "${YELLOW}[●] Step 3/3: Initializing per-core transaction sweep matrices...${NC}\n"
-    if [[ -s "test-cores.sh" ]]; then
-        chmod +x test-cores.sh
-        sudo ./test-cores.sh
-    else
-        echo -e "${YELLOW}[ℹ] Upstream script wrapper cached. Running direct compute verifications (60s)...${NC}"
-        sudo stress-ng --cpu $(nproc) --cpu-method all --verify --timeout 60s --metrics-brief
-    fi
-
-    echo -e "\n${GREEN}✔  Stability sweep complete! Check parameters if threads threw faults.${NC}\n"
-    read -rp "  Press [Enter] to return to the primary management loop... "
-}
-
-# ==============================================================================
-# 🧬 HARDWARE-AWARE PERFORMANCE PROFILE CONFIGURATION GENERATOR
-# ==============================================================================
-configure_governor_profile() {
-    clear
-    echo ""
-    echo -e "  ${CYAN}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║               ${BOLD}${BICyan}BC-250 SILICON GOVERNOR & PERFORMANCE PROFILE MANAGER${NC}                         ${CYAN}║${NC}"
-    echo -e "  ${CYAN}║                    ${DIM}* HARDWARE SPECIFICATIONS AUDIT WIZARD *${NC}                                 ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    echo -e "  ${CYAN}╔═ Dynamic Telemetry Scanner ═════════════════════════════════════════════════════════════════╗${NC}"
-
-    local detected_cus=24
-    if [[ -f /etc/bc250-cu-live-manager.conf ]]; then
-        local raw_masks
-        raw_masks=$(grep "BC250_WGP_MASKS=" /etc/bc250-cu-live-manager.conf | cut -d= -f2)
-        if [[ -n "$raw_masks" ]]; then
-            local total_bits=0
-            IFS=',' read -r -a mask_array <<< "$raw_masks"
-            for mask in "${mask_array[@]}"; do
-                local val=$((mask))
-                for ((i=0; i<32; i++)); do (( (val >> i) & 1 )) && ((total_bits++)); done
-            done
-            (( detected_cus = total_bits * 2 ))
-        fi
-    fi
-
-    if (( detected_cus == 0 )) && command -v umr &> /dev/null; then
-        detected_cus=$(umr -i 0 -g 2>/dev/null | grep -i "cu_per_sh" | awk '{print $3 * 4}')
-    fi
-    if [[ ! "$detected_cus" =~ ^[0-9]+$ ]] || (( detected_cus <= 0 )); then detected_cus=24; fi
-
-    local live_threads=$(nproc 2>/dev/null || echo "12")
-    local detected_cores=$(( live_threads / 2 ))
-
-    echo -e "  ${CYAN}║${NC}   ${BOLD}${GREEN}✔ ACTIVE HARDWARE IDENTIFIED:${NC} ${detected_cus}/40 Compute Units  │  ${detected_cores} CPU Cores / ${live_threads} Threads            ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-
-    echo -e "  ${CYAN}╔═ HARDWARE AUDIT: COOLING SYSTEM AND ENVIRONMENT ════════════════════════════════════════════╗${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Red, Choice 2 in Green, Choice 3 in Yellow
-    echo -e "   ${RED}1)${NC} Stock Air Cooler  │  ${GREEN}2)${NC} Premium Aftermarket Air  │  ${YELLOW}3)${NC} Liquid Cooled Core"
-    echo -n "  Enter cooling profile option [1-3]: "
-    local cooling_choice; read -r cooling_choice
-    local THROTTLE_TEMP=83 local RECOVERY_TEMP=75 local COOLING_LABEL="Stock Air"
-    case "$cooling_choice" in
-        2) THROTTLE_TEMP=84; RECOVERY_TEMP=75; COOLING_LABEL="Premium Air Cooled";;
-        3) THROTTLE_TEMP=65; RECOVERY_TEMP=58; COOLING_LABEL="Liquid Cooled Core";;
-        *) THROTTLE_TEMP=83; RECOVERY_TEMP=75; COOLING_LABEL="Stock Air (Optimized)";;
-    esac
-    # 🚀 SMART INTERFACE DETECTOR: Dynamically manages DBus based on launch style to fix the Resume Mode bug
-    echo -e "\n  ${CYAN}╔═ SYSTEM INTERFACE AUDIT: BAZZITE EXECUTION ENVIRONMENT ═════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║${NC}  Are you primarily running this system inside Steam Gaming Mode (Big Picture interface)?    ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎯 FIX: Split echo -ne from the read trap to cleanly force color translation on the same line [1]
-    echo -ne "  Booting into Steam Gaming Mode interface? (${GREEN}y${NC}/${RED}N${NC}): "
-    local is_gaming_mode; read -r is_gaming_mode
-    local dbus_state="true"
-    if [[ "$is_gaming_mode" =~ ^[Yy]$ ]]; then dbus_state="false"; fi
-
-    # 📋 AUDIT NO. 2: POWER BUDGET
-    echo -e "  ${CYAN}╔═ [2/5] HARDWARE AUDIT: POWER INFRASTRUCTURE overhead ═══════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║${NC}  Enter your physical Power Supply Unit (PSU) maximum continuous wattage rating:             ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-    echo -e "  ${CYAN}║${NC}   ${DIM}* Platform registers custom profiles from a 300W baseline up to a 500W+ extreme ceiling * ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    local psu_wattage; read -p "  PSU Wattage Rating (e.g., 300, 450, 500): " psu_wattage
-    [[ "$psu_wattage" =~ ^[0-9]+$ ]] || psu_wattage=300
-
-    # 📋 AUDIT NO. 3: FUTURE TARGET COMPUTE UNITS
-    echo -e "\n  ${CYAN}╔═ [3/5] HARDWARE AUDIT: GRAPHICS COMPUTE UNIT PROFILES ══════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cus}/40 Compute Units (CUs) currently active on this core.         ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Red, Choice 2 in Green, Choice 3 in Yellow
-    echo -e "   ${RED}1)${NC} Target 36 CUs Active  │  ${GREEN}2)${NC} Target 38 CUs Active  │  ${YELLOW}3)${NC} Target 40 CUs Active"
-    echo -n "  Select target CU configuration profile [1-3]: "
-    local cu_choice; read -r cu_choice
-    local ACTIVE_CUS=38
-    case "$cu_choice" in 1) ACTIVE_CUS=36;; 2) ACTIVE_CUS=38;; 3) ACTIVE_CUS=40;; esac
-
-    # 📋 AUDIT NO. 4: FUTURE TARGET CPU CORES
-    echo -e "\n  ${CYAN}╔═ [4/5] HARDWARE AUDIT: CPU CORE COMPLEX ALLOCATION ═════════════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cores} CPU Cores / ${live_threads} Threads active on this node.               ${CYAN}║${NC}"
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Green, Choice 2 in Yellow
-    echo -e "   ${GREEN}1)${NC} Target 6 Cores / 12 Threads (Balanced)  │  ${YELLOW}2)${NC} Target 8 Cores / 16 Threads (Maximum)"
-    echo -n "  Select target CPU core complex [1-2]: "
-    local core_choice; read -r core_choice
-    local ACTIVE_CORES=8 local INTERVAL_SAMPLE=4000
-    case "$core_choice" in 1) ACTIVE_CORES=6; INTERVAL_SAMPLE=6000;; *) ACTIVE_CORES=8; INTERVAL_SAMPLE=4000;; esac
-
-    # 📋 SYSTEM TARGET TUNING LEVEL SELECTION
-    echo -e "\n  ${CYAN}╔═ [5/5] HARDWARE AUDIT: SYSTEM TUNING OPTIMIZATION PROFILE ══════════════════════════════════╗${NC}"
-    echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Green, Choice 2 in Cyan, Choice 3 in Red
-    echo -e "   ${GREEN}1)${NC} Normal Computer Use  │  ${CYAN}2)${NC} Standard Gaming (1800MHz)  │  ${RED}3)${NC} Heavy Overclocking (2150MHz)"
-    echo -n "  Select tuning profile [1-3]: "
-    local tuning_choice; read -r tuning_choice
-
-    local PROFILE_LABEL="NORMAL COMPUTER USE" local RAMP_NORMAL=5 local RAMP_BURST=15 local FREQ_MAX=1400 local VOLT_MAX=780
-    case "$tuning_choice" in
-        2) PROFILE_LABEL="STANDARD GAMING"; RAMP_NORMAL=10; RAMP_BURST=50; FREQ_MAX=1800; VOLT_MAX=900;;
-        3) PROFILE_LABEL="HEAVY OVERCLOCKING"; RAMP_NORMAL=15; RAMP_BURST=80; FREQ_MAX=2150; VOLT_MAX=1005;;
-        *) tuning_choice=1;;
-    esac
-
-    # Power Safety Lockouts
-    if (( psu_wattage < 400 )); then
-        PROFILE_LABEL="NORMAL USE (FORCED_CLAMP)"; FREQ_MAX=1400; VOLT_MAX=780; tuning_choice=1
-    elif (( psu_wattage < 500 )) && [ "$tuning_choice" -eq 3 ]; then
-        PROFILE_LABEL="STANDARD GAMING (DOWNSCALED_PSU)"; FREQ_MAX=1800; VOLT_MAX=900; tuning_choice=2
-    fi
-
-    local TARGET_CONF="/etc/cyan-skillfish-governor-smu/config.toml"
-    sudo mkdir -p /etc/cyan-skillfish-governor-smu 2>/dev/null
-    [[ -f "$TARGET_CONF" ]] && sudo cp "$TARGET_CONF" "${TARGET_CONF}.bak_$(date +%Y%m%d_%H%M%S)" 2>/dev/null
-
-    # Write Master Template
-    sudo bash -c "cat <<EOF > $TARGET_CONF
-# ==============================================================================
-# PROFILE TEMPLATE LAYOUT: $PROFILE_LABEL
-# Calculated dynamically via BC-250 Spec Auditor Wizard Suite
-# Hardware Target Mask: $ACTIVE_CUS CUs Unlocked | $ACTIVE_CORES CPU Cores Active
-# Hardware Spec Mask: Cooling = $COOLING_LABEL | Power Source = ${psu_wattage}W PSU
-# ==============================================================================
-
-[timing.intervals]
-sample = $INTERVAL_SAMPLE
-adjust = 30000
-
-[gpu-usage]
-fix-freq = true
-fix-metrics = true
-method = \"busy-flag\"
-flush-every = 5
-
-[gpu]
-set-method = \"smu\"
-target_card = \"card1\"
-
-[dbus]
-enabled = $dbus_state
-
-[timing.ramp-rates]
-normal = $RAMP_NORMAL
-burst = $RAMP_BURST
-
-[timing]
-burst-samples = 3
-down-events = 20
-
-[frequency-thresholds]
-adjust = 5
-upper = 0.94
-lower = 0.82
-
-[load-target]
-upper = 0.80
-lower = 0.60
-
-[temperature]
-throttling = $THROTTLE_TEMP
-throttling_recovery = $RECOVERY_TEMP
-
-[frequency-range]
-min = 350
-max = $FREQ_MAX
-min_voltage = 700
-max_voltage = $VOLT_MAX
-
-[[safe-points]]
-frequency = 350
-voltage = 700
-
-[[safe-points]]
-frequency = 500
-voltage = 700
-
-[[safe-points]]
-frequency = 1000
-voltage = 730
-
-[[safe-points]]
-frequency = 1400
-voltage = 765
-EOF"
-
-    # Append Mid Safe Points
-    if [ "$tuning_choice" -gt 1 ]; then
-        sudo bash -c "cat <<EOF >> $TARGET_CONF
-
-[[safe-points]]
-frequency = 1500
-voltage = 790
-
-[[safe-points]]
-frequency = 1600
-voltage = 820
-
-[[safe-points]]
-frequency = 1700
-voltage = 850
-
-[[safe-points]]
-frequency = 1800
-voltage = 880
-EOF"
-    fi
-
-    # Append Max Safe Points (Tuned to 1025mV for permanent hardware load stability)
-    if [ "$tuning_choice" -eq 3 ]; then
-        sudo bash -c "cat <<EOF >> $TARGET_CONF
-
-[[safe-points]]
-frequency = 1900
-voltage = 910
-
-[[safe-points]]
-frequency = 1950
-voltage = 930
-
-[[safe-points]]
-frequency = 2000
-voltage = 950
-
-[[safe-points]]
-frequency = 2050
-voltage = 970
-
-[[safe-points]]
-frequency = 2100
-voltage = 995
-
-[[safe-points]]
-frequency = 2125
-voltage = 1010
-
-[[safe-points]]
-frequency = 2150
-voltage = 1025
-EOF"
-    fi
-
-    echo -e "  ${GREEN}[✓] New config.toml compiled successfully using hardware constraints!${NC}"
-    echo -e "  ${YELLOW}[⚙] Cycling changes into live governor service memory...${NC}"
-    sudo systemctl daemon-reload 2>/dev/null || true
-    sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null || true
-    echo -e "  ${GREEN}[✓] Task complete! Active system profiles locked into memory space cleanly.${NC}\n"
-    read -rp "  Press [Enter] to exit back to the main menu..."
-}
-
-# 🧬 HELPER ENGINE: Executes countdown loop and interactive save gate for options 1-6
-run_preset_stress_flow() {
-    local target_threads=$(nproc 2>/dev/null || echo "12")
-    if [[ "$live_threads" =~ ^[0-9]+$ ]] && [ "$live_threads" -gt 0 ]; then
-        target_threads="$live_threads"
-    fi
-
-    echo -e "\n  ${YELLOW}[●] Initializing Silicon Stability Sweep Utilizing ${target_threads} Active Threads...${NC}"
-    
-    # Spawns stress silently into a background process thread block
-    stress --cpu "$target_threads" --timeout 150 >> "$LOG_FILE" 2>&1 &
-    local stress_pid=$!
-    
-    # Universal Countdown Loop Tracker
-    local seconds_left=150
-    while kill -0 "$stress_pid" 2>/dev/null; do
-        echo -ne "      Stability validation testing in progress... ${RED}${seconds_left}s${CYAN} remaining...${RESET}\r"
-        sleep 1
-        ((seconds_left--))
-    done
-    echo -e "\n"
-    echo -e "${B_GREEN}✓ Stress test complete! Hardware stability verified.${NC}"
-    
-    read -rp "Would you like to permanently save and activate these custom settings? [y/n]: " save_choice
-    if [[ "$save_choice" =~ ^[Yy]$ ]]; then
-        play_success_chime
-        finalize_settings
-    else
-        echo -e "${CYAN}[-] Save aborted. Returning safely to tuning menu...${NC}"
-        sleep 2
-    fi
-}
-launch_tuning_menu() {
+menu() {
     while true; do
         clear
-        echo ""
-        echo -e "  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${CYAN}║                BC-250 TUNING & CONFIGURATION MENU                 ║${NC}"
-        echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
-        echo ""
-        echo -e "  ${YELLOW}Select a baseline template for your hardware variant:${NC}"
-        echo -e "  ${BIBlack}──────────────────────────────────────────────────────────────────────────${NC}"
-        echo -e "    ${CYAN}1)${NC} 40/40 CU - Extreme Overclock  ${BIBlack}───${NC}  3500 MHz  @  1000 mV  ${BIBlack}│${NC}  Max 85°C"
-        echo -e "    ${CYAN}2)${NC} 40/40 CU - High-Efficiency    ${BIBlack}───${NC}  3000 MHz  @   920 mV  ${BIBlack}│${NC}  Max 78°C"
-        echo -e "    ${RED}W)${NC} 40/40 CU - WATER-COOLED BEAST ${BIBlack}───${NC}  3850 MHz  @  1150 mV  ${RED}│  AIO/WATER REQ.${NC}"
-        echo -e "    ${CYAN}3)${NC} 38/40 CU - Extreme Overclock  ${BIBlack}───${NC}  3500 MHz  @  1020 mV  ${BIBlack}│${NC}  Max 85°C"
-        echo -e "    ${CYAN}4)${NC} 38/40 CU - Balanced Gaming    ${BIBlack}───${NC}  3000 MHz  @   945 mV  ${BIBlack}│${NC}  Max 80°C"
-        echo -e "    ${CYAN}5)${NC} 36/40 CU - Silent / Eco Core  ${BIBlack}───${NC}  2800 MHz  @   890 mV  ${BIBlack}│${NC}  Max 75°C"
-        echo ""
-        echo -e "    ${BIGreen}6) Manual Custom Profile${NC}       ${BIBlack}(Fill MHz, mV, Max Temp manually)${NC}"
-        echo -e "    ${BIGreen}7) Manual Custom Sandbox${NC}       ${BIBlack}(Test parameters safely without saving)${NC}"
-        echo ""
-        echo -e "    ${RED}↵) Return to BC-250 CPU OVERCLOCK & Compute Unit Live Manager Setup Tool ${NC}    ${BIBlack}(Skip auto-tuning routine)${NC}"
-        echo -e "  ${BIBlack}──────────────────────────────────────────────────────────────────────────${NC}"
-        echo ""
-        read -p "  Enter selection [1-7, W, ↵]: " tune_choice
+        panel_title "Interactive Core Optimizer"
 
-        local target_dir="."
-        if [ -d "$REAL_HOME/Bazzite_Toolbox/Overclock" ]; then target_dir="$REAL_HOME/Bazzite_Toolbox/Overclock"; fi
+        # Load local parameters to check service file synchronization on disk paths
+        load_service_masks && local has_conf=0 || local has_conf=1
+        systemctl is-enabled "$SERVICE_NAME" &>/dev/null && local svc_enabled=0 || local svc_enabled=1
 
-        case "$tune_choice" in
-            1)
-                log "${GREEN}Staging 40/40 CU - Extreme Overclock template...${NC}"
-                printf "[overclock]\nfrequency=3500\nscale=-19\nmax_temperature=85\nkeep=True\n" > "$target_dir/overclock.conf"
-                run_preset_stress_flow
+        # Establish base colors matching your exact theme variables
+        local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
+
+        # 🚀 STEP HIGHLIGHT CORE: Sweeps dirty status tags to flash bracket borders green
+        if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
+            c_edit="${DIM}"
+            c_write="${GREEN}${BOLD}"    # 🌟 Turn [w] Green: Directs you to write the table configuration next!
+        elif [ "${SERVICE_PENDING:-0}" -eq 1 ] || { [ "$has_conf" -eq 0 ] && [ "$svc_enabled" -ne 0 ]; }; then
+            c_write="${DIM}"
+            c_install="${GREEN}${BOLD}"  # 🌟 Turn [i] Green: Directs you to install the boot service next!
+        fi
+
+        # Print your exact original screen matrix string layout utilizing the custom hooks
+        echo ""
+        echo -e "  |  ${c_edit}[e]${RESET} Edit WGP table      ${CYAN}[f]${RESET} Enable all CUs      ${CYAN}[t]${RESET} Enable default CUs      |"
+        echo -e "  |  ${c_install}[i]${RESET} Install service     ${c_write}[w]${RESET} Write table         ${CYAN}[u]${RESET} Uninstall service       |"
+        echo -e "  |  ${CYAN}[c]${RESET} Unlock CPU cores    ${RED}[q]${RESET} Quit                                            |"
+        echo ""
+        hr
+        echo ""
+
+        prompt_line "Enter selection: "
+        local choice; read -r choice
+        choice=$(echo "$choice" | tr -d '\r')
+
+        case "${choice,,}" in
+            e)
+                if table; then TABLE_DIRTY=1; SERVICE_PENDING=0; fi
                 ;;
-            2)
-                log "${GREEN}Staging 40/40 CU - High-Efficiency template...${NC}"
-                printf "[overclock]\nfrequency=3000\nscale=-19\nmax_temperature=78\nkeep=True\n" > "$target_dir/overclock.conf"
-                run_preset_stress_flow
-                ;;
-            3)
-                log "${GREEN}Staging 38/40 CU - Extreme Overclock template...${NC}"
-                printf "[overclock]\nfrequency=3500\nscale=-19\nmax_temperature=85\nkeep=True\n" > "$target_dir/overclock.conf"
-                run_preset_stress_flow
-                ;;
-            4)
-                log "${GREEN}Staging 38/40 CU - Balanced Gaming template...${NC}"
-                printf "[overclock]\nfrequency=3000\nscale=-19\nmax_temperature=80\nkeep=True\n" > "$target_dir/overclock.conf"
-                run_preset_stress_flow
-                ;;
-            5)
-                log "${GREEN}Staging 36/40 CU - Silent / Eco Core template...${NC}"
-                printf "[overclock]\nfrequency=2800\nscale=-19\nmax_temperature=75\nkeep=True\n" > "$target_dir/overclock.conf"
-                run_preset_stress_flow
-                ;;
-            w|W)
-                clear
-                echo -e "${RED}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-                echo -e "${RED}║ [⚠] CRITICAL SAFETY WARNING: CUSTOM WATER COOLING LOOP REQURED FOR 3850MHz                 ║${NC}"
-                echo -e "${RED}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-                echo -e "${RED}║ Running 1150mV on basic air cooling WILL cause rapid thermal degradation or instant crash.   ║${NC}"
-                echo -e "${RED}║ DO NOT proceed unless you have verified custom liquid block mounting active.               ║${NC}"
-                echo -e "${RED}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-                echo ""
-                read -rp "  Type 'RUN' to confirm you are water cooled, or press Enter to abort: " water_confirm
-                if [[ "$water_confirm" != "RUN" ]]; then
-                    echo -e "${YELLOW}Operation aborted safely. Returning to menu...${NC}"
-                    sleep 2
-                    continue
+            f)
+                if [ "${YES:-0}" -eq 1 ] || confirm_dispatch_plan "Enable All CUs Plan"; then
+                    local idx; for idx in 0 1 2 3; do target_masks[$idx]=$WGP_FULL_MASK; done
+                    apply_target_masks && TABLE_DIRTY=1 && SERVICE_PENDING=0
                 fi
-                log "${RED}Staging 40/40 CU - Water-Cooled Extreme Beast Mode template...${NC}"
-                printf "[overclock]\nfrequency=3850\nscale=-19\nmax_temperature=90\nkeep=True\n" > "$target_dir/overclock.conf"
-                run_preset_stress_flow
                 ;;
-            6|7)
-                while true; do
-                    clear
-                    # 🧬 PREMIUM SYMMETRICAL SILICON PROFILER DISPLAY GRID (PART 2)
-                    echo -e "  ${CYAN}╔══════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-                    echo -e "  ${CYAN}║                      ${BOLD}${BICyan}BC-250 SILICON VOLTAGE & THERMAL SCALING MATRIX${NC}                         ${CYAN}║${NC}"
-                    echo -e "  ${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-
-                    # Header row configuration - 100% Symmetrical Bounds Pinned
-                    printf "  ${CYAN}║${NC}   %-13s │ %-20s │ %-12s │ %-34s   ${CYAN}║${NC}\n" "${BOLD}Freq Block" "Voltage (VID)" "Thermal Load" "Silicon Performance Profile${RESET}"
-                    echo -e "  ${CYAN}║${BIBlack}   ──────────────┼──────────────────────┼───────────────┼───────────────────────────────────  ${CYAN}║${NC}"
-                    # Standard Rows - Mapped explicitly with inner character counters
-                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "2000-2300 MHz" "800" "840" "50°C - 60°C" "Absolute Eco Floor (Dead Silent)"
-                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "2400-2500 MHz" "840" "860" "58°C - 65°C" "Balanced Power Light Emulation"
-                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "2600-2700 MHz" "860" "890" "62°C - 72°C" "Software Guard Floor Tiers"
-
-                    # Highlight Tiers: Color profiles passed dynamically without altering character count layout spacing
-                    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-12s%b   │ %b%-34s%b    ${CYAN}║${NC}\n" "${BIGreen}" "2800 MHz" "${NC}" "${BIGreen}" "890" "905" "${NC}" "${BIGreen}" "65°C - 75°C" "${NC}" "${BIGreen}" "🎯 EFFICIENCY SWEET SPOT (Opt 5)" "${NC}"
-                    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-12s%b   │ %b%-34s%b    ${CYAN}║${NC}\n" "${BIGreen}" "3000 MHz" "${NC}" "${BIGreen}" "920" "940" "${NC}" "${BIGreen}" "70°C - 80°C" "${NC}" "${BIGreen}" "🎯 GAMING SWEET SPOT (Opt 2/4)" "${NC}"
-
-                    # Standard Rows Continuation
-                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "3100-3400 MHz" "940" "1000" "72°C - 84°C" "Aggressive Air Tier (High Current)"
-                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s ${CYAN}║${NC}\n" "3500 MHz" "1000" "1020" "80°C - 85°C" "Stock Factory Air Ceiling Reference"
-                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "3600-3700 MHz" "1030" "1100" "82°C - 88°C" "Extreme Overclock (High Fan Speed)"
-                    printf "  ${CYAN}║${NC}   %-13s │ %4s mV - %4s mV    │ %-12s   │ %-34s  ${CYAN}║${NC}\n" "3800 MHz" "1120" "1160" "88°C - 94°C" "Option W Liquid-Cooled Loop Only"
-
-                    # Danger Zone High-Visibility Highlighting Row
-                    printf "  ${CYAN}║${NC}   %b%-13s%b │ %b%4s mV - %4s mV%b    │ %b%-12s%b │ %b%-34s%b  ${CYAN}║${NC}\n" "${RED}" "3900-4000 MHz" "${NC}" "${RED}" "1160" "1325" "${NC}" "${RED}" "92°C - 105°C+" "${NC}" "${RED}" "DANGER ZONE (Silicon Decay)" "${NC}"
-
-                    echo -e "  ${CYAN}╚══════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-                    echo ""
-
-                    echo -e "  ${DIM}    * Type [Q] to return to previous menu  │  Type [R] to refresh table view *${RESET}\n"
-                    # ==============================================================================
-                    # 🧬 HARDENED PARAMETER COLLECTION TRACK (NO DUPLICATE PROMPTS)
-                    # ==============================================================================
-
-                    # 📐 INPUT ROW 1: TARGET FREQUENCY
-                    while true; do
-                        read -p "  Enter Target Frequency (MHz) [2000 - 4000]: " custom_freq
-                        if [[ "$custom_freq" =~ ^[Qq]$ ]]; then echo -e "  ${YELLOW}[←] Bailing out to tuning dashboard...${NC}"; sleep 0.8; break 2; fi
-                        if [[ "$custom_freq" == "r" ]]; then echo -e "  ${CYAN}[↺] Flushing screen buffer...${NC}"; sleep 0.4; continue 2; fi
-                        if [[ "$custom_freq" == "R" ]]; then echo -e "  ${GREEN}[↺] Hot-reloading script workspace...${NC}"; sleep 0.8; exec bash "$SCRIPT_PATH" "$@"; fi
-
-                        if [[ "$custom_freq" =~ ^[0-9]+$ ]] && [ "$custom_freq" -ge 2000 ] && [ "$custom_freq" -le 4000 ]; then
-                            break
-                        else
-                            echo -e "  ${RED}SAFETY ERROR: Frequency must sit between 2000 MHz and 4000 MHz!${NC}"
-                        fi
-                    done
-
-                    # 📐 INPUT ROW 2: TARGET VOLTAGE
-                    while true; do
-                        read -p "  Enter Target Voltage (mV / VID) [800 - 1325]: " custom_vid
-                        if [[ "$custom_vid" =~ ^[Qq]$ ]]; then echo -e "  ${YELLOW}[←] Bailing out to tuning dashboard...${NC}"; sleep 0.8; break 2; fi
-                        if [[ "$custom_vid" == "r" ]]; then echo -e "  ${CYAN}[↺] Flushing screen buffer...${NC}"; sleep 0.4; continue 2; fi
-                        if [[ "$custom_vid" == "R" ]]; then echo -e "  ${GREEN}[↺] Hot-reloading script workspace...${NC}"; sleep 0.8; exec bash "$SCRIPT_PATH" "$@"; fi
-
-                        if [[ "$custom_vid" =~ ^[0-9]+$ ]] && [ "$custom_vid" -ge 800 ] && [ "$custom_vid" -le 1325 ]; then
-                            break
-                        else
-                            echo -e "  ${RED}SAFETY ERROR: Voltage must sit between 800 mV and 1325 mV!${NC}"
-                        fi
-                    done
-
-                    # 📐 INPUT ROW 3: TEMPERATURE CEILING
-                    while true; do
-                        read -p "  Enter Max Temperature Target (°C) [60 - 95]: " custom_temp
-                        if [[ "$custom_temp" =~ ^[Qq]$ ]]; then echo -e "  ${YELLOW}[←] Bailing out to tuning dashboard...${NC}"; sleep 0.8; break 2; fi
-                        if [[ "$custom_temp" == "r" ]]; then echo -e "  ${CYAN}[↺] Flushing screen buffer...${NC}"  ; sleep 0.4; continue 2; fi
-                        if [[ "$custom_temp" == "R" ]]; then echo -e "  ${GREEN}[↺] Hot-reloading script workspace...${NC}"; sleep 0.8; exec bash "$SCRIPT_PATH" "$@"; fi
-
-                        if [[ "$custom_temp" =~ ^[0-9]+$ ]] && [ "$custom_temp" -ge 60 ] && [ "$custom_temp" -le 95 ]; then
-                            break
-                        else
-                            echo -e "  ${RED}SAFETY ERROR: Temperature limit must sit between 60°C and 95°C!${NC}"
-                        fi
-                    done
-                    # ==============================================================================
-                    # 🧬 HARDWARE DEPLOYMENT CORE (STRESS LOOPS & RESTORED LOOP-AGAIN PROMPTS)
-                    # ==============================================================================
-                    log "${GREEN}Running custom tuning profile optimization...${NC}"
-                    printf "[overclock]\nfrequency=%s\nscale=-19\nmax_temperature=%s\nkeep=True\n" "$custom_freq" "$custom_temp" > "$target_dir/overclock.conf"
-
-                    if [ "$tune_choice" = "6" ]; then
-                        # 🧬 FIXED: Targets stress-ng to ensure full compatibility with layered image packages
-                        stress-ng --cpu "$target_threads" --timeout 150 >> "$LOG_FILE" 2>&1 &
-                        run_preset_stress_flow
-                    else
-                        local sandbox_threads=$(nproc 2>/dev/null || echo "12")
-                        if [[ "$live_threads" =~ ^[0-9]+$ ]] && [ "$live_threads" -gt 0 ]; then sandbox_threads="$live_threads"; fi
-                        echo -e "\n  ${YELLOW}[●] Initializing Sandbox Stability Sweep Utilizing ${sandbox_threads} Threads...${NC}"
-
-                        # 🧬 FIXED: Targets stress-ng to actively saturate your core topologies under sandbox tests
-                        stress-ng --cpu "$sandbox_threads" --timeout 150 >> "$LOG_FILE" 2>&1 &
-                        local stress_pid=$!
-                        local seconds_left=150
-
-                        while kill -0 "$stress_pid" 2>/dev/null; do
-                            echo -ne "      Stability validation testing in progress... ${RED}${seconds_left}s${CYAN} remaining...${RESET}\r"
-                            sleep 1
-                            ((seconds_left--))
-                        done
-                        echo -e "\n  ${B_GREEN}✓ Sandbox verification sequence finalized.${NC}"
-                    fi
-
-                    # 🧬 FULLY RESTORED FEATURE: Prompts for another sweep option cleanly
-                    local loop_again=""
-                    if [ "$tune_choice" = "7" ]; then
-                        read -rp "  Would you like to run another stress test with different settings? [y/n]: " loop_again
-                    else
-                        # For option 6, check if user confirmed the save during run_preset_stress_flow
-                        if [[ "$save_choice" =~ ^[Yy]$ ]]; then break; fi
-                        read -rp "  Would you like to try another configuration sweep with different settings? [y/n]: " loop_again
-                    fi
-
-                    # If they don't type Y/y, break clear back to your primary selection menu
-                    if [[ ! "$loop_again" =~ ^[Yy]$ ]]; then
-                        echo -e "  ${YELLOW}Returning safely to tuning menu...${NC}"
-                        sleep 1.5
-                        break
-                    fi
-                done
+            t)
+                if [ "${YES:-0}" -eq 1 ] || confirm_dispatch_plan "Restore Stock Dispatch Plan"; then
+                    local idx; for idx in 0 1 2 3; do target_masks[$idx]=0; done
+                    apply_target_masks && TABLE_DIRTY=1 && SERVICE_PENDING=0
+                fi
                 ;;
-            0|""|q|Q)
-                echo -e "\n  ${YELLOW}[←] Returning safely to Master Setup Tool layout...${NC}"
-                sleep 1.2
-                return 0
+            w)
+                if [ "${TABLE_DIRTY:-0}" -eq 1 ] || [ "${YES:-0}" -eq 1 ] || [ "$has_conf" -eq 1 ]; then
+                    write_service_table && TABLE_DIRTY=0 && SERVICE_PENDING=1
+                    sleep 1.5
+                else
+                    warn "No modifications cached in memory workspace. Edit via [e] first."
+                    sleep 2
+                fi
+                ;;
+            i)
+                install_service && SERVICE_PENDING=0; sleep 2
+                ;;
+            u)
+                uninstall_service && TABLE_DIRTY=0 && SERVICE_PENDING=0; sleep 2
+                ;;
+            c)
+                cpu_unlock
+                ;;
+            q)
+                echo -e "\n  ${YELLOW}[-] Terminating optimization loop...${RESET}\n"; exit 0
                 ;;
             *)
-                echo -e "  ${RED}Invalid option selected. Please enter [1-7, W].${NC}"
-                sleep 2
+                echo -e "\n  ${RED}❌ ERROR: Invalid menu option choice '$choice'.${RESET}"; sleep 1.2
                 ;;
         esac
     done
 }
-prompt_reboot() {
-    echo ""
-    echo -e "${YELLOW}==================================================${NC}"
-    echo -e "${YELLOW} Task complete! The system needs to reboot now.   ${NC}"
-    echo -e "${YELLOW}--------------------------------------------------${NC}"
-    echo " 1) Reboot Now (Recommended)"
-    echo " 2) Cancel Reboot & Return to Main Menu"
-    echo -e "${YELLOW}==================================================${NC}"
-    read -rp "Select an option [1-2]: " reboot_choice
-    case $reboot_choice in
-        1) sudo systemctl reboot ;;
-        *) return 0 ;;
-    esac
-}
 
-run_phase1() {
-    if [[ -f "/usr/local/bin/bc250-detect" ]] || [[ -f "$SERVICE_FILE" ]]; then
-        clear
-        echo -e "\n  ${YELLOW}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${YELLOW}║${NC}  ${BOLD}${CYAN}[ℹ] CPU TUNING TOOLCHAIN DETECTED${NC}                                                          ${YELLOW}║${NC}"
-        echo -e "  ${YELLOW}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-        echo -e "  ${YELLOW}║${NC} The Overclock Suite and its underlying background binaries are already present on this host.${YELLOW}║${NC}"
-        echo -e "  ${YELLOW}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-        echo ""
-        echo " 1) Cancel operation and return safely to the primary layout loop"
-        echo " 2) Force a complete, clean re-installation (Wipes and rebuilds the toolchain)"
-        echo ""
-        read -rp "  Select an option [1-2]: " static_choice
-        if [[ "$static_choice" != "2" ]]; then
-            print_info "Operation canceled safely. Returning to menu..."
-            sleep 1.5
-            return 0
-        fi
-        print_info "Force override accepted. Staging clean deployment tree..."
-    fi
-
-    show_warning
-    log "${GREEN}[Phase 1] Initializing universal Bazzite 43/44 deployment tree...${NC}"
-    sudo bash -c "cat <<EOF > $SERVICE_FILE
-[Unit]
-Description=Resume BC-250 OC Installation
-After=network.target
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash $SCRIPT_PATH --phase2
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF"
-    sudo systemctl daemon-reload
-    sudo systemctl enable bc250-resume.service >> "$LOG_FILE" 2>&1
-    sudo rpm-ostree kargs --append=mitigations=off >> "$LOG_FILE" 2>&1
-    sudo rpm-ostree install stress python3-devel >> "$LOG_FILE" 2>&1
-    play_success_chime
-    prompt_reboot
-}
-run_phase2() {
-    log "${GREEN}[Phase 2] Resuming execution tree following successful reboot...${NC}"
-    cd /tmp || exit
-    sudo rm -rf /tmp/bc250_smu_oc
-    git clone "$REPO_URL" /tmp/bc250_smu_oc >> "$LOG_FILE" 2>&1
-    cd /tmp/bc250_smu_oc || exit
-    sudo mkdir -p /opt/bc250_smu_tools
-    sudo python3 -m venv /opt/bc250_smu_tools/venv >> "$LOG_FILE" 2>&1
-    sudo /opt/bc250_smu_tools/venv/bin/pip install --upgrade pip >> "$LOG_FILE" 2>&1
-    sudo /opt/bc250_smu_tools/venv/bin/pip install . >> "$LOG_FILE" 2>&1
-    sudo ln -sf /opt/bc250_smu_tools/venv/bin/bc250-detect /usr/local/bin/bc250-detect
-    sudo ln -sf /opt/bc250_smu_tools/venv/bin/bc250-apply /usr/local/bin/bc250-apply
-
-    log "${GREEN}[⚙] Injecting custom low-power overrides from your repository...${NC}"
-    local py_packages="/opt/bc250_smu_tools/venv/lib64/python3.14/site-packages"
-
-    sudo curl -sSL -o "$py_packages/bc250_apply.py" "$MODDED_APPLY_URL" >> "$LOG_FILE" 2>&1
-    sudo curl -sSL -o "$py_packages/bc250_limits.py" "$MODDED_LIMITS_URL" >> "$LOG_FILE" 2>&1
-    sudo curl -sSL -o "$py_packages/bc250_detect.py" "$MODDED_DETECT_URL" >> "$LOG_FILE" 2>&1
-
-    sudo rm -rf "$py_packages/__pycache__" 2>/dev/null || true
-
-    sudo systemctl disable bc250-resume.service >> "$LOG_FILE" 2>&1
-    sudo rm -f "$SERVICE_FILE"
-    sudo systemctl daemon-reload
-    log "${GREEN}[Success] Installation complete! 'bc250-detect' and 'bc250-apply' are ready.${NC}"
-    
-    launch_tuning_menu
-}
-run_manager_phase1() {
-    # 🧬 PRE-FLIGHT DEPLOYMENT GATE: Detects if the CU Live Manager suite is already initialized or staged
-    if [[ -f "/usr/local/bin/bc250-cu-live-manager" ]] || [[ -f "/etc/bc250-cu-live-manager.conf" ]] || [[ -f "/etc/systemd/system/bc250-cu-live-manager.service" ]]; then
-        clear
-        echo -e "\n  ${YELLOW}╔═════════════════════════════════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${YELLOW}║${NC}  ${BOLD}${BLUE}[ℹ] COMPUTE UNIT LIVE MANAGER DETECTED${NC}                                                     ${YELLOW}║${NC}"
-        echo -e "  ${YELLOW}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
-        echo -e "  ${YELLOW}║${NC} The dynamic CU bitmask manager and active daemon profiles are already active on this host.${YELLOW}  ║${NC}"
-        echo -e "  ${YELLOW}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-        echo ""
-        echo " 1) Cancel operation and return safely to the primary layout loop"
-        echo " 2) Force a complete, clean re-installation (Wipes and rebuilds the dependency mapping)"
-        echo ""
-        read -rp "  Select an option [1-2]: " static_choice
-        if [[ "$static_choice" != "2" ]]; then
-            print_info "Operation canceled safely. Returning to menu..."
-            sleep 1.5
-            return 0
-        fi
-        print_info "Force override accepted. Staging clean dependency layers..."
-    fi
-
-    log "${GREEN}[CU Live Manager] Preparing installation requirements...${NC}"
-    sudo bash -c "cat <<EOF > $SERVICE_FILE
-[Unit]
-Description=Resume BC-250 CU Live Manager Deployment
-After=network.target
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash $SCRIPT_PATH --manager-phase2
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF"
-    sudo systemctl daemon-reload
-    sudo systemctl enable bc250-resume.service >> "$LOG_FILE" 2>&1
-    sudo rpm-ostree install umr >> "$LOG_FILE" 2>&1
-    play_success_chime
-    prompt_reboot
-}
-
-run_manager_phase2() {
-    log "${GREEN}[CU Live Manager] Completing setup configurations post-reboot...${NC}"
-    sudo systemctl disable bc250-resume.service >> "$LOG_FILE" 2>&1
-    sudo rm -f $SERVICE_FILE
-    sudo systemctl daemon-reload
-    cd /tmp || exit
-    curl -L -o bc250-cu-live-manager.sh https://raw.githubusercontent.com/WinnieLV/bc250-cu-live-manager/refs/heads/main/bc250-cu-live-manager.sh >> "$LOG_FILE" 2>&1
-    chmod +x bc250-cu-live-manager.sh
-    sudo ./bc250-cu-live-manager.sh
-}
-uninstall_cpu_overclock() {
-    log "${RED}[Uninstall] Initializing CPU Overclock rollback suite...${NC}"
-    sudo systemctl disable --now bc250-smu-oc.service >> "$LOG_FILE" 2>&1 || true
-    sudo systemctl disable --now bc250-resume.service >> "$LOG_FILE" 2>&1 || true
-    sudo rm -f /etc/systemd/system/bc250-smu-oc.service
-    sudo rm -f "$SERVICE_FILE"
-    sudo rm -f /usr/local/bin/bc250-detect
-    sudo rm -f /usr/local/bin/bc250-apply
-    sudo rm -rf /opt/bc250_smu_tools
-    sudo rm -rf /tmp/bc250_smu_oc
-    sudo rpm-ostree kargs --delete=mitigations=off >> "$LOG_FILE" 2>&1
-    sudo rpm-ostree uninstall stress python3-devel >> "$LOG_FILE" 2>&1
-    sudo systemctl daemon-reload
-    play_success_chime
-    prompt_reboot
-}
-
-uninstall_cu_live_manager() {
-    log "${RED}[Uninstall] Initializing CU Live Manager rollback suite...${NC}"
-    sudo systemctl disable --now bc250-cu-live-manager.service >> "$LOG_FILE" 2>&1 || true
-    sudo rm -f /etc/systemd/system/bc250-cu-live-manager.service
-    sudo rm -f /usr/local/bin/bc250-cu-live-manager
-    sudo rm -f /etc/bc250-cu-live-manager.conf
-    sudo rm -f /tmp/bc250-cu-live-manager.sh
-    sudo rpm-ostree uninstall umr >> "$LOG_FILE" 2>&1
-    sudo systemctl daemon-reload
-    play_success_chime
-    prompt_reboot
-}
-
-type_prompt() {
-    local text="$1"
-    local delay="${2:-0.03}"
-
-    for (( i=0; i<${#text}; i++ )); do
-        echo -ne "\033[38;2;0;255;0m${text:$i:1}\033[0m"
-
-        if [ "$SKIP_ANIMATION" = false ]; then
-            # 🧬 LOCK-JAW KEY CHECK: Instantly polls stdin terminal cache descriptor
-            if read -t 0.001 -n 1 2>/dev/null; then
-                SKIP_ANIMATION=true
-            fi
-            sleep "$delay"
-        fi
-    done
-}
-
-case "$1" in
-    --phase2) run_phase2; exit 0 ;;
-    --manager-phase2) run_manager_phase2; exit 0 ;;
-    --uninstall-cpu) uninstall_cpu_overclock; exit 0 ;;
-    --uninstall-cu) uninstall_cu_live_manager; exit 0 ;;
+# ==============================================================================
+# 🚀 CORE ARGUMENTS ROUTING DISPATCH BRIDGE
+# ==============================================================================
+CMD="${1:-menu}"
+case "$CMD" in
+    menu)
+        need_root && need_umr && select_asic
+        read_current_masks &>/dev/null || true
+        read_driver_wgp_masks &>/dev/null || true
+        menu
+        ;;
+    status) need_umr_root status && status ;;
+    table) need_umr_root table && table ;;
+    cpu-unlock) cpu_unlock ;;
+    install-service) install_service ;;
+    write-service-table) write_service_table ;;
+    apply-service) load_service_masks && apply_service ;;
+    uninstall-service) uninstall_service ;;
+    stock-dispatch) stock-dispatch ;;
+    *) usage; exit 1 ;;
 esac
-
-while true; do
-clear
-    TEXT_STR="            BC-250 CPU OVERCLOCK & Compute Unit Live Manager Setup Tool             "
-    echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
-    echo -e "${DIM}│${RESET}${BOLD}${MAGENTA}${TEXT_STR}${RESET}${DIM}│${RESET}"
-    echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
-    echo ""
-    echo -e "  ${BOLD}${WHITE}Select an action to perform:${RESET}"
-    echo -e "  ${DIM}──────────────────────────────────────────────────────────────────────────────────${RESET}"
-    echo ""
-    echo -e "    ${BOLD}${RED}• CPU Overclocking Suite:${RESET}"
-    echo -e "      ${CYAN}[1a]${RESET} Install Toolchain & Configure Settings  ${DIM}(Phase 1 - Requires Reboot)${RESET}"
-    echo -e "      ${CYAN}[1b]${RESET} Complete Toolchain Installation         ${DIM}(Phase 2)${RESET}"
-    echo ""
-    echo -e "    ${BOLD}${BLUE}• Compute Unit Live Manager:${RESET}"
-    echo -e "      ${CYAN}[2a]${RESET} Install Package Dependencies            ${DIM}(Phase 1 - Requires Reboot)${RESET}"
-    echo -e "      ${CYAN}[2b]${RESET} Launch Live Matrix Configuration        ${DIM}(Phase 2)${RESET}"
-    echo ""
-    echo -e "    ${BOLD}${CYAN}• Silicon Governor & Performance Tuning Profile Manager:${RESET}"
-    echo -e "      ${CYAN}[M]${RESET}  Modify Governor Performance Profile     ${DIM}(Hardware Spec Audit Wizard)${RESET}"
-    echo -e "      ${CYAN}[C]${RESET}  Inject Manual Governor Clock Clamp      ${DIM}(Hot-patch active SMU ceilings)${RESET}"
-    echo ""
-    echo -e "    ${BOLD}${YELLOW}• Rollback & Restoration Profiles:${RESET}"
-    echo -e "      ${DIM}[3a] Uninstall CPU Overclock Profiles Completely${RESET}"
-    echo -e "      ${DIM}[3b] Uninstall Compute Unit Live Manager Service Paths${RESET}"
-    echo ""
-    echo -e "    ${BOLD}${YELLOW}• Silicon Stability Testing Channels:${RESET}"
-    echo -e "      ${CYAN}[4]${RESET}   Launch Silicon Per-Core Stability Sweep ${DIM}(test-cores Curve Validation)${RESET}"
-    echo ""
-    echo -e "  ${DIM}──────────────────────────────────────────────────────────────────────────────────${RESET}"
-    echo -e "      ${BOLD}${MAGENTA}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
-    echo ""
-
-type_prompt "  Select an option [ 1a-4, M, C, ↵ ]: " 0.03
-    choice=""
-    # 🧬 FIXED INPUT FIELD: Removed '-n 1' to allow multi-character menu selections (1a, 2b, etc.)
-    read -r choice
-    echo ""
-    
-    # Convert input to lowercase or handle multi-case matching smoothly
-    case "$choice" in
-        1a|1A) run_phase1 ;;
-        1b|1B) run_phase2 ;;
-        2a|2A) run_manager_phase1 ;;
-        2b|2B) run_manager_phase2 ;; # 🚀 NOW REACHABLE NATIVELY
-        m|M) configure_governor_profile ;;
-        c|C) apply_manual_clock_clamp ;;
-        r|R)
-                print_info "Reinitializing toolkit memory tracking blocks..."
-                sleep 0.5
-                exec bash "$SCRIPT_PATH" "$@"
-                ;;
-        3a|3A) uninstall_cpu_profiles ;;
-        3b|3B) uninstall_cu_manager ;;
-        4) run_stability_sweep ;;
-        "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; return 0 ;;
-        *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
-    esac
-done
