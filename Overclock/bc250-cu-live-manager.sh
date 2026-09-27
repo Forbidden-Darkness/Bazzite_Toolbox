@@ -560,36 +560,30 @@ PYEOF
 	return 0
 }
 
+
 # ==============================================================================
-# 🚀 STEP-HIGHLIGHTER INTERACTIVE MENU INTERFACE INTERPRETER
+# 🧬 DYNAMIC SEQUENTIAL STEP-HIGHLIGHTER EXTENSION (PART 1 OF 2)
 # ==============================================================================
-# ==============================================================================
-# 🧬 FIXED STEP-HIGHLIGHTER INTERACTIVE MENU (EXACT GRID RESOLUTION)
-# ==============================================================================
-OPTIMIZER_STEP=0   # Isolated state controller: 0=Default, 1=Write Needed, 2=Install Needed
+OPTIMIZER_STEP=0   # Core controller: 0=Default, 1=Highlight Write, 2=Highlight Install
 
 menu() {
     while true; do
         clear
         panel_title "Interactive Core Optimizer"
-        
-        # Keep background profile discovery for safety checks, but remove color pollution
-        load_service_masks && local has_conf=0 || local has_conf=1
-        systemctl is-enabled "$SERVICE_NAME" &>/dev/null && local svc_enabled=0 || local svc_enabled=1
 
-        # Establish default baseline menu colors matching your color palette variables
+        # Establish default baseline menu colors matching your color variables
         local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
 
-        # 🚀 ISOLATED STEP ENGINE: Guarantees your colors advance sequentially without driver interference
+        # 🚀 CLEAN STEP CONTROLLER: Completely unlinked from systemic files to stop color overriding
         if [ "$OPTIMIZER_STEP" -eq 1 ]; then
             c_edit="${DIM}"
-            c_write="${GREEN}${BOLD}"    # 🌟 Step 1 Complete: Highlight [w] Green after an edit pass!
+            c_write="${GREEN}${BOLD}"    # 🌟 Step 1 Complete: Highlight [w] Write table next!
         elif [ "$OPTIMIZER_STEP" -eq 2 ]; then
             c_write="${DIM}"
-            c_install="${GREEN}${BOLD}"  # 🌟 Step 2 Complete: Highlight [i] Green after a save pass!
+            c_install="${GREEN}${BOLD}"  # 🌟 Step 2 Complete: Highlight [i] Install service next!
         fi
 
-        # Print your exact original menu layout grid down to the character spaces
+        # Print your exact original menu layout grid down to the line spaces
         echo ""
         echo -e "  |  ${c_edit}[e]${RESET} Edit WGP table      ${CYAN}[f]${RESET} Enable all CUs      ${CYAN}[t]${RESET} Enable default CUs      |"
         echo -e "  |  ${c_install}[i]${RESET} Install service     ${c_write}[w]${RESET} Write table         ${CYAN}[u]${RESET} Uninstall service       |"
