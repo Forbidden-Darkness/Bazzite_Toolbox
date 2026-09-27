@@ -563,28 +563,33 @@ PYEOF
 # ==============================================================================
 # 🚀 STEP-HIGHLIGHTER INTERACTIVE MENU INTERFACE INTERPRETER
 # ==============================================================================
+# ==============================================================================
+# 🧬 FIXED STEP-HIGHLIGHTER INTERACTIVE MENU (EXACT GRID RESOLUTION)
+# ==============================================================================
+OPTIMIZER_STEP=0   # Isolated state controller: 0=Default, 1=Write Needed, 2=Install Needed
+
 menu() {
     while true; do
         clear
         panel_title "Interactive Core Optimizer"
-
-        # Load local parameters to check service file synchronization on disk paths
+        
+        # Keep background profile discovery for safety checks, but remove color pollution
         load_service_masks && local has_conf=0 || local has_conf=1
         systemctl is-enabled "$SERVICE_NAME" &>/dev/null && local svc_enabled=0 || local svc_enabled=1
 
-        # Establish base colors matching your exact theme variables
+        # Establish default baseline menu colors matching your color palette variables
         local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
 
-        # 🚀 STEP HIGHLIGHT CORE: Sweeps dirty status tags to flash bracket borders green
-        if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
+        # 🚀 ISOLATED STEP ENGINE: Guarantees your colors advance sequentially without driver interference
+        if [ "$OPTIMIZER_STEP" -eq 1 ]; then
             c_edit="${DIM}"
-            c_write="${GREEN}${BOLD}"    # 🌟 Turn [w] Green: Directs you to write the table configuration next!
-        elif [ "${SERVICE_PENDING:-0}" -eq 1 ] || { [ "$has_conf" -eq 0 ] && [ "$svc_enabled" -ne 0 ]; }; then
+            c_write="${GREEN}${BOLD}"    # 🌟 Step 1 Complete: Highlight [w] Green after an edit pass!
+        elif [ "$OPTIMIZER_STEP" -eq 2 ]; then
             c_write="${DIM}"
-            c_install="${GREEN}${BOLD}"  # 🌟 Turn [i] Green: Directs you to install the boot service next!
+            c_install="${GREEN}${BOLD}"  # 🌟 Step 2 Complete: Highlight [i] Green after a save pass!
         fi
 
-        # Print your exact original screen matrix string layout utilizing the custom hooks
+        # Print your exact original menu layout grid down to the character spaces
         echo ""
         echo -e "  |  ${c_edit}[e]${RESET} Edit WGP table      ${CYAN}[f]${RESET} Enable all CUs      ${CYAN}[t]${RESET} Enable default CUs      |"
         echo -e "  |  ${c_install}[i]${RESET} Install service     ${c_write}[w]${RESET} Write table         ${CYAN}[u]${RESET} Uninstall service       |"
@@ -599,23 +604,25 @@ menu() {
 
         case "${choice,,}" in
             e)
-                if table; then TABLE_DIRTY=1; SERVICE_PENDING=0; fi
+                if table; then 
+                    OPTIMIZER_STEP=1  # Advance path to highlight [w] Write table
+                fi
                 ;;
             f)
                 if [ "${YES:-0}" -eq 1 ] || confirm_dispatch_plan "Enable All CUs Plan"; then
                     local idx; for idx in 0 1 2 3; do target_masks[$idx]=$WGP_FULL_MASK; done
-                    apply_target_masks && TABLE_DIRTY=1 && SERVICE_PENDING=0
+                    apply_target_masks && OPTIMIZER_STEP=1
                 fi
                 ;;
             t)
                 if [ "${YES:-0}" -eq 1 ] || confirm_dispatch_plan "Restore Stock Dispatch Plan"; then
                     local idx; for idx in 0 1 2 3; do target_masks[$idx]=0; done
-                    apply_target_masks && TABLE_DIRTY=1 && SERVICE_PENDING=0
+                    apply_target_masks && OPTIMIZER_STEP=1
                 fi
                 ;;
             w)
-                if [ "${TABLE_DIRTY:-0}" -eq 1 ] || [ "${YES:-0}" -eq 1 ] || [ "$has_conf" -eq 1 ]; then
-                    write_service_table && TABLE_DIRTY=0 && SERVICE_PENDING=1
+                if [ "$OPTIMIZER_STEP" -eq 1 ] || [ "${YES:-0}" -eq 1 ] || [ "$has_conf" -eq 1 ]; then
+                    write_service_table && OPTIMIZER_STEP=2  # Advance path to highlight [i] Install service
                     sleep 1.5
                 else
                     warn "No modifications cached in memory workspace. Edit via [e] first."
@@ -623,10 +630,12 @@ menu() {
                 fi
                 ;;
             i)
-                install_service && SERVICE_PENDING=0; sleep 2
+                install_service && OPTIMIZER_STEP=0  # Step sequence fully completed, reset to baseline!
+                sleep 2
                 ;;
             u)
-                uninstall_service && TABLE_DIRTY=0 && SERVICE_PENDING=0; sleep 2
+                uninstall_service && OPTIMIZER_STEP=0
+                sleep 2
                 ;;
             c)
                 cpu_unlock
