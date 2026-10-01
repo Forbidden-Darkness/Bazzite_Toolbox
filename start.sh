@@ -2209,6 +2209,188 @@ EOF
     return 3
 }
 
+# ==============================================================================
+# 🎮 PUNKTFUNK CORE STREAMING MANAGEMENT & FAIL-SAFE SUB-SYSTEMS
+# ==============================================================================
+
+manage_punktfunk_uninstall() {
+    echo "=========================================================="
+    echo "🧹 STARTING NATIVE PUNKTFUNK HARD DEEP-PURGE (UNINSTALL)"
+    echo "=========================================================="
+
+    local native_user="${SUDO_USER:-$(logname 2>/dev/null || whoami)}"
+    local native_uid; native_uid=$(id -u "$native_user" 2>/dev/null || echo "1000")
+
+    echo "[+] Step 1/5: Disabling and stopping active user-space daemons..."
+    sudo -u "$native_user" XDG_RUNTIME_DIR="/run/user/$native_uid" systemctl --user disable --now punktfunk-host punktfunk-web punktfunk-scripting 2>/dev/null || true
+    sudo killall -9 punktfunk-host punktfunk-web 2>/dev/null || true
+
+    echo "[+] Step 2/5: Forcibly unmerging System Extension images from kernel memory..."
+    sudo systemd-sysext unmerge 2>/dev/null || true
+
+    echo "[+] Step 3/5: Running official uninstallation cleanup routine..."
+    cd /tmp || exit 1
+    rm -f punktfunk-sysext.sh 2>/dev/null
+    curl -fsSLO https://unom.io 2>/dev/null || true
+    if [ -f "punktfunk-sysext.sh" ]; then
+        sudo bash punktfunk-sysext.sh uninstall
+        rm -f punktfunk-sysext.sh
+    fi
+
+    echo "[+] Step 4/5: Erasing persistent system configurations, rules, and cache folders..."
+    sudo rm -rf /etc/punktfunk /etc/extensions/punktfunk* /var/lib/extensions/punktfunk* 2>/dev/null || true
+    sudo rm -f /etc/udev/rules.d/99-punktfunk-gpu-permissions.rules /etc/udev/rules.d/60-punktfunk.rules 2>/dev/null || true
+    sudo rm -f /etc/systemd/system/user@.service.d/99-punktfunk-gpu-override.conf /etc/systemd/system/user@.service.d/50-punktfunk-nice.conf 2>/dev/null || true
+    sudo rm -f /etc/modules-load.d/punktfunk.conf /etc/sysctl.d/99-punktfunk-net.conf 2>/dev/null || true
+
+    # 🚀 SHORTCUT PURGE ADDITION: Completely scrubs desktop and launcher short links without changing system files
+    sudo -u "$native_user" rm -f "/var/home/${native_user}/Desktop/Punktfunk_Console.desktop"
+    sudo -u "$native_user" rm -f "/var/home/${native_user}/.local/share/applications/Punktfunk_Console.desktop"
+    sudo -u "$native_user" rm -f "/var/home/${native_user}/.local/share/icons/punktfunk-icon.png"
+
+    rm -rf /var/home/$native_user/.config/punktfunk /var/home/$native_user/.config/systemd/user/punktfunk-*.service.d 2>/dev/null || true
+
+    echo "[+] Step 5/5: Stripping network firewall rules & un-lingering user session..."
+    sudo firewall-cmd --permanent --remove-service=punktfunk-native --remove-service=punktfunk-web --remove-service=punktfunk-gamestream 2>/dev/null || true
+    sudo firewall-cmd --permanent --remove-port=47984-48010/tcp --remove-port=47998-48010/udp 2>/dev/null || true
+    sudo firewall-cmd --reload 2>/dev/null || true
+    sudo loginctl disable-linger "$native_user" 2>/dev/null || true
+
+    # Remove user out of the specialized groups to drop hardware access security loops
+    sudo gpasswd -d "$native_user" punktfunk 2>/dev/null || true
+    sudo groupdel punktfunk 2>/dev/null || true
+    sudo groupdel punktfunk-update 2>/dev/null || true
+
+    sudo systemctl daemon-reload
+    sudo -u "$native_user" XDG_RUNTIME_DIR="/run/user/$native_uid" systemctl --user daemon-reload
+
+    echo "=========================================================="
+    echo "✔ PURGE COMPLETE: Your host operating system is completely sterile!"
+    echo "=========================================================="
+    read -p "Press [Enter] to return to the toolkit launcher menu..."
+}
+
+# ==============================================================================
+# 🎮 PUNKTFUNK CORE GAME STREAMING SERVICES CONFIGURATION INTERFACES
+# ==============================================================================
+
+manage_punktfunk_setup() {
+    echo "=========================================================="
+    echo "🚀 LAUNCHING OFFICIAL INTERACTIVE PUNKTFUNK WIZARD"
+    echo "=========================================================="
+
+    # 🎯 Find the actual unprivileged user account behind the sudo session
+    local native_user="${SUDO_USER:-$(logname 2>/dev/null || whoami)}"
+    local native_uid; native_uid=$(id -u "$native_user" 2>/dev/null || echo "1000")
+
+    echo "[+] Running deep-purge cleaning phase..."
+    sudo -u "$native_user" XDG_RUNTIME_DIR="/run/user/$native_uid" systemctl --user disable --now punktfunk-host punktfunk-web 2>/dev/null || true
+    sudo killall -9 punktfunk-host punktfunk-web 2>/dev/null || true
+    sudo systemd-sysext unmerge 2>/dev/null || true
+    sudo rm -rf /etc/punktfunk /etc/extensions/punktfunk* /var/lib/extensions/punktfunk* 2>/dev/null || true
+    rm -rf /var/home/$native_user/.config/punktfunk 2>/dev/null || true
+
+    sudo systemctl daemon-reload
+    sudo -u "$native_user" XDG_RUNTIME_DIR="/run/user/$native_uid" systemctl --user daemon-reload
+
+    echo "[+] Handing over to the interactive guided installer..."
+    # Breaks out of sudo to trigger the full interactive password configuration screen
+    sudo -u "$native_user" XDG_RUNTIME_DIR="/run/user/$native_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$native_uid/bus" sh -c 'curl -fsSL https://punktfunk.unom.io/install.sh | sh'
+
+    echo "[+] Executing mandatory post-installation service boots and session lingering..."
+    # 🎯 EXPLICIT COMMANDS FROM YOUR NOTES:
+    sudo -u "$native_user" XDG_RUNTIME_DIR="/run/user/$native_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$native_uid/bus" systemctl --user enable --now punktfunk-host punktfunk-web
+    sudo loginctl enable-linger "$native_user"
+
+    echo "[+] Seeding KDE Plasma display input grant permissions..."
+    # 🎯 EXPLICIT COMMAND FROM YOUR NOTES:
+    sudo -u "$native_user" XDG_RUNTIME_DIR="/run/user/$native_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$native_uid/bus" bash /usr/share/punktfunk/bazzite/kde-desktop-setup.sh 2>/dev/null || true
+
+    # ==============================================================================
+    # 🚀 SHORTCUT ENGINE ADDITION (ADDED AT THE END WITHOUT CHANGING ANYTHING ABOVE)
+    # ==============================================================================
+    echo "[+] Pulling custom embossed icon from GitHub and creating shortcut links..."
+
+    # Define absolute target configuration paths inside your normal user ring
+    local icon_dir="/var/home/${native_user}/.local/share/icons"
+    local desktop_dir="/var/home/${native_user}/Desktop"
+    local apps_dir="/var/home/${native_user}/.local/share/applications"
+
+    # ⚠️ UPDATE THIS LINK: Replace this placeholder link with your actual GitHub raw image URL asset link
+    local github_icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/punktfunk.ico"
+
+    # Safely generate the user profile directory folders if they do not exist
+    sudo -u "$native_user" mkdir -p "$icon_dir" "$desktop_dir" "$apps_dir"
+
+    # Download your custom icon asset from your GitHub repo as the unprivileged user profile account
+    sudo -u "$native_user" curl -fsSL "$github_icon_url" -o "${icon_dir}/punktfunk-icon.png" 2>/dev/null || true
+
+    # 1. Inject the desktop launcher shortcut onto your desktop grid canvas
+    sudo -u "$native_user" bash -c "cat << 'EOF' > ${desktop_dir}/Punktfunk_Console.desktop
+[Desktop Entry]
+Icon=/var/home/${native_user}/.local/share/icons/punktfunk-icon.png
+Name=Punktfunk Web Console
+Type=Link
+URL=https://localhost:47992
+Comment=Management Portal Console Interface
+Terminal=false
+Categories=Network;WebBrowser;
+EOF"
+
+    # 2. Inject the start menu launcher shortcut directly into the KDE Plasma Games category
+    sudo -u "$native_user" bash -c "cat << 'EOF' > ${apps_dir}/Punktfunk_Console.desktop
+[Desktop Entry]
+Icon=/var/home/${native_user}/.local/share/icons/punktfunk-icon.png
+Name=Punktfunk Web Console
+Type=Application
+Exec=xdg-open https://localhost:47992
+Comment=Management Portal Console Interface
+Terminal=false
+Categories=Game;Gaming;
+EOF"
+
+    # Authorize execution flags so Bazzite KDE Plasma accepts both shortcuts instantly
+    sudo -u "$native_user" chmod +x "${desktop_dir}/Punktfunk_Console.desktop"
+    sudo -u "$native_user" chmod +x "${apps_dir}/Punktfunk_Console.desktop"
+    # ==============================================================================
+
+    echo "=========================================================="
+    echo "✨ INTERACTIVE INSTALLATION COMPLETED SUCCESSFULLY"
+    echo "⚠️  CRITICAL: You MUST log out of your Bazzite desktop session"
+    echo "             and log back in once to apply your controller drivers!"
+    echo "=========================================================="
+    (play_success_chime &>/dev/null &)
+    read -p "Press [Enter] to return to the toolkit launcher menu..."
+}
+
+run_punktfunk_troubleshooter() {
+    echo "=========================================================="
+    echo "🛰️  STARTING FAIL-SAFE TROUBLESHOOTER (CPU VIDEO ENCODING)"
+    echo "=========================================================="
+    local native_user="${SUDO_USER:-$(logname 2>/dev/null || whoami)}"
+    local native_uid; native_uid=$(id -u "$native_user" 2>/dev/null || echo "1000")
+
+    echo "[+] Killing old ghost sockets and locking port 48010 allocations..."
+    sudo -u "$native_user" XDG_RUNTIME_DIR="/run/user/$native_uid" systemctl --user stop punktfunk-host punktfunk-web 2>/dev/null || true
+    sudo killall -9 punktfunk-host punktfunk-web 2>/dev/null || true
+    sudo fuser -k 48010/tcp 47989/tcp 47999/udp 2>/dev/null || true
+
+    echo "[+] Injecting flat software x264 configuration schema maps..."
+    sudo -u "$native_user" mkdir -p /var/home/$native_user/.config/punktfunk
+    sudo -u "$native_user" bash -c "cat << 'EOF' > /var/home/$native_user/.config/punktfunk/host-settings.json
+{
+  \"gamestream\": true,
+  \"encoder\": \"software\",
+  \"video_codec\": \"h264\",
+  \"bitrate_kbps\": 12000,
+  \"capture_source\": \"portal\"
+}
+EOF"
+    echo "[+] Launching interactive low-latency video streaming host engine..."
+    export PATH="/usr/share/punktfunk:$PATH"
+    sudo -u "$native_user" XDG_RUNTIME_DIR="/run/user/$native_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$native_uid/bus" /usr/bin/punktfunk-host serve --gamestream
+}
+
 manage_mangohud_toggle() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
     local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
@@ -2378,294 +2560,36 @@ toggle_compute_queue_fix() {
 
     while true; do
         clear
-         # 🧠 EXTENDED Parent Menu Frame Block (Drop this directly over your old options display)
+        # 🧠 Parent Menu Frame Block
         echo -e "${YELLOW}====================================================================${RESET}"
         echo -e "    🎮 BC-250 HARDWARE PERFORMANCE TOOLKIT — BAZZITE RE-ENGINEERED  "
         echo -e "${YELLOW}====================================================================${RESET}"
-        echo -e "  ${CYAN}1) Custom Route             ${RESET}  ${DIM}Compile & install Custom Mesa Driver natively${RESET}"
-        echo -e "  ${CYAN}2) Express Route            ${RESET}  ${DIM}Download & install Pre-Compiled Performance Driver${RESET}"
-        echo -e "  ${CYAN}3) Restore Stock Driver     ${RESET}  ${DIM}Remove Custom Mesa Overrides & restore factory state${RESET}"
-        echo -e "  ${CYAN}4) Telemetry Status Check   ${RESET}  ${DIM}Check driver activation & hardware extension status${RESET}"
+        echo -e "  ${CYAN}1) Express Deploy Messa Drivers & Punktfunk Streaming Suite ${RESET}  ${DIM}Express Deploy Custom Mesa, Punktfunk Streaming Servers, and fixes${RESET}"
         echo ""
-        echo -e "  ${CYAN}5) FSR 4.1.1 Smart Suite    ${RESET}  ${DIM}Toggle GFX1013 FSR 4.1.1 Vector RC11 PROD Engine${RESET}"
-        echo -e "  ${CYAN}6) Strip Legacy FSR4 payload files & purge configuration states${RESET}  ${DIM}Completely remove upscaler binaries and reset game directories to factory defaults${RESET}"
-        echo -e "  ${CYAN}7) Install / Update Standalone Developer AppImages ${DIM}(OptiScaler / DS5 Bridge / Goverlay)${RESET}"
-        echo -e "  ${CYAN}8) Deploy / Manage OptiScaler Interactive Client ${DIM}(ZIP Archive Bundle)${RESET}"
+        echo -e "  ${CYAN}2) FSR 4.1.1 Smart Suite    ${RESET}  ${DIM}Toggle GFX1013 FSR 4.1.1 Vector RC11 PROD Engine${RESET}"
+        echo -e "  ${CYAN}3) Strip Legacy FSR4 payload files & purge configuration states${RESET}  ${DIM}Completely remove upscaler binaries and reset game directories to factory defaults${RESET}"
+        echo -e "  ${CYAN}4) Install / Update Standalone Developer AppImages ${DIM}(OptiScaler / DS5 Bridge / Goverlay)${RESET}"
+        echo -e "  ${CYAN}5) Deploy / Manage OptiScaler Interactive Client ${DIM}(ZIP Archive Bundle)${RESET}"
         echo ""
-        echo -e "  ${CYAN}9) MangoHud Engine Manager  ${RESET}  ${DIM}Configure & uninstall MangoHud Performance Monitor${RESET}"
+        echo -e "  ${CYAN}6) MangoHud Engine Manager  ${RESET}  ${DIM}Configure & uninstall MangoHud Performance Monitor${RESET}"
         echo ""
         echo -e "  ${RED}↵)${RESET} ${DIM}Hit [ENTER] to return back to the main menu grid...${RESET}"
         echo -e "${YELLOW}====================================================================${RESET}"
-        echo -n "  Select an option [1-7]: "
+        echo -n "  Select an option [1-6]: "
 
         local sub_opt; read -r sub_opt
         case "$sub_opt" in
-            1)
-                echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
-                echo -e "      a) Custom Route (Navi10): Compile Custom Driver Natively (High-Tier)"
-                echo -e "      b) Custom Route (Navi14): Compile Custom Driver Natively (Low-Tier)"
-                local ACTION_CHOICE
-                read -rp "$(echo -e "  ${CYAN}Select an option [a-b]: ${RESET}")" ACTION_CHOICE
-
-                case "$ACTION_CHOICE" in
-                    a|A)
-                        sudo rpm-ostree cleanup -m || true
-                        sudo rpm-ostree cleanup -p || true
-                        local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                        if [[ -f "$target_lib" ]]; then
-                            local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
-                            local active_profile="CHIP_NAVI10 (Dedicated High-Tier Layout)"
-                            [[ $file_bytes -gt 21700000 ]] && active_profile="CHIP_NAVI14 (Unified Performance Layout)"
-                            echo -e "\n  ${YELLOW}[⚠] Active overrides detected: Currently running $active_profile.${RESET}"
-                            if confirm "Would you like to safely remove this existing driver override layer before proceeding?"; then
-                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                                sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-                            fi
-                        fi
-
-                        echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled compute queues.${RESET}"
-                        if confirm "Proceed with Custom Navi10 Async Compute Queue native installation?"; then
-                            local log_dir; log_dir=$(dirname "$mesa_build_log")
-                            [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
-                            sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
-                            podman rm -f bc250-navi10-box &>/dev/null || true
-
-                            echo -e "\n${GREEN}[+] Step 1/6: Spawning clean virtual toolchain environment (Navi10 Box)...${RESET}"
-                            podman run -d --pull=always --name bc250-navi10-box registry.fedoraproject.org/fedora:43 sleep infinity >> "$mesa_build_log" 2>&1
-
-                            echo -e "${GREEN}[+] Step 2/6: Provisioning compiler dependencies inside sandbox...${RESET}"
-                            # 🚀 ATOMIC STREAM TRACKER: Direct background task routing with no data leaks
-                            podman exec bc250-navi10-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1 &
-                            sleep 0.5
-
-                            # 🌀 DYNAMIC SPIRAL MONITOR: Locks focus onto the system process tables via pgrep
-                            while pgrep -f "podman exec bc250-navi10-box dnf install" &>/dev/null; do
-                                for frame in "${spinner[@]}"; do
-                                    echo -ne "\r  \033[0;36m[$frame] Fetching and syncing required development tool libraries...${RESET}"
-                                    sleep 0.08
-                                done
-                            done
-                            echo -ne "\r                                                                                   \r"
-                            echo -e "${GREEN}[+] Step 3/6: Downloading stable Mesa ${mesa_compile_ver} source from official Git mirror...${RESET}"
-                            # 🌀 STEP 3 FOREGROUND SPIRAL: Pulls repository source securely without text data line skips
-                            local step3_idx=0
-                            while read -r line; do
-                                local frame="${spinner[step3_idx]}"
-                                echo -ne "\r  \033[0;36m[$frame] Synchronizing Mesa graphics driver repository source tree...${RESET}"
-                                ((step3_idx = (step3_idx + 1) % ${#spinner[@]}))
-                            done < <(podman exec bc250-navi10-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa 2>&1)
-                            echo -ne "\r                                                                                   \r"
-                            podman exec bc250-navi10-box mkdir -p /root/patches
-
-                            echo -e "${GREEN}[+] Step 4/6: Pulling pristine, un-corrupted patch assets directly from GitHub...${RESET}"
-                            podman exec bc250-navi10-box wget -qO /root/patches/0001.patch "$MODDED_PATCH_0001_URL" >> "$mesa_build_log" 2>&1
-                            podman exec bc250-navi10-box wget -qO /root/patches/0002.patch "$MODDED_PATCH_0002_URL" >> "$mesa_build_log" 2>&1
-                            podman exec bc250-navi10-box wget -qO /root/patches/0003.patch "$MODDED_PATCH_0003_URL" >> "$mesa_build_log" 2>&1
-
-                            echo -e "${GREEN}[+] Step 5/6: Injecting hardware performance patches and compiling custom driver...${RESET}"
-                            podman exec bc250-navi10-box sed -i 's/info->has_user_fence = info->gfx_level >= GFX10;/info->has_user_fence = info->gfx_level >= GFX10;\n   info->has_async_compute_queue = info->family == CHIP_NAVI10 || info->family == CHIP_GFX1013;/g' /root/mesa/src/amd/common/ac_gpu_info.c 2>/dev/null
-                            podman exec bc250-navi10-box sed -i 's/device->physical_device->radv_meta_ops;/device->physical_device->radv_meta_ops;\n   info->has_async_compute_queue = true;/g' /root/mesa/src/amd/vulkan/radv_physical_device.c 2>/dev/null
-                            podman exec bc250-navi10-box sed -i 's/bool has_async_compute_queue;/bool has_async_compute_queue;\n   bool has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.h 2>/dev/null
-                            podman exec bc250-navi10-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_bug_info.c 2>/dev/null || podman exec bc250-navi10-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.c
-                            podman exec bc250-navi10-box sed -i '/bool has_taskmesh_indirect0_bug;/a \   bool has_gfx1013_mesh_shading;\n   bool has_gfx1013_task_shading;' /root/mesa/src/amd/common/ac_gpu_info.h
-                            podman exec bc250-navi10-box sed -i '/bool record_stats;/a \   bool has_mesh_shading;' /root/mesa/src/amd/compiler/aco_shader_info.h
-                            podman exec bc250-navi10-box sed -i 's/assert(!mesh_shading || ctx.program->gfx_level >= GFX10_3);/assert(!mesh_shading || options->has_mesh_shading);/g' /root/mesa/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
-                            podman exec bc250-navi10-box sed -i 's/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_VGT_PRIM_STATE;/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VGT_PRIM_STATE;\n      if (pdev->info.gfx_level >= GFX10_3) cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;/g' /root/mesa/src/amd/vulkan/radv_cmd_buffer.c
-                            podman exec bc250-navi10-box sed -i 's/info->family == CHIP_TONGA;/info->family == CHIP_TONGA || ((info->family == CHIP_NAVI10) \&\& info->gfx_level == GFX10);/g' /root/mesa/src/amd/common/ac_gpu_info.c
-
-                            echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
-                            podman exec bc250-navi10-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1
-                            # 🌀 STEP 5 FOREGROUND COMPILER PASS: Pipes data sequentially into the spinner loop to eliminate file corruption
-                            local step5_idx=0
-                            while read -r line; do
-                                local frame="${spinner[step5_idx]}"
-                                echo -ne "\r  \033[0;36m[$frame] Building Radeon Vulkan graphics driver library (Navi10)...${RESET}"
-                                ((step5_idx = (step5_idx + 1) % ${#spinner[@]}))
-                            done < <(podman exec bc250-navi10-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" 2>&1)
-                            echo -ne "\r                                                                                   \r"
-
-                            if ! podman exec bc250-navi10-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
-                                echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
-                                podman rm -f bc250-navi10-box --force &>/dev/null || true
-                                read -rp "Press [Enter] to return back to main menu..." dummy; continue
-                            fi
-
-                            echo -e "${GREEN}[+] Step 6/6: Exporting custom library objects to host space...${RESET}"
-                            sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
-                            podman cp bc250-navi10-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
-                            [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v /opt/bc250-gfx1013/lib64/libvulkan_radeon.so &>/dev/null
-                            podman rm -f bc250-navi10-box --force &>/dev/null || true
-
-                            # 🎯 OPEN-STREAM ATOMIC PROVISIONING LAYER: Restores tracking lines so host layering finishes flawlessly [1.11]
-                            if ! command -v numactl &>/dev/null; then
-                                echo -e "${YELLOW}[ℹ] Provisioning system memory allocator matrix via native host layering...${RESET}"
-                                echo -e "    -> Initializing atomic transaction pool. Please stand by..."
-                                sudo rpm-ostree install -y --allow-inactive numactl
-                            fi
-
-                            sudo bash -c "cat << 'EOF' > $perf_conf
-# 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
-RADV_PERF_HACKS=ngg_streamout
-RADV_DEBUG=nooutoforder
-EOF"
-                            sudo bash -c "cat << 'EOF' > $wrapper_bin
-#!/usr/bin/env bash
-if command -v numactl &>/dev/null; then
-    exec numactl --interleave=all \"\$@\"
-else
-    exec \"\$@\"
-fi
-EOF"
-                            sudo chmod +x "$wrapper_bin"
-
-                            sudo bash <<'EOF'
-cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
-{ "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
-INNER_EOF
-EOF
-                            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                            print_success "Custom graphics driver and frame rate boost variables successfully initialized!"
-                            play_success_chime; prompt_reboot; continue
-                        fi
-                        ;;
-                    b|B)
-                        sudo rpm-ostree cleanup -m || true
-                        sudo rpm-ostree cleanup -p || true
-                        local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                        if [[ -f "$target_lib" ]]; then
-                            # 🎯 PRE-FLIGHT SILICON DETECTION ENGINE: Reads bytes on disk to name the active hardware profile
-                            local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
-                            local active_profile="CHIP_NAVI10 (Dedicated High-Tier Layout)"
-                            if (( file_bytes > 21700000 )); then
-                                active_profile="CHIP_NAVI14 (Unified Performance Layout)"
-                            fi
-
-                            echo -e "\n  ${YELLOW}[⚠] Active overrides detected: Currently running $active_profile.${RESET}"
-                            if confirm "Would you like to safely remove this existing driver override layer before proceeding?"; then
-                                sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                                sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                                sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
-                                echo -e "  ${GREEN}[✓] Existing driver clean-up complete.${RESET}"
-                            fi
-                        fi
-
-                        echo -e "\n  ${CYAN}[ℹ] System is running stock amdgpu drivers with hard-disabled compute queues.${RESET}"
-                        if confirm "Proceed with Custom Navi14 Async Compute Queue native installation?"; then
-
-                            # === FIXED: SAFE PATH INSULATION GATE ===
-                            local log_dir; log_dir=$(dirname "$mesa_build_log")
-                            if [[ ! -d "$log_dir" ]]; then sudo mkdir -p "$log_dir" 2>/dev/null || true; fi
-
-                            sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
-                            podman rm -f bc250-build-box &>/dev/null || true
-
-                            echo -e "\n${GREEN}[+] Step 1/5: Spawning clean virtual toolchain environment (Navi14 Box)...${RESET}"
-                            podman run -d --name bc250-build-box registry.fedoraproject.org/fedora:44 sleep infinity >> "$mesa_build_log" 2>&1
-
-                            echo -e "${GREEN}[+] Step 2/5: Provisioning compiler dependencies inside sandbox...${RESET}"
-                            podman exec bc250-build-box dnf install -y --nogpgcheck @development-tools >> "$mesa_build_log" 2>&1
-                            # 🚀 BACKGROUND THREAD RUNNER: Offloads heavy toolchain installation into a parallel task stream
-                            podman exec bc250-build-box dnf install -y --nogpgcheck meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget >> "$mesa_build_log" 2>&1 &
-                            local dnf_navi14_pid=$!
-
-                            # 🌀 INTERACTIVE SPIRAL LOOP LAYER: Updates live until your dependency cache registers match
-                            while kill -0 "$dnf_navi14_pid" 2>/dev/null; do
-                                for frame in "${spinner[@]}"; do
-                                    echo -ne "\r  \033[0;36m[$frame] Fetching and syncing required development tool libraries...${RESET}"
-                                    sleep 0.08
-                                done
-                            done
-                            echo -ne "\r                                                                                   \r"
-
-                            echo -e "${GREEN}[+] Step 3/5: Downloading stable Mesa ${mesa_compile_ver} source from official code servers...${RESET}"
-                            # 🌀 NAVI14 STEP 3 FOREGROUND SPIRAL: Pulls repository source tree line-by-line safely
-                            local step3_14_idx=0
-                            while read -r line; do
-                                local frame="${spinner[step3_14_idx]}"
-                                echo -ne "\r  \033[0;36m[$frame] Synchronizing Mesa graphics driver repository source tree...${RESET}"
-                                ((step3_14_idx = (step3_14_idx + 1) % ${#spinner[@]}))
-                            done < <(podman exec bc250-build-box git clone --depth 1 --branch "mesa-${mesa_compile_ver}" https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa 2>&1)
-                            echo -ne "\r                                                                                   \r"
-                            echo -e "${GREEN}[+] Step 4/5: Injecting hardware performance patches and compiling custom driver...${RESET}"
-                            # === FIXED: INLINE ASYNC COMPUTE QUEUE ENABLEMENT FOR GFX1013 NAVI14 ===
-                            podman exec bc250-build-box sed -i 's/info->has_user_fence = info->gfx_level >= GFX10;/info->has_user_fence = info->gfx_level >= GFX10;\n   info->has_async_compute_queue = info->family == CHIP_NAVI10 || info->family == CHIP_NAVI14 || info->family == CHIP_GFX1013;/g' /root/mesa/src/amd/common/ac_gpu_info.c 2>/dev/null
-                            podman exec bc250-build-box sed -i 's/device->physical_device->radv_meta_ops;/device->physical_device->radv_meta_ops;\n   info->has_async_compute_queue = true;/g' /root/mesa/src/amd/vulkan/radv_physical_device.c 2>/dev/null
-                            podman exec bc250-build-box sed -i 's/bool has_async_compute_queue;/bool has_async_compute_queue;\n   bool has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.h 2>/dev/null
-                            # === EXISTING TEXT SUBSTITUTIONS ===
-                            podman exec bc250-build-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_bug_info.c 2>/dev/null || podman exec bc250-build-box sed -i 's/info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100;/info->has_taskmesh_indirect0_bug = (info->gfx_level == GFX10_3 \&\& info->mec_fw_version < 100) || info->family == CHIP_GFX1013;\n   info->has_gfx1013_mesh_shading = info->family == CHIP_GFX1013;\n   info->has_gfx1013_task_shading = info->has_gfx1013_mesh_shading;/g' /root/mesa/src/amd/common/ac_gpu_info.c
-                            podman exec bc250-build-box sed -i '/bool has_taskmesh_indirect0_bug;/a \   bool has_gfx1013_mesh_shading;\n   bool has_gfx1013_task_shading;' /root/mesa/src/amd/common/ac_gpu_info.h
-                            podman exec bc250-build-box sed -i '/bool record_stats;/a \   bool has_mesh_shading;' /root/mesa/src/amd/compiler/aco_shader_info.h
-                            podman exec bc250-build-box sed -i 's/assert(!mesh_shading || ctx.program->gfx_level >= GFX10_3);/assert(!mesh_shading || options->has_mesh_shading);/g' /root/mesa/src/amd/compiler/instruction_selection/aco_isel_setup.cpp
-                            podman exec bc250-build-box sed -i 's/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE | RADV_CMD_DIRTY_VGT_PRIM_STATE;/cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VGT_PRIM_STATE;\n      if (pdev->info.gfx_level >= GFX10_3) cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FSR_STATE;/g' /root/mesa/src/amd/vulkan/radv_cmd_buffer.c
-                            podman exec bc250-build-box sed -i 's/info->family == CHIP_TONGA;/info->family == CHIP_TONGA || ((info->family == CHIP_NAVI10 || info->family == CHIP_NAVI14) \&\& info->gfx_level == GFX10);/g' /root/mesa/src/amd/common/ac_gpu_info.c
-
-                            echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
-
-                            # 🌀 NAVI14 STEP 4 FOREGROUND SPIRAL: Sequences meson setup and driver builds without disk collisions
-                            local step4_14_idx=0
-                            while read -r line; do
-                                local frame="${spinner[step4_14_idx]}"
-                                echo -ne "\r  \033[0;36m[$frame] Building Radeon Vulkan graphics driver library (Navi14)...${RESET}"
-                                ((step4_14_idx = (step4_14_idx + 1) % ${#spinner[@]}))
-                            done < <(
-                                podman exec bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release" >> "$mesa_build_log" 2>&1 && \
-                                podman exec bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so" 2>&1
-                            )
-                            echo -ne "\r                                                                                   \r"
-                        if ! podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
-
-                            echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
-                            podman rm -f bc250-build-box --force &>/dev/null || true
-                            read -rp "Press [Enter] to return back to main menu..." dummy; continue
-                        fi
-
-                            echo -e "${GREEN}[+] Step 5/5: Exporting custom library objects to host space...${RESET}"
-                            sudo mkdir -p /opt/bc250-gfx1013/lib64 /opt/bc250-gfx1013/share/vulkan/icd.d /etc/environment.d 2>/dev/null
-                            podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so /opt/bc250-gfx1013/lib64/libvulkan_radeon.so
-                            [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v /opt/bc250-gfx1013/lib64/libvulkan_radeon.so &>/dev/null
-                            podman rm -f bc250-build-box --force &>/dev/null || true
-
-                            if ! command -v numactl &>/dev/null; then
-                                echo -e "${YELLOW}[ℹ] Provisioning system memory allocator matrix via native host layering...${RESET}"
-                                echo -e "    -> Initializing atomic transaction pool. Please stand by..."
-                                sudo rpm-ostree install -y --allow-inactive numactl
-                            fi
-
-                            sudo bash -c "cat << 'EOF' > $perf_conf
-# 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
-RADV_PERF_HACKS=ngg_streamout
-RADV_DEBUG=nooutoforder
-EOF"
-                            sudo bash -c "cat << 'EOF' > $wrapper_bin
-#!/usr/bin/env bash
-if command -v numactl &>/dev/null; then exec numactl --interleave=all \"\$@\"; else exec \"\$@\"; fi
-EOF"
-                            sudo chmod +x "$wrapper_bin"
-
-                            sudo bash <<'EOF'
-cat <<INNER_EOF > /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json
-{ "file_format_version": "1.0.0", "ICD": { "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so", "api_version": "1.3.290" } }
-INNER_EOF
-EOF
-                            echo "VK_DRIVER_FILES=/opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json" | sudo tee /etc/environment.d/99-bc250-gfx1013.conf >/dev/null
-                            print_success "Custom Navi14 graphics driver and frame rate boost variables successfully initialized!"
-                            play_success_chime; prompt_reboot; continue
-                        fi
-                        ;;
-                    *)
-                        echo -e "${RED}Invalid choice.${RESET}"
-                        ;;
-                esac
-                ;; # Closes main option 1
-            2)
-                # 🎮 RESTORED SUB-MENU INTEGRATION
-                echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
-                echo -e "      a) Express Route (Navi10): Download & Install Pre-Compiled Performance Driver (High-Tier)"
-                echo -e "      b) Express Route (Navi14): Download & Install Pre-Compiled Performance Driver (Low-Tier)"
-                local ACTION_CHOICE
-                read -rp "$(echo -e "  ${CYAN}Select an option [a-b]: ${RESET}")" ACTION_CHOICE
-
+            1) # 🎯 FIX 1: Restored the completely missing Main Menu option selector branch
+                                echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
+                echo -e "      a) Custom Route (Navi10): Download & Install Pre-Compiled Performance Driver (High-Tier)"
+                echo -e "      b) Custom Route (Navi14): Download & Install Pre-Compiled Performance Driver (Low-Tier)"
+                echo -e "      c) Restore Stock Driver:  Remove Custom Mesa Overrides & Restore Factory State"
+                echo -e "      d) Telemetry Check:       Check Driver Activation & Hardware Extension Status"
+                echo ""
+                echo -e "      e) Punktfunk Setup:       Install / Reinstall Game Streaming Server"
+                echo -e "      f) Punktfunk Remove:      Completely Uninstall & Purge Streaming Files"
+                echo -e "      g) Punktfunk Fix:         Run Fail-Safe Troubleshooter (CPU Video Mode)"
+                local ACTION_CHOICE; read -rp "$(echo -e "  ${CYAN}Select an option [a-g]: ${RESET}")" ACTION_CHOICE
                 case "$ACTION_CHOICE" in
                     a|A)
                         sudo rpm-ostree cleanup -m || true
@@ -2753,12 +2677,8 @@ INNER_EOF'
                             play_success_chime; prompt_reboot; continue
                         fi
                         ;;
-                    *) echo -e "${RED}Invalid choice.${RESET}" ;;
-                esac
-                ;;
-
-            3)
-                # Option 3 uninstaller sweeps the environment completely clean
+                    c|C)
+                        # Option 3 uninstaller sweeps the environment completely clean
                 local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                 local active_profile="Factory Stock Driver (No active overrides detected)"
                 if [[ -f "$target_lib" ]]; then
@@ -2788,8 +2708,8 @@ INNER_EOF'
                     play_success_chime; prompt_reboot; continue
                 fi
                 ;;
-            4)
-                echo -e "\n${CYAN}[ℹ] Verifying Active Hardware Pipeline Status Profiles...${RESET}"
+                    d|D)
+                        echo -e "\n${CYAN}[ℹ] Verifying Active Hardware Pipeline Status Profiles...${RESET}"
                 local stock_ver; stock_ver=$(rpm -q mesa-dri-drivers --qf "%{VERSION}\n" 2>/dev/null | head -n1 || echo "Unknown")
                 echo -e "  Stock System Driver Version:  ${YELLOW}${stock_ver}${RESET}"
 
@@ -2827,11 +2747,17 @@ INNER_EOF'
                 read -rp "Press [Enter] to return back to sub-menu..." dummy
                 ;;
                 # 🚀 ROUTING ENGINE HOOK: Calls the standalone FSR4 installation engine pass
-            5) toggle_gfx1013_fsr4_engine ;;
-            6) extract_and_strip_fsr_payload ;;
-            7) launch_bc250_appimage_manager ;;
-            8) launch_bc250_opticlient_matrix ;;
-            9) manage_mangohud_toggle ;; # 🚀 Redirects straight to the dedicated compilation function
+                    e|E) manage_punktfunk_setup ;;
+                    f|F) manage_punktfunk_uninstall ;;
+                    g|G) run_punktfunk_troubleshooter ;;
+                    *) echo -e "${RED}Invalid choice.${RESET}" ;;
+                esac
+                ;; # 🎯 Closes choice 1) Custom Route submenu securely
+            2) toggle_gfx1013_fsr4_engine ;;
+            3) extract_and_strip_fsr_payload ;;
+            4) launch_bc250_appimage_manager ;;
+            5) launch_bc250_opticlient_matrix ;;
+            6) manage_mangohud_toggle ;; # 🚀 Redirects straight to the dedicated compilation function
             *)
                 echo -e "\n${YELLOW}Returning to the main menu...${RESET}"
                 sleep 1 ; return 0 ;;
@@ -4304,7 +4230,7 @@ show_menu() {
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
 
         # Safe Prompt Parser (Instant Typing Response Keystroke Engine)
-        type_prompt "  Select an option [0-8, A-I, M, O, P, Q, S, T, X]: " 0.03
+        type_prompt "  Select an option [0-8, A-I, M, O, P, R, S, X]: " 0.03
 
         choice=""
         read -n 1 -s choice || true
