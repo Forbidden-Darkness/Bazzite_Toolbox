@@ -1313,7 +1313,7 @@ while true; do
         1a|1A) run_phase1 ;;
         1b|1B) run_phase2 ;;
         2a|2A) run_manager_phase1 ;;
-        2b|2B) run_manager_phase2 ;; # 🚀 NOW REACHABLE NATIVELY
+        2b|2B) run_manager_phase2 ;;
         m|M) configure_governor_profile ;;
         c|C) apply_manual_clock_clamp ;;
         r|R)
@@ -1324,6 +1324,7 @@ while true; do
         3a|3A) uninstall_cpu_profiles ;;
         3b|3B) uninstall_cu_manager ;;
         4) run_stability_sweep ;;
+        5) view_core_live_manager ;; # 🚀 NOW REACHABLE UNDER OPTION 4
         "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; exit 0 ;;
         *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
     esac
