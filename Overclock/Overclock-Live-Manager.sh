@@ -1014,7 +1014,8 @@ view_core_live_manager() {
 
         # Pulls live SMU register signatures to crosscheck boot parameters
         local smu_probe_status="Unknown"
-        if have_setpci; then
+        # 🎯 FIXED BASH LINE: Uses command -v instead of have_setpci to prevent the crash!
+        if command -v setpci &>/dev/null && [ -e "/sys/bus/pci/devices/0000:00:00.0/config" ]; then
             smu_probe_status=$(python3 -c '
 import sys, os
 try:
@@ -1022,6 +1023,7 @@ try:
     from bc250_smu import Bc250Smu
     smu = Bc250Smu()
     if smu.secure_access_enabled():
+        # Read the Core Presence Mask register directly via SMN index
         mask = smu.read_smn_reg(0x115A870)
         if mask == 0xFF: print("8 Cores (SMU Patched)")
         elif mask == 0x77: print("6 Cores (Stock Matrix)")
