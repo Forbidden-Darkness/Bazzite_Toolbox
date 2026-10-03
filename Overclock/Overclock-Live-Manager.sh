@@ -1198,13 +1198,13 @@ execute_smu_core_unlock() {
 }
 
 # ==============================================================================
-# SUBROUTINE: PERSISTENT ATOMIC KERNEL ARGUMENT INJECTION MODULE (ISOLCPUS)
+# OPTIMIZED: ATOMIC ISOLATION SHIELD WITH LIVE COMPILATION SPINNER ANIMATION
 # ==============================================================================
 configure_persistent_isolcpus() {
     echo -e "\n${CYAN}[ℹ] Bazzite Atomic Kernel Boot Parameter Configuration Engine${RESET}"
     
     echo -e "${BOLD}${YELLOW}⚠️  PRE-BOOT SILICON ISOLATION SHIELD:${RESET}"
-    echo -e "  Altering kernel arguments via atomic ostree tracking layers."
+    echo -e "  Altering kernel arguments via atomic single-pass tracking layers."
     echo ""
     echo -e "  Enter the thread/core indexes you want completely blocked from the kernel loader."
     echo -e "  Examples: ${YELLOW}12${NC} (Isolates thread 12 exclusively) or ${YELLOW}12,13${NC} (Isolates threads 12 and 13)"
@@ -1218,27 +1218,61 @@ configure_persistent_isolcpus() {
         sleep 1; return 0
     fi
 
-    # 🧼 AUTOMATED ATOMIC SANITIZATION SWEEP
     echo -e "${YELLOW}[⚙] Scanning current deployment for old isolation arguments...${NC}"
-    local active_karg; active_karg=$(rpm-ostree kargs | grep -o 'isolcpus=[^ ]*' | cut -d= -f2 || echo "")
-    if [[ -n "$active_karg" ]]; then
-        rpm-ostree kargs --delete="isolcpus=${active_karg}" &>/dev/null
-    fi
+    local current_kargs; current_kargs=$(rpm-ostree kargs)
+    local old_isolcpus; old_isolcpus=$(echo "$current_kargs" | grep -o 'isolcpus=[^ ]*' || echo "")
+
+    local karg_cmd=""
+    [[ -n "$old_isolcpus" ]] && karg_cmd="--delete=\"$old_isolcpus\""
 
     if [[ "$user_cores" != "clear" ]]; then
-        # 🎯 AUTOMATED SCRIPT EXECUTION ENGINE: Commits the exact required parameters directly!
-        echo -e "${CYAN}[⚙] Running: rpm-ostree kargs --append=\"isolcpus=${user_cores}\"...${NC}"
+        if [[ -n "$karg_cmd" ]]; then
+            karg_cmd="$karg_cmd --append=\"isolcpus=${user_cores}\""
+        else
+            karg_cmd="--append=\"isolcpus=${user_cores}\""
+        fi
+        echo -e "${CYAN}[+] Staging parameters: isolcpus=${user_cores}...${NC}"
+    else
+        echo -e "${YELLOW}[⚙] Staging complete core isolation purge...${NC}"
+    fi
+
+    if [[ -n "$karg_cmd" ]]; then
+        echo -e "${CYAN}[⚙] Initializing unified rpm-ostree transaction suite...${NC}"
         
-        if rpm-ostree kargs --append="isolcpus=${user_cores}"; then
-            echo -e "${BIGreen}[✓] SUCCESS: Script committed 'isolcpus=${user_cores}' into atomic records!${NC}"
+        # 🚀 BACKGROUND THE TASK: Suppresses stdout/stderr logs and spins it off
+        eval "rpm-ostree kargs $karg_cmd" &>/dev/null &
+        local transaction_pid=$!
+
+        # 🧠 THE VISUAL SPINNER ENGINE: Syncs perfectly with your toolkit styles
+        local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+        
+        # Keeps looping as long as the background pid is alive in the OS process table
+        while kill -0 "$transaction_pid" 2>/dev/null; do
+            for frame in "${spinner[@]}"; do
+                echo -ne "\r  \033[0;36m[$frame] Re-building atomic boot records cleanly in background...${NC}"
+                sleep 0.08
+            done
+        done
+        # Clears the spinner text lines entirely once the transaction settles cleanly
+        echo -ne "\r                                                                         \r"
+
+        # Harvest the actual shell exit status of the completed background process ID
+        wait "$transaction_pid"
+        if [ $? -eq 0 ]; then
+            echo -e "${BIGreen}[✓] SUCCESS: Committed atomic boot constraints flawlessly!${NC}"
             TABLE_DIRTY=0; SERVICE_PENDING=1
         else
-            echo -e "${BIRed}❌ ERROR: Atomic deployment gate rejected the parameter layout.${NC}"
+            echo -e "${BIRed}❌ ERROR: Bazzite atomic tracker rejected the pooled instruction framing.${NC}"
             read -p "Press Enter to return..." && return 1
         fi
     else
-        echo -e "${GREEN}[+] Successfully cleared all isolation parameters from atomic records.${NC}"
-        TABLE_DIRTY=0; SERVICE_PENDING=1
+        echo -e "[-] No workspace changes required. System parameters already clean."
+        sleep 1.5; return 0
+    fi
+
+    if [[ -f "/etc/default/grub" ]]; then
+        sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
+        sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null
     fi
 
     echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! System changes require a reboot to load.${NC}"
