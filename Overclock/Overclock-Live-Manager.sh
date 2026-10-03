@@ -985,44 +985,34 @@ uninstall_cpu_overclock() {
 }
 
 # ==============================================================================
-# INTEGRATED: LIVE DYNAMIC BC-250 CORES & ISOLCPUS HARDWARE MATRIX
+# 🎯 MAIN MODULE: Live CPU Core Scheduler & Isolcpus System Manager
 # ==============================================================================
 view_core_live_manager() {
     local native_user="${SUDO_USER:-$(logname 2>/dev/null || whoami)}"
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
     local cmdline_file="/proc/cmdline"
     local menu_index=0
+    # 🎯 IMMUTABLE HARDEST CEILING: Force a full 16-thread mapping window regardless of safe boot configurations
+    local static_max_threads=16
 
     while true; do
         clear
-        # 🎯 FIXED: Standard independent panel title layout to stop command not found errors
         echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
         echo -e "${DIM}│${RESET}                 📟  Interactive Core Optimizer & Isolation Matrix                 ${DIM}│${RESET}"
         echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
-
-        # 🎯 FIXED: Independent step highlighters that don't need load_service_masks
-        local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
-        if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
-            c_edit="${DIM}"; c_write="${GREEN}${BOLD}"
-        elif [ "${SERVICE_PENDING:-0}" -eq 1 ]; then
-            c_write="${DIM}"; c_install="${GREEN}${BOLD}"
-        fi
-
+        echo ""
         echo -e "  ${BOLD}${YELLOW}Active Hardware Real-Time Telemetry Profile:${RESET}"
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
 
         local detected_cores; detected_cores=$(nproc --all 2>/dev/null || echo "0")
         local active_isolated; active_isolated=$(grep -o 'isolcpus=[0-7,-]*' "$cmdline_file" | cut -d= -f2 2>/dev/null || echo "None")
-
-        # Pulls live SMU register signatures to crosscheck boot parameters
+        
         local smu_probe_status="Unknown"
         if command -v setpci &>/dev/null && [ -e "/sys/bus/pci/devices/0000:00:00.0/config" ]; then
-            # Writes the address to index register B8, then reads the data from register BC
             setpci -s "0000:00:00.0" B8.L=0115A870 2>/dev/null
             local raw_mask; raw_mask=$(setpci -s "0000:00:00.0" BC.L 2>/dev/null | tr '[:upper:]' '[:lower:]' || echo "failed")
 
             if [[ "$raw_mask" == "000000ff" || "$raw_mask" == "ff" ]]; then
-                # 🧠 INTELIGENT RUNTIME INTERROGATION GATES: Differentiates BIOS vs Software
                 if dmesg 2>/dev/null | grep -Eqi "(cyan-skillfish-governor-smu|bc250-unlock-cores|mailbox command 0x98)"; then
                     smu_probe_status="8 Cores (Software Patched via Run)"
                 else
@@ -1037,48 +1027,62 @@ view_core_live_manager() {
             fi
         fi
 
-        echo -e "  ${CYAN}Hardware Topology${RESET}   : ${BOLD}${WHITE}${detected_cores} Cores Available${RESET} (Silicon Register State: ${GREEN}${smu_probe_status}${RESET})"
+        echo -e "  ${CYAN}Hardware Topology${RESET}   : ${BOLD}${WHITE}${detected_cores} Threads Active${RESET} (Silicon Register State: ${GREEN}${smu_probe_status}${RESET})"
         echo -e "  ${CYAN}Isolcpus Boot Mask${RESET}  : ${BOLD}${MAGENTA}${active_isolated}${RESET} ${DIM}(Static OS Kernel Fence Bounds)${RESET}"
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-        echo -e "  ${BOLD}${WHITE}Live Scheduler Grid Matrix:${RESET}\n"
+        echo -e "  ${BOLD}${WHITE}Live Scheduler Grid Matrix (All Silicon Channels Exposed):${RESET}\n"
 
-        local -a core_states; local -a core_labels
-        for ((i=0; i<detected_cores; i++)); do
+        # 🚀 FORCED 16-ROW SCAN ENGINE: Maps every potential logical thread row
+        local -a core_labels
+        for ((i=0; i<static_max_threads; i++)); do
             local sys_online_file="/sys/devices/system/cpu/cpu${i}/online"
-            local is_online=1
-            [[ -f "$sys_online_file" ]] && is_online=$(cat "$sys_online_file" 2>/dev/null)
-
-            if [[ "$is_online" -eq 1 ]]; then
-                core_states[$i]="online"; core_labels[$i]="${GREEN}■ ACTIVE${RESET}"
+            
+            if [[ ! -d "/sys/devices/system/cpu/cpu${i}" ]]; then
+                # Core is physically isolated, cut off by the BIOS, or un-enumerated by AGESA
+                core_labels[$i]="${DIM}□ DISABLED (BIOS Hidden)${RESET}"
+            elif [[ -f "$sys_online_file" ]]; then
+                local is_online; is_online=$(cat "$sys_online_file" 2>/dev/null)
+                if [[ "$is_online" -eq 1 ]]; then
+                    core_labels[$i]="${GREEN}■ ACTIVE${RESET}"
+                else
+                    core_labels[$i]="${RED}□ INACTIVE (Hotplugged)${RESET}"
+                fi
             else
-                core_states[$i]="offline"; core_labels[$i]="${RED}□ INACTIVE${RESET}"
+                # Default safety fallback for Core 00 branch anchors
+                core_labels[$i]="${GREEN}■ ACTIVE${RESET}"
             fi
 
             if [[ "$i" -eq "$menu_index" ]]; then
-                echo -e "    ${YELLOW}👉 [Core $(printf "%02d" $i)] [ ${core_labels[$i]} ]   <-- Press [Enter] to Toggle State${RESET}"
+                echo -e "    ${YELLOW}👉 [Thread $(printf "%02d" $i)] [ ${core_labels[$i]} ]   <-- Press [Enter] to Toggle State${RESET}"
             else
-                echo -e "       [Core $(printf "%02d" $i)] [ ${core_labels[$i]} ]"
+                echo -e "       [Thread $(printf "%02d" $i)] [ ${core_labels[$i]} ]"
             fi
         done
-
         # Context Menu Base Actions Footer Rows (Decoded Step Borders)
         echo ""
-        if [[ "$menu_index" -eq "$detected_cores" ]]; then
+        local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
+        if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
+            c_edit="${DIM}"; c_write="${GREEN}${BOLD}"
+        elif [ "${SERVICE_PENDING:-0}" -eq 1 ]; then
+            c_write="${DIM}"; c_install="${GREEN}${BOLD}"
+        fi
+
+        if [[ "$menu_index" -eq "$static_max_threads" ]]; then
             echo -e "    ${YELLOW}👉 ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline${RESET}"
         else
             echo -e "       ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline"
         fi
-        if [[ "$menu_index" -eq $((detected_cores + 1)) ]]; then
+        if [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
             echo -e "    ${YELLOW}👉 ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters${RESET}"
         else
             echo -e "       ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters"
         fi
-        if [[ "$menu_index" -eq $((detected_cores + 2)) ]]; then
+        if [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
             echo -e "    ${YELLOW}👉 ${c_write}[w]${RESET} Commit Structural Core Mask Changes & Save Service Table${RESET}"
         else
             echo -e "       ${c_write}[w]${RESET} Commit Structural Core Mask Changes & Save Service Table"
         fi
-        if [[ "$menu_index" -eq $((detected_cores + 3)) ]]; then
+        if [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
             echo -e "    ${YELLOW}👉 ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu${RESET}"
         else
             echo -e "       ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu"
@@ -1092,17 +1096,17 @@ view_core_live_manager() {
         case "$key" in
             [Ww])
                 ((menu_index--))
-                if ((menu_index < 0)); then menu_index=$((detected_cores + 3)); fi
+                if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi
                 ;;
             [Ss])
                 ((menu_index++))
-                if ((menu_index > (detected_cores + 3))); then menu_index=0; fi
+                if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
                 ;;
             "") # User pressed [Enter] key
-                if ((menu_index >= 0 && menu_index < detected_cores)); then
+                if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     # 🎯 DYNAMIC CORES HOTPLUG TOGGLE GATES
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
-
+                    
                     if [[ "$menu_index" -eq 0 ]]; then
                         echo -e "\n${BIRed}[!] ERROR: CPU Core 0 is the primary system bootstrap anchor and cannot be offlined.${NC}"
                         sleep 1.5; continue
@@ -1112,24 +1116,24 @@ view_core_live_manager() {
                         local current_state; current_state=$(cat "$target_cpu_file" 2>/dev/null)
                         if [[ "$current_state" -eq 1 ]]; then
                             echo 0 > "$target_cpu_file" 2>/dev/null
-                            echo -e "\n${YELLOW}[⚙] Core ${menu_index} hotplugged OFFLINE... OS scheduler fence dropped.${NC}"
+                            echo -e "\n${YELLOW}[⚙] Thread ${menu_index} hotplugged OFFLINE... OS scheduler fence dropped.${NC}"
                             TABLE_DIRTY=1; SERVICE_PENDING=0
                         else
                             echo 1 > "$target_cpu_file" 2>/dev/null
-                            echo -e "\n${BIGreen}[✓] Core ${menu_index} hotplugged ONLINE... OS scheduler fence restored.${NC}"
+                            echo -e "\n${BIGreen}[✓] Thread ${menu_index} hotplugged ONLINE... OS scheduler fence restored.${NC}"
                             TABLE_DIRTY=1; SERVICE_PENDING=0
                         fi
                         sync && sleep 0.5
                     else
-                        echo -e "\n${BIRed}[!] ERROR: Linux CPU hotplug driver interface not supported on Core ${menu_index}.${NC}"
-                        sleep 1.5
+                        echo -e "\n${BIRed}[!] ERROR: Core/Thread ${menu_index} is hidden by BIOS configuration or un-enumerated by AGESA.${NC}"
+                        echo -e "${YELLOW}    To isolate this thread pre-boot, please navigate to option [i] below.${NC}"
+                        sleep 2.5
                     fi
-                elif [[ "$menu_index" -eq "$detected_cores" ]]; then
+                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
                     execute_smu_core_unlock
-                elif [[ "$menu_index" -eq $((detected_cores + 1)) ]]; then
+                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
                     configure_persistent_isolcpus
-                elif [[ "$menu_index" -eq $((detected_cores + 2)) ]]; then
-                    # Simulates the [w] write action to turn the step indicators green
+                elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
                     if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
                         echo -e "\n${BIGreen}[✓] SUCCESS: Core configuration snapshot compiled into memory table stack!${NC}"
                         TABLE_DIRTY=0; SERVICE_PENDING=1; sleep 1.5
@@ -1137,7 +1141,7 @@ view_core_live_manager() {
                         echo -e "\n${YELLOW}[!] Warning: No core configuration changes are currently cached in workspace.${NC}"
                         sleep 1.5
                     fi
-                elif [[ "$menu_index" -eq $((detected_cores + 3)) ]]; then
+                elif [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
                     echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
                     sleep 0.5; return 0
                 fi
@@ -1145,6 +1149,7 @@ view_core_live_manager() {
             [Ee]|[ee]) execute_smu_core_unlock ;;
             [Ii]|[ii]) configure_persistent_isolcpus ;;
             [Qq]|[qq]) echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"; sleep 0.5; return 0 ;;
+         Pap) ;;
         esac
     done
 }
@@ -1194,21 +1199,22 @@ execute_smu_core_unlock() {
 configure_persistent_isolcpus() {
     local grub_default="/etc/default/grub"
     echo -e "\n${CYAN}[ℹ] Persistent Kernel Boot Parameter Configuration Engine${RESET}"
-    
+
     if [[ ! -f "$grub_default" ]]; then
         echo -e "${BIRed}❌ ERROR: Standard GRUB file configuration node not found at $grub_default${NC}"
         read -p "Press Enter to return..."
         return 1
     fi
 
-    # 🛡️ DEFENSIVE PROTOCOL: Explicit instructions for handling unstable silicon harvests
-    echo -e "${BOLD}${YELLOW}⚠️  PRE-BOOT HARVEST ISOLATION PROTOCOL:${RESET}"
-    echo -e "  If your system crashes or refuses to boot when enabling 8 cores,"
-    echo -e "  you ${BOLD}MUST${RESET} isolate the unstable cores here ${BOLD}BEFORE${RESET} modifying your BIOS."
-    echo -e "  This permanently blocks the Linux scheduler from ever touching them."
+    # 🛡️ DEFENSIVE SAFETY GATE: Guidance for bad core / B7 boot-loop bypass
+    echo -e "${BOLD}${YELLOW}⚠️  PRE-BOOT SILICON ISOLATION SHIELD:${RESET}"
+    echo -e "  If your APU exhibits unstable silicon or hits a B7/boot loop freeze,"
+    echo -e "  you ${BOLD}MUST${RESET} isolate the unstable core indexes right here ${BOLD}BEFORE${RESET}"
+    echo -e "  enabling the 8-core mode inside your Forbidden Darkness Bios settings."
     echo ""
-    echo -e "  Enter the Core indexes you wish to fence (e.g., ${YELLOW}6,7${NC} or a single core like ${YELLOW}7${NC}):"
-    echo -e "  Type ${RED}clear${NC} to completely wipe all isolation fences."
+    echo -e "  Enter the thread/core indexes you want completely blocked from the kernel loader."
+    echo -e "  Examples: ${YELLOW}6,7${NC} (Isolates threads 6 and 7) or ${YELLOW}3${NC} (Isolates thread 3 exclusively)"
+    echo -e "  Type ${RED}clear${NC} to completely wipe all active isolation parameters."
     echo ""
     type_prompt "👉 Target Isolation Mask: " 0.03
     local user_cores; read -r user_cores
@@ -1218,20 +1224,22 @@ configure_persistent_isolcpus() {
         sleep 1; return 0
     fi
 
-    # Strip old entries
+    # Clean existing isolcpus parameters out of the target file
     sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' "$grub_default"
     sudo sed -i 's/  */ /g' "$grub_default"
 
     if [[ "$user_cores" != "clear" ]]; then
-        sudo sed -i "s/\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)\"/\1 isolcpus=${user_cores}\//" "$grub_default"
-        echo -e "${GREEN}[+] Successfully committed 'isolcpus=${user_cores}' to boot records.${NC}"
+        # Inject the fresh isolation string parameters back into the GRUB block
+        sudo sed -i "s/\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)\"/\1 isolcpus=${user_cores}\"/" "$grub_default"
+        echo -e "${GREEN}[+] Appended 'isolcpus=${user_cores}' to boot records successfully.${NC}"
         TABLE_DIRTY=0; SERVICE_PENDING=1
     else
-        echo -e "${YELLOW}[+] Cleared all isolcpus parameters from configuration records.${NC}"
+        echo -e "${YELLOW}[+] Cleared all active isolcpus parameters from configuration records.${NC}"
         TABLE_DIRTY=0; SERVICE_PENDING=1
     fi
 
-    echo -e "${CYAN}[⚙] Re-compiling system bootloader configurations...${NC}"
+    # 🚀 SYSTEM BOOTLOADER RE-COMPILATION PASS
+    echo -e "${CYAN}[⚙] Re-compiling system boot configuration files across target records...${NC}"
     if command -v update-grub &>/dev/null; then
         sudo update-grub
     elif command -v grub2-mkconfig &>/dev/null; then
@@ -1240,10 +1248,11 @@ configure_persistent_isolcpus() {
         sudo grub-mkconfig -o /boot/grub/grub.cfg
     fi
 
-    echo -e "\n${BIGreen}[✓] SUCCESS: GRUB re-compiled! You can now safely enable the BIOS mod and reboot.${NC}"
-    type_prompt "❓ Execute system cold reset right now? (y/N): " 0.03
+    echo -e "\n${BIGreen}[✓] SUCCESS: GRUB records re-compiled! You can now safely unlock your BIOS and reboot.${NC}"
+    type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
     local reboot_choice; read -r reboot_choice
     if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
         sync && sleep 1 && sudo reboot
     fi
 }
