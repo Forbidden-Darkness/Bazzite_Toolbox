@@ -1032,13 +1032,17 @@ view_core_live_manager() {
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Live Scheduler Grid Matrix (All Silicon Channels Exposed):${RESET}\n"
 
-        # 🚀 FORCED 16-ROW SCAN ENGINE: Maps every potential logical thread row
+        # 🚀 FORCED 16-ROW SCAN ENGINE: Maps every potential logical thread row with Isolcpus tracking
         local -a core_labels
         for ((i=0; i<static_max_threads; i++)); do
             local sys_online_file="/sys/devices/system/cpu/cpu${i}/online"
             
-            if [[ ! -d "/sys/devices/system/cpu/cpu${i}" ]]; then
-                # Core is physically isolated, cut off by the BIOS, or un-enumerated by AGESA
+            # Check if this explicit index sits inside your live isolcpus boot boundary mask
+            if [[ ",${active_isolated}," == *",${i},"* ]] || [[ "${active_isolated}" == "${i}" ]] || \
+               [[ "${active_isolated}" == *"-"* && $(python3 -c "import sys; r=list(map(int,'${active_isolated}'.split('-'))); print(1 if r[0]<= $i <=r[1] else 0)" 2>/dev/null) -eq 1 ]]; then
+                # 🎯 LOCKED DETECTOR: Flags the thread as isolated from the operating system load balancer
+                core_labels[$i]="${MAGENTA}⚡ ISOLATED (Fenced)${RESET}"
+            elif [[ ! -d "/sys/devices/system/cpu/cpu${i}" ]]; then
                 core_labels[$i]="${DIM}□ DISABLED (BIOS Hidden)${RESET}"
             elif [[ -f "$sys_online_file" ]]; then
                 local is_online; is_online=$(cat "$sys_online_file" 2>/dev/null)
@@ -1048,7 +1052,6 @@ view_core_live_manager() {
                     core_labels[$i]="${RED}□ INACTIVE (Hotplugged)${RESET}"
                 fi
             else
-                # Default safety fallback for Core 00 branch anchors
                 core_labels[$i]="${GREEN}■ ACTIVE${RESET}"
             fi
 
@@ -1058,6 +1061,7 @@ view_core_live_manager() {
                 echo -e "       [Thread $(printf "%02d" $i)] [ ${core_labels[$i]} ]"
             fi
         done
+
         # Context Menu Base Actions Footer Rows (Decoded Step Borders)
         echo ""
         local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
