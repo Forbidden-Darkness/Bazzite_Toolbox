@@ -1087,10 +1087,26 @@ view_core_live_manager() {
         echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} keys to navigate rows. Press ${GREEN}[Spacebar]${RESET} to toggle states. Press ${GREEN}[Enter]${RESET} to execute."
 
-        IFS= read -r -s -n 1 key
+        # 🎯 ULTIMATE INPUT FIX: Captures single hotkeys, spaces, and multi-character Enter key returns cleanly
+        local key=""
+        IFS= read -r -s -n 1 raw_key
+        key="$raw_key"
+        
+        # If the key is empty or a carriage return, swallow any lingering newline buffer characters
+        if [[ -z "$key" || "$key" == $'\r' || "$key" == $'\n' ]]; then
+            read -r -s -t 0.1 next_char 2>/dev/null
+            key="ENTER"
+        fi
+
         case "$key" in
-            [Ww]) ((menu_index--)); if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi ;;
-            [Ss]) ((menu_index++)); if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi ;;
+            [Ww])
+                ((menu_index--))
+                if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi
+                ;;
+            [Ss])
+                ((menu_index++))
+                if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
+                ;;
             " ") # SPACEBAR TOGGLE ACTION GATES
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
@@ -1113,9 +1129,29 @@ view_core_live_manager() {
                     fi
                 fi
                 ;;
-            [Cc]|[cc])
-                # Direct alphanumeric shortcut fallback trigger for immediate commit saves
-                if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
+            [Cc])
+                # Direct hotkey fallback for instant commit
+                local offline_list=""
+                for ((core_id=0; core_id<static_max_threads; core_id++)); do
+                    local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
+                    if [[ -f "$core_file" ]]; then
+                        if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
+                            [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
+                        fi
+                    fi
+                done
+                execute_atomic_karg_sync "$offline_list"
+                ;;
+            "ENTER") # 🎯 HARD-LOCKED FIXED ENTER ROUTER: Intercepted precisely on every terminal!
+                if ((menu_index >= 0 && menu_index < static_max_threads)); then
+                    echo -e "\n${YELLOW}[ℹ] Navigation Notice: Use [Spacebar] to toggle threads. Press [Enter] on footer buttons to save.${NC}"
+                    sleep 1.5; continue
+                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
+                    execute_smu_core_unlock
+                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
+                    configure_persistent_isolcpus
+                elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
+                    # 🚀 FORCE EXECUTION GATES: Runs the transaction sync pass directly
                     local offline_list=""
                     for ((core_id=0; core_id<static_max_threads; core_id++)); do
                         local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
@@ -1126,9 +1162,9 @@ view_core_live_manager() {
                         fi
                     done
                     execute_atomic_karg_sync "$offline_list"
-                else
-                    echo -e "\n${YELLOW}[!] Warning: No core configuration changes are currently cached in workspace.${NC}"
-                    sleep 1.5
+                elif [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
+                    echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
+                    sleep 0.5; return 0
                 fi
                 ;;
             ""|$'\n') # 🎯 THE FIXED ENTER GATES: Matches both empty and carriage return tokens flawlessly!
