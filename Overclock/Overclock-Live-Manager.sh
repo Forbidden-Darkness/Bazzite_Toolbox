@@ -1269,7 +1269,7 @@ execute_atomic_karg_sync() {
 }
 
 # ==============================================================================
-# SUBROUTINE: STANDALONE GRAPHICAL BOOT SPLASH SCREEN RESTORATION UTILITY
+# SUBROUTINE: STANDALONE GRAPHICAL BOOT SPLASH RESTORATION & ARGUMENT INJECTOR
 # ==============================================================================
 repair_boot_splash_only() {
     clear
@@ -1282,35 +1282,42 @@ repair_boot_splash_only() {
     echo -e "  parameters straight into Bazzite's atomic tracking deployment tree."
     echo -e "  This sweeps away scrolling text and restores your black boot-up splash animations."
     echo ""
-    
-    type_prompt "❓ Initialize standalone splash screen repair pass now? (y/N): " 0.03
-    local start_repair; read -r start_repair
-    
-    if [[ ! "$start_repair" =~ ^[Yy]$ ]]; then
-        echo -e "\n${YELLOW}[-] Repair sequence bypassed. Returning cleanly to toolkit...${NC}"
-        sleep 1.5; return 0
-    fi
+    echo -e "  ${CYAN}[ℹ] OPTIONAL BAZZITE 44 DISPLAY CORE FIX:${RESET}"
+    echo -e "      If your splash is broken on Bazzite 44, type: ${GREEN}amdgpu.dcdebugmask=0x10${NC}"
+    echo -e "      Or press ${GREEN}[Enter]${NC} to run a standard splash repair pass."
+    echo ""
+
+    type_prompt "👉 Custom Boot Arguments (Optional): " 0.03
+    local custom_args; read -r custom_args
 
     echo -e "\n${YELLOW}[⚙] Scanning current deployment boot parameter strings...${NC}"
     local current_kargs; current_kargs=$(rpm-ostree kargs)
-    
-    # 🎯 FIXED SYNTAX: Variable declarations harmonized perfectly to prevent parameter drops
+
     local has_rhgb; has_rhgb=$(echo "$current_kargs" | grep -o 'rhgb' || echo "")
     local has_quiet; has_quiet=$(echo "$current_kargs" | grep -o 'quiet' || echo "")
 
     local -a repair_args=()
-    
-    # 🧼 FORCE-PURGE ENFORCEMENT: Safely stages deletes to ensure no duplicate tracking arguments stack up
+
     if [[ -n "$has_rhgb" ]]; then repair_args+=( --delete="rhgb" ); fi
     if [[ -n "$has_quiet" ]]; then repair_args+=( --delete="quiet" ); fi
 
-    # 🎯 ATOMIC APPEND FLAGS: Hard-locks your graphical boot layers cleanly into the array rows
+    # Check if they have an old copy of the dcdebugmask hanging around to clear it first
+    local old_mask; old_mask=$(echo "$current_kargs" | grep -o 'amdgpu.dcdebugmask=[^ ]*' || echo "")
+    if [[ -n "$old_mask" ]]; then repair_args+=( --delete="$old_mask" ); fi
+
+    # Staging standard repair structures
     repair_args+=( --append="rhgb" --append="quiet" )
-    
-    echo -e "${CYAN}[+] Staging recovery targets: [rhgb] [quiet] elements...${NC}"
+
+    # 🎯 CUSTOM ENTRY INJECTION GATE: Safely tracks your custom argument if provided
+    if [[ -n "$custom_args" ]]; then
+        repair_args+=( --append="$custom_args" )
+        echo -e "${CYAN}[+] Staging recovery targets: [rhgb] [quiet] [${custom_args}] elements...${NC}"
+    else
+        echo -e "${CYAN}[+] Staging recovery targets: [rhgb] [quiet] elements...${NC}"
+    fi
     if [[ ${#repair_args[@]} -gt 0 ]]; then
         echo -e "${CYAN}[⚙] Dispatching dedicated splash recovery transaction...${NC}"
-        
+
         # 🚀 CLEAN ISOLATED PIPE: Executes the array configurations smoothly in the background
         rpm-ostree kargs "${repair_args[@]}" &>/dev/null &
         local transaction_pid=$!
@@ -1327,7 +1334,7 @@ repair_boot_splash_only() {
         wait "$transaction_pid"
         if [ $? -eq 0 ]; then
             echo -e "${BIGreen}[✓] SUCCESS: Graphical splash configurations force-restored!${NC}"
-            
+
             # Clean legacy GRUB backups if present to ensure system config purity
             if [[ -f "/etc/default/grub" ]]; then
                 sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
@@ -1344,7 +1351,7 @@ repair_boot_splash_only() {
     fi
 
     # 🚀 ATOMIC REBOOT DIALOG
-    echo -e "\n${BIGreen}[✓] SUCCESS: Deployment sync complete! System changes require a reboot to mount.${NC}"
+    echo -e "\n${BIGreen}[✓] SUCCESS: Deployment sync complete! System changes require a reboot to load.${NC}"
     type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
     local reboot_choice; read -r reboot_choice
     if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
