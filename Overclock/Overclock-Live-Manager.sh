@@ -1107,11 +1107,10 @@ view_core_live_manager() {
                 if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
                 ;;
             [Cc])
-                # 🎯 FIXED FIXED: The hotkey now actively writes configuration parameters to disk and prompts to reboot!
                 if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
-                    echo -e "\n${YELLOW}[⚙] Committing structural core configuration snapshot to disk profile...${NC}"
+                    echo -e "\n${YELLOW}[⚙] Capturing core snapshot map... translating to atomic arguments...${NC}"
                     
-                    # 🧼 Establish local target mask array
+                    # 🧼 Scan the matrix rows to see which threads the user clicked offline
                     local offline_list=""
                     for ((core_id=0; core_id<static_max_threads; core_id++)); do
                         local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
@@ -1122,22 +1121,64 @@ view_core_live_manager() {
                                     offline_list="${core_id}"
                                 else
                                     offline_list="${offline_list},${core_id}"
-                               fi
+                                fi
                             fi
                         fi
                     done
 
-                    # Inject the offline array parameter straight into your toolkit runtime profile file
-                    local conf_profile="${base_dir}/.core_manager_profile.conf"
-                    echo "OFFLINE_CORES=\"${offline_list}\"" > "$conf_profile"
-                    sync
+                    # If they toggled everything back on, clear out the fence parameters entirely
+                    local karg_cmd=""
+                    local current_kargs; current_kargs=$(rpm-ostree kargs)
+                    local old_isolcpus; old_isolcpus=$(echo "$current_kargs" | grep -o 'isolcpus=[^ ]*' || echo "")
+                    
+                    if [[ -n "$old_isolcpus" ]]; then
+                        karg_cmd="--delete=\"$old_isolcpus\""
+                    fi
 
-                    echo -e "${BIGreen}[✓] SUCCESS: Core status matrix compiled and written to local tracking file!${NC}"
-                    TABLE_DIRTY=0; SERVICE_PENDING=1
-                    sleep 1.5
+                    if [[ -n "$offline_list" ]]; then
+                        if [[ -n "$karg_cmd" ]]; then
+                            karg_cmd="$karg_cmd --append=\"isolcpus=${offline_list}\""
+                        else
+                            karg_cmd="--append=\"isolcpus=${offline_list}\""
+                        fi
+                        echo -e "${CYAN}[+] Staging core layout fence: isolcpus=${offline_list}...${NC}"
+                    else
+                        echo -e "${YELLOW}[⚙] Staging complete core isolation purge...${NC}"
+                    fi
 
-                    # 🚀 AUTOMATED REBOOT GATES
-                    echo -e "\n${YELLOW}[!] To permanently secure this layout across hardware initialization passes, a system reset is recommended.${NC}"
+                    if [[ -n "$karg_cmd" ]]; then
+                        echo -e "${CYAN}[⚙] Dispatching unified rpm-ostree transaction suite...${NC}"
+                        
+                        # 🚀 BACKGROUND THE TASK: Spins off the atomic write to secure your changes
+                        eval "rpm-ostree kargs $karg_cmd" &>/dev/null &
+                        local transaction_pid=$!
+                        local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+                        
+                        while kill -0 "$transaction_pid" 2>/dev/null; do
+                            for frame in "${spinner[@]}"; do
+                                echo -ne "\r  \033[0;36m[$frame] Re-building atomic boot records cleanly in background...${NC}"
+                                sleep 0.08
+                            done
+                        done
+                        echo -ne "\r                                                                         \r"
+                        wait "$transaction_pid"
+
+                        echo -e "${BIGreen}[✓] SUCCESS: Core configurations permanently frozen in Bazzite boot deployment!${NC}"
+                        TABLE_DIRTY=0; SERVICE_PENDING=1
+                        sleep 1.5
+                    else
+                        echo -e "[-] No matrix modifications detected. Disks are already in sync."
+                        sleep 1.5; continue
+                    fi
+
+                    # Clean legacy file backups if they exist to keep splash records immaculate
+                    if [[ -f "/etc/default/grub" ]]; then
+                        sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
+                        sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null
+                    fi
+
+                    # 🚀 ATOMIC REBOOT DIALOG
+                    echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! System changes require a reboot to load.${NC}"
                     type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
                     local reboot_choice; read -r reboot_choice
                     if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
