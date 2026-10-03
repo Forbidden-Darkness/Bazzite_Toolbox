@@ -1087,12 +1087,11 @@ view_core_live_manager() {
         echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} to move. Press ${GREEN}[Spacebar]${RESET} to toggle thread state. Press ${GREEN}[Enter]${RESET} to commit table changes."
 
-        # 🎯 ULTIMATE INPUT FIX: Captures single keys, Spacebar, and Enter returns cleanly without dropping tokens
+        # 🎯 RESTORED MAPPING: Enter and C/c instantly commit from anywhere, Spacebar toggles everything else
         local key=""
         IFS= read -r -s -n 1 raw_key
         key="$raw_key"
         
-        # If the key is a carriage return or empty, clear out the lingering trailing buffers safely
         if [[ -z "$key" || "$key" == $'\r' || "$key" == $'\n' ]]; then
             read -r -s -t 0.1 next_char 2>/dev/null
             key="ENTER"
@@ -1107,7 +1106,7 @@ view_core_live_manager() {
                 ((menu_index++))
                 if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
                 ;;
-            " ") # ⚡ SPACEBAR ACTION: Toggles your volatile hotplug threads cleanly on the fly!
+            " ") # 🚀 SPACEBAR MULTITOOL: Toggles threads OR fires highlighted menu options natively!
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
                     if [[ "$menu_index" -eq 0 ]]; then
@@ -1127,23 +1126,6 @@ view_core_live_manager() {
                         echo -e "\n${BIRed}[!] ERROR: Core/Thread ${menu_index} is hidden by BIOS configuration or un-enumerated by AGESA.${NC}"
                         sleep 2.5
                     fi
-                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then execute_smu_core_unlock
-                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then configure_persistent_isolcpus
-                elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then execute_pre_commit_gate
-                elif [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
-                    echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
-                    sleep 0.5; return 0
-                fi
-                ;;
-            [Cc]|[cc])
-                # Direct alphanumeric hotkey shortcut fallback trigger for immediate commit saves
-                execute_pre_commit_gate
-                ;;
-            "ENTER") # 🎯 HARD-LOCKED ENTER ROUTER: Executes highlighted menu actions natively!
-                if ((menu_index >= 0 && menu_index < static_max_threads)); then
-                    # Safe thread guard: Prevents premature saves if Enter is tapped up top
-                    echo -e "\n${YELLOW}[ℹ] Notice: Use [Spacebar] to toggle thread states. Use [W / S] to highlight action items below.${NC}"
-                    sleep 1.5; continue
                 elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
                     execute_smu_core_unlock
                 elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
@@ -1155,11 +1137,23 @@ view_core_live_manager() {
                     sleep 0.5; return 0
                 fi
                 ;;
+            [Cc]|[cc]|"ENTER")
+                # 🎯 INSTANT COMMIT TRIGGER: Enter or C key fires the commit process immediately!
+                local offline_list=""
+                for ((core_id=0; core_id<static_max_threads; core_id++)); do
+                    local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
+                    if [[ -f "$core_file" ]]; then
+                        if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
+                            [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
+                        fi
+                    fi
+                done
+                execute_atomic_karg_sync "$offline_list"
+                ;;
             [Ee]|[ee]) execute_smu_core_unlock ;;
             [Ii]|[ii]) configure_persistent_isolcpus ;;
             [Qq]|[qq]) echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"; sleep 0.5; return 0 ;;
             *)
-                # Safe bypass for unbound random characters
                 continue
                 ;;
         esac
