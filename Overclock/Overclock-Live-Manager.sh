@@ -995,15 +995,16 @@ view_core_live_manager() {
 
     while true; do
         clear
-        panel_title "Interactive Core Optimizer"
+        # 🎯 FIXED: Standard independent panel title layout to stop command not found errors
+        echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
+        echo -e "${DIM}│${RESET}                 📟  Interactive Core Optimizer & Isolation Matrix                 ${DIM}│${RESET}"
+        echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
 
-        load_service_masks && local has_conf=0 || local has_conf=1
-        systemctl is-enabled "$SERVICE_NAME" &>/dev/null && local svc_enabled=0 || local svc_enabled=1
-
+        # 🎯 FIXED: Independent step highlighters that don't need load_service_masks
         local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
         if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
             c_edit="${DIM}"; c_write="${GREEN}${BOLD}"
-        elif [ "${SERVICE_PENDING:-0}" -eq 1 ] || { [ "$has_conf" -eq 0 ] && [ "$svc_enabled" -ne 0 ]; }; then
+        elif [ "${SERVICE_PENDING:-0}" -eq 1 ]; then
             c_write="${DIM}"; c_install="${GREEN}${BOLD}"
         fi
 
