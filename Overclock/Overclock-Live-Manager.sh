@@ -1194,7 +1194,7 @@ execute_smu_core_unlock() {
 }
 
 # ==============================================================================
-# SUBROUTINE: PERSISTENT COMMAND-LINE ARGUMENT INJECTION MODULE (ISOLCPUS)
+# SUBROUTINE: PERSISTENT ATOMIC KERNEL ARGUMENT INJECTION MODULE (ISOLCPUS)
 # ==============================================================================
 configure_persistent_isolcpus() {
     echo -e "\n${CYAN}[ℹ] Bazzite Atomic Kernel Boot Parameter Configuration Engine${RESET}"
@@ -1214,21 +1214,22 @@ configure_persistent_isolcpus() {
         sleep 1; return 0
     fi
 
-    # 🧼 Atomic Sweep: Automatically searches for and purges any legacy isolcpus parameters cleanly
-    echo -e "${YELLOW}[⚙] Sanitizing current atomic kernel arguments...${NC}"
+    # 🧼 AUTOMATED ATOMIC SANITIZATION SWEEP
+    echo -e "${YELLOW}[⚙] Scanning current deployment for old isolation arguments...${NC}"
     local active_karg; active_karg=$(rpm-ostree kargs | grep -o 'isolcpus=[^ ]*' | cut -d= -f2 || echo "")
     if [[ -n "$active_karg" ]]; then
-        sudo rpm-ostree kargs --delete="isolcpus=${active_karg}" &>/dev/null
+        rpm-ostree kargs --delete="isolcpus=${active_karg}" &>/dev/null
     fi
 
     if [[ "$user_cores" != "clear" ]]; then
-        # 🎯 THE ATOMIC FIX: Appends parameters straight into Bazzite's boot deployment tree!
-        echo -e "${CYAN}[⚙] Deploying 'isolcpus=${user_cores}' into master ostree records...${NC}"
-        if sudo rpm-ostree kargs --append="isolcpus=${user_cores}"; then
-            echo -e "${BIGreen}[✓] SUCCESS: Committed 'isolcpus=${user_cores}' into atomic tracking rows.${NC}"
+        # 🎯 AUTOMATED SCRIPT EXECUTION ENGINE: Commits the exact required parameters directly!
+        echo -e "${CYAN}[⚙] Running: rpm-ostree kargs --append=\"isolcpus=${user_cores}\"...${NC}"
+        
+        if rpm-ostree kargs --append="isolcpus=${user_cores}"; then
+            echo -e "${BIGreen}[✓] SUCCESS: Script committed 'isolcpus=${user_cores}' into atomic records!${NC}"
             TABLE_DIRTY=0; SERVICE_PENDING=1
         else
-            err "Atomic deployment gate rejected the configuration layout."
+            echo -e "${BIRed}❌ ERROR: Atomic deployment gate rejected the parameter layout.${NC}"
             read -p "Press Enter to return..." && return 1
         fi
     else
@@ -1236,12 +1237,12 @@ configure_persistent_isolcpus() {
         TABLE_DIRTY=0; SERVICE_PENDING=1
     fi
 
-    echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment recompiled! System changes require a reboot to load.${NC}"
+    echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! System changes require a reboot to load.${NC}"
     type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
     local reboot_choice; read -r reboot_choice
     if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
         echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
-        sync && sleep 1 && sudo reboot
+        sync && sleep 1 && reboot
     fi
 }
 
