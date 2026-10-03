@@ -913,6 +913,7 @@ run_phase2() {
     
     launch_tuning_menu
 }
+
 run_manager_phase1() {
     # 🧬 PRE-FLIGHT DEPLOYMENT GATE: Detects if the CU Live Manager suite is already initialized or staged
     if [[ -f "/usr/local/bin/bc250-cu-live-manager" ]] || [[ -f "/etc/bc250-cu-live-manager.conf" ]] || [[ -f "/etc/systemd/system/bc250-cu-live-manager.service" ]]; then
@@ -983,6 +984,9 @@ uninstall_cpu_overclock() {
     prompt_reboot
 }
 
+# ==============================================================================
+# INTEGRATED: LIVE DYNAMIC BC-250 CORES & ISOLCPUS HARDWARE MATRIX
+# ==============================================================================
 view_core_live_manager() {
     local native_user="${SUDO_USER:-$(logname 2>/dev/null || whoami)}"
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
@@ -993,11 +997,9 @@ view_core_live_manager() {
         clear
         panel_title "Interactive Core Optimizer"
 
-        # Load parameter scopes to check system synchronization on disk paths
         load_service_masks && local has_conf=0 || local has_conf=1
         systemctl is-enabled "$SERVICE_NAME" &>/dev/null && local svc_enabled=0 || local svc_enabled=1
 
-        # Establish step border highlighters matching your menu mechanics
         local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
         if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
             c_edit="${DIM}"; c_write="${GREEN}${BOLD}"
@@ -1008,30 +1010,20 @@ view_core_live_manager() {
         echo -e "  ${BOLD}${YELLOW}Active Hardware Real-Time Telemetry Profile:${RESET}"
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
 
-        # 🧠 Core Hardware Interrogation Pass
         local detected_cores; detected_cores=$(nproc --all 2>/dev/null || echo "0")
         local active_isolated; active_isolated=$(grep -o 'isolcpus=[0-7,-]*' "$cmdline_file" | cut -d= -f2 2>/dev/null || echo "None")
 
-        # Pulls live SMU register signatures to crosscheck boot parameters
+        # 🎯 PURE BASH PROBE: Reads the register via your native setpci layer
         local smu_probe_status="Unknown"
-        # 🎯 FIXED BASH LINE: Uses command -v instead of have_setpci to prevent the crash!
         if command -v setpci &>/dev/null && [ -e "/sys/bus/pci/devices/0000:00:00.0/config" ]; then
-            smu_probe_status=$(python3 -c '
-import sys, os
-try:
-    sys.path.insert(0, os.path.abspath("bc250-smu-unlock"))
-    from bc250_smu import Bc250Smu
-    smu = Bc250Smu()
-    if smu.secure_access_enabled():
-        # Read the Core Presence Mask register directly via SMN index
-        mask = smu.read_smn_reg(0x115A870)
-        if mask == 0xFF: print("8 Cores (SMU Patched)")
-        elif mask == 0x77: print("6 Cores (Stock Matrix)")
-        else: print(f"Custom (0x{mask:02X})")
-    else: print("Locked (Needs Exploit)")
-    smu.close()
-except Exception: print("Unavailable")
-' 2>/dev/null || echo "Hardware Polling Skipped")
+            local raw_mask; raw_mask=$(smn_read32 "0x0115A870" 2>/dev/null || echo "failed")
+            if [[ "$raw_mask" == "0x000000ff" || "$raw_mask" == "0xff" ]]; then
+                smu_probe_status="8 Cores (SMU Patched)"
+            elif [[ "$raw_mask" == "0x00000077" || "$raw_mask" == "0x77" ]]; then
+                smu_probe_status="6 Cores (Stock Matrix)"
+            else
+                smu_probe_status="Custom (${raw_mask})"
+            fi
         fi
 
         echo -e "  ${CYAN}Hardware Topology${RESET}   : ${BOLD}${WHITE}${detected_cores} Cores Available${RESET} (Silicon Register State: ${GREEN}${smu_probe_status}${RESET})"
@@ -1039,7 +1031,6 @@ except Exception: print("Unavailable")
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Live Scheduler Grid Matrix:${RESET}\n"
 
-        # 🚀 THE INTERACTIVE REAL-TIME MATRIX GRAPH
         local -a core_states; local -a core_labels
         for ((i=0; i<detected_cores; i++)); do
             local sys_online_file="/sys/devices/system/cpu/cpu${i}/online"
@@ -1058,6 +1049,7 @@ except Exception: print("Unavailable")
                 echo -e "       [Core $(printf "%02d" $i)] [ ${core_labels[$i]} ]"
             fi
         done
+
         # Context Menu Base Actions Footer Rows (Decoded Step Borders)
         echo ""
         if [[ "$menu_index" -eq "$detected_cores" ]]; then
@@ -1142,36 +1134,47 @@ except Exception: print("Unavailable")
             [Ee]|[ee]) execute_smu_core_unlock ;;
             [Ii]|[ii]) configure_persistent_isolcpus ;;
             [Qq]|[qq]) echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"; sleep 0.5; return 0 ;;
-         Pap) ;;
         esac
     done
 }
+
 # ==============================================================================
-# SUBROUTINE: WRITE TO SMU MASK REGISTER FOR FACTORY CORE RESTORATION (0x115A870)
+# SUBROUTINE: NATIVE BASH SMU MAILBOX OVERRIDE PRIMITIVE (0x98 PAYLOAD)
 # ==============================================================================
 execute_smu_core_unlock() {
-    echo -e "\n${YELLOW}[⚙] Initiating low-level SMU core unlock sequence...${NC}"
+    echo -e "\n${YELLOW}[⚙] Initiating low-level native SMU core unlock sequence...${NC}"
 
-    # 🚀 INTERROGATE & WRITE primitive: Safely targets the Queue 3 0x98 mailbox handler
-    sudo python3 -c '
-import sys, os
-try:
-    sys.path.insert(0, os.path.abspath("bc250-smu-unlock"))
-    from bc250_smu import Bc250Smu
-    from unlock import unlock
-    smu = Bc250Smu()
-    if not smu.secure_access_enabled():
-        unlock(smu)
+    local before_mask; before_mask=$(smn_read32 "$CPU_MASK_REG" 2>/dev/null || echo "0x00")
+    info "Current Core Presence Silicon Mask: $before_mask"
 
-    print("[ℹ] Sending Queue 3 command 0x98 mailbox write primitive payload...")
-    status, ret = smu.send_message(3, 0x98, [0x115A870], check_status=False)
-    print(f"[✓] SMU response status: 0x{status:02x} payload return: 0x{ret:08x}")
-    smu.close()
-except Exception as e:
-    print(f"❌ Mailbox interaction error: {e}")
-'
-    echo -e "\n${GREEN}[✓] Unlock sequence broadcast finished. A system restart is required to mount tables.${NC}"
-    TABLE_DIRTY=0; SERVICE_PENDING=1
+    if [[ "$before_mask" == "0x000000ff" || "$before_mask" == "0xff" ]]; then
+        info "Silicon core presence mask is already raised to 0xFF!"
+        info "Perform a system cold reset/reboot to bring up all 8 cores (16 threads)."
+    else
+        echo -e "${CYAN}[ℹ] Transmitting Queue 3 mailbox command 0x98 payload...${NC}"
+
+        local status_response
+        # 🎯 PURE BASH GATE: Dispatches command 0x98 via your script's own setpci engine
+        if status_response=$(smu_q3_send "$SMU_MSG_WRITE_FF" "$CPU_MASK_REG"); then
+            local status_hex; status_hex=$(printf '0x%02X' $((status_response)))
+            info "SMU mailbox transaction complete. Response status: $status_hex"
+
+            sleep 0.2
+            local after_mask; after_mask=$(smn_read32 "$CPU_MASK_REG" 2>/dev/null || echo "failed")
+            info "Verification Core Silicon Mask after write: $after_mask"
+
+            if [[ "$after_mask" == "0x000000ff" || "$after_mask" == "0xff" ]]; then
+                echo -e "${BIGreen}[✓] SUCCESS: CPU core unlock armed inside SMU runtime registers!${NC}"
+                TABLE_DIRTY=0; SERVICE_PENDING=1
+            else
+                err "Write operation dropped by hardware layer. Register mask did not take."
+            fi
+        else
+            err "SMU mailbox command pipeline timed out or config bus rejected the framing."
+        fi
+    fi
+
+    echo -e "\n${GREEN}[✓] Unlock routine completed. System changes require a reboot to mount topology charts.${NC}"
     read -p "👉 Press Enter to return to matrix dashboard..."
 }
 
