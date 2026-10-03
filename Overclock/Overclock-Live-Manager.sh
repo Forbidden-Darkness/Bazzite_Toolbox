@@ -1013,7 +1013,7 @@ view_core_live_manager() {
         local detected_cores; detected_cores=$(nproc --all 2>/dev/null || echo "0")
         local active_isolated; active_isolated=$(grep -o 'isolcpus=[0-7,-]*' "$cmdline_file" | cut -d= -f2 2>/dev/null || echo "None")
 
-        # 🎯 LOCKED FIX: Uses a direct setpci wrapper sequence so it runs 100% independently!
+        # Pulls live SMU register signatures to crosscheck boot parameters
         local smu_probe_status="Unknown"
         if command -v setpci &>/dev/null && [ -e "/sys/bus/pci/devices/0000:00:00.0/config" ]; then
             # Writes the address to index register B8, then reads the data from register BC
@@ -1021,9 +1021,14 @@ view_core_live_manager() {
             local raw_mask; raw_mask=$(setpci -s "0000:00:00.0" BC.L 2>/dev/null | tr '[:upper:]' '[:lower:]' || echo "failed")
 
             if [[ "$raw_mask" == "000000ff" || "$raw_mask" == "ff" ]]; then
-                smu_probe_status="8 Cores (SMU Patched)"
+                # 🧠 INTELIGENT RUNTIME INTERROGATION GATES: Differentiates BIOS vs Software
+                if dmesg 2>/dev/null | grep -Eqi "(cyan-skillfish-governor-smu|bc250-unlock-cores|mailbox command 0x98)"; then
+                    smu_probe_status="8 Cores (Software Patched via Run)"
+                else
+                    smu_probe_status="8 Cores (Unlocked via BIOS)"
+                fi
             elif [[ "$raw_mask" == "00000077" || "$raw_mask" == "77" ]]; then
-                smu_probe_status="6 Cores (Stock Matrix)"
+                smu_probe_status="6 Cores (Stock Factory Layout)"
             elif [[ "$raw_mask" == "failed" ]]; then
                 smu_probe_status="Unknown (Bus Error)"
             else
