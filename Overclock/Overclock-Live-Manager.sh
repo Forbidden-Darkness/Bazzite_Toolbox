@@ -1087,15 +1087,15 @@ view_core_live_manager() {
         echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} to move. Press ${GREEN}[Spacebar]${RESET} to toggle thread state. Press ${GREEN}[Enter]${RESET} to commit table changes."
 
-        # 🎯 INPUT READ RE-ROUTING: Spacebar toggles states, Enter instantly commits and prompts accept!
+        # 🧠 UNIFIED INPUT CAPTURE: Spacebar is now the master action trigger for all menu items
         local key=""
         IFS= read -r -s -n 1 raw_key
         key="$raw_key"
         
-        # Intercept and translate any carriage returns or newlines uniformly on your handheld terminal
-        if [[ -z "$key" || "$key" == $'\r' || "$key" == $'\n' ]]; then
+        # 🎯 SPACEBAR CONVERSION GATES: Treats a raw space space bar input as the execution token
+        if [[ -z "$key" || "$key" == " " || "$key" == $'\r' || "$key" == $'\n' ]]; then
             read -r -s -t 0.1 next_char 2>/dev/null
-            key="ENTER"
+            key="EXECUTE"
         fi
 
         case "$key" in
@@ -1107,7 +1107,50 @@ view_core_live_manager() {
                 ((menu_index++))
                 if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
                 ;;
-            " ") # SPACEBAR ONLY: Toggles your volatile hotplug threads on the fly
+            "EXECUTE")
+                if ((menu_index >= 0 && menu_index < static_max_threads)); then
+                    # 🚀 SPACEBAR TRIGGERED ON CORE ROW: Toggles the volatile hotplug thread state
+                    local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
+                    if [[ "$menu_index" -eq 0 ]]; then
+                        echo -e "\n${BIRed}[!] ERROR: CPU Core 0 is the primary system bootstrap anchor and cannot be offlined.${NC}"
+                        sleep 1.5; continue
+                    fi
+                    if [[ -f "$target_cpu_file" ]]; then
+                        if [[ $(cat "$target_cpu_file" 2>/dev/null) -eq 1 ]]; then
+                            echo 0 > "$target_cpu_file" 2>/dev/null
+                            echo -e "\n${YELLOW}[⚙] Thread ${menu_index} hotplugged OFFLINE... OS scheduler fence dropped.${NC}"
+                        else
+                            echo 1 > "$target_cpu_file" 2>/dev/null
+                            echo -e "\n${BIGreen}[✓] Thread ${menu_index} hotplugged ONLINE... OS scheduler fence restored.${NC}"
+                        fi
+                        TABLE_DIRTY=1; SERVICE_PENDING=0; sync && sleep 0.5
+                    else
+                        echo -e "\n${BIRed}[!] ERROR: Core/Thread ${menu_index} is hidden by BIOS configuration or un-enumerated by AGESA.${NC}"
+                        sleep 2.5
+                    fi
+        # Context Menu Base Actions Footer Rows (Decoded Step Borders)
+        echo ""
+        local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
+        if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then c_edit="${DIM}"; c_write="${GREEN}${BOLD}"
+        elif [ "${SERVICE_PENDING:-0}" -eq 1 ]; then c_write="${DIM}"; c_install="${GREEN}${BOLD}"; fi
+
+        if [[ "$menu_index" -eq "$static_max_threads" ]]; then echo -e "    ${YELLOW}👉 ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline${RESET}"
+        else echo -e "       ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline"; fi
+        if [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then echo -e "    ${YELLOW}👉 ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters${RESET}"
+        else echo -e "       ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters"; fi
+        if [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then echo -e "    ${YELLOW}👉 ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table${RESET}"
+        else echo -e "       ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table"; fi
+        if [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then echo -e "    ${YELLOW}👉 ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu${RESET}"
+        else echo -e "       ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu"; fi
+
+        echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
+        echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} to move. Press ${GREEN}[Spacebar]${RESET} or ${GREEN}[Enter]${RESET} to fire highlighted choices."
+
+        IFS= read -r -s -n 1 key
+        case "$key" in
+            [Ww]) ((menu_index--)); if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi ;;
+            [Ss]) ((menu_index++)); if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi ;;
+            " ") # 🎯 THE FIXED SPACEBAR GATES: Toggles cores OR fires highlighted menu options!
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
                     if [[ "$menu_index" -eq 0 ]]; then
@@ -1127,47 +1170,42 @@ view_core_live_manager() {
                         echo -e "\n${BIRed}[!] ERROR: Core/Thread ${menu_index} is hidden by BIOS configuration or un-enumerated by AGESA.${NC}"
                         sleep 2.5
                     fi
+                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
+                    execute_smu_core_unlock
+                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
+                    configure_persistent_isolcpus
+                elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
+                    execute_pre_commit_gate
+                elif [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
+                    echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
+                    sleep 0.5; return 0
                 fi
                 ;;
-            [Cc]|[cc]|"ENTER")
-                # 🧠 PRE-COMMIT CONFIRMATION SENSOR: Strict verification gate checks BEFORE writing to storage!
-                echo -e "\n${YELLOW}[⚠️] WARNING: You are about to permanently modify Bazzite's atomic kernel arguments.${NC}"
-                echo -e "    To compile your live matrix changes and stage a system reset, type ${GREEN}accept${NC} or ${GREEN}ACCEPT${NC}."
-                type_prompt "👉 Verification Command Input: " 0.03
-                local confirm_commit; read -r confirm_reboot
-
-                if [[ "$confirm_commit" == "accept" || "$confirm_commit" == "ACCEPT" ]]; then
-                    # 🔓 GATE PASSED: Proceed to read matrix records and execute disk updates cleanly
-                    local offline_list=""
-                    for ((core_id=0; core_id<static_max_threads; core_id++)); do
-                        local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
-                        if [[ -f "$core_file" ]]; then
-                            if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
-                                [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
-                            fi
-                        fi
-                    done
-                    
-                    # Safe to pass data layers downstream to the unified array builder
-                    execute_atomic_karg_sync "$offline_list"
-                else
-                    # 🔒 GATE BLOCKED: Storage remains pristine and untouched
-                    echo -e "\n${BIRed}[-] Verification failed or bypassed. Aborting commit pass. Disks remain pristine.${NC}"
-                    type_prompt "    Press Enter to return to the core optimization dashboard..." 0.03
-                    read -r
+            [Cc]|[cc])
+                # Immediate alphanumeric hotkey fallback for instant commits
+                execute_pre_commit_gate
+                ;;
+            ""|$'\n') # 🎯 THE FIXED ENTER GATES: Executes highlighted menu actions natively!
+                if ((menu_index >= 0 && menu_index < static_max_threads)); then
+                    # Safe thread guard: Prevents premature commits if Enter is hit up top
+                    echo -e "\n${YELLOW}[ℹ] Notice: Use [Spacebar] to toggle thread states. Use [W / S] to highlight action items below.${NC}"
+                    sleep 1.5; continue
+                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
+                    execute_smu_core_unlock
+                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
+                    configure_persistent_isolcpus
+                elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
+                    execute_pre_commit_gate
+                elif [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
+                    echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
+                    sleep 0.5; return 0
                 fi
                 ;;
-            [Ee]|[ee]) 
-                execute_smu_core_unlock 
-                ;;
-            [Ii]|[ii]) 
-                configure_persistent_isolcpus 
-                ;;
-            [Qq]|[qq]) 
-                echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
-                sleep 0.5; return 0 
-                ;;
+            [Ee]|[ee]) execute_smu_core_unlock ;;
+            [Ii]|[ii]) configure_persistent_isolcpus ;;
+            [Qq]|[qq]) echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"; sleep 0.5; return 0 ;;
             *)
+                # Drop unbound random key entries silently to keep terminal screen immaculate
                 continue
                 ;;
         esac
@@ -1214,7 +1252,34 @@ execute_smu_core_unlock() {
 }
 
 # ==============================================================================
-# SUBROUTINE: INTERACTIVE MANUAL INJECTION ENGINE
+# SUBROUTINE: INTERACTIVE PRE-COMMIT VERIFICATION GATE
+# ==============================================================================
+execute_pre_commit_gate() {
+    echo -e "\n${YELLOW}[⚠️] WARNING: You are about to permanently modify Bazzite's atomic kernel arguments.${NC}"
+    echo -e "    To compile your live matrix changes and stage a system reset, type ${GREEN}accept${NC} or ${GREEN}ACCEPT${NC}."
+    type_prompt "👉 Verification Command Input: " 0.03
+    local confirm_commit; read -r confirm_commit
+
+    if [[ "$confirm_commit" == "accept" || "$confirm_commit" == "ACCEPT" ]]; then
+        local offline_list=""
+        for ((core_id=0; core_id<static_max_threads; core_id++)); do
+            local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
+            if [[ -f "$core_file" ]]; then
+                if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
+                    [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
+                fi
+            fi
+        done
+        execute_atomic_karg_sync "$offline_list"
+    else
+        echo -e "\n${BIRed}[-] Verification failed or bypassed. Aborting commit pass.${NC}"
+        type_prompt "    Press Enter to return to the dashboard..." 0.03
+        read -r
+    fi
+}
+
+# ==============================================================================
+# SUBROUTINE: FIXED INTERACTIVE MANUAL INJECTION ENGINE WITH CLEAR INSTRUCTIONS
 # ==============================================================================
 configure_persistent_isolcpus() {
     echo -e "\n${CYAN}[ℹ] Bazzite Atomic Kernel Boot Parameter Configuration Engine${RESET}"
@@ -1222,13 +1287,19 @@ configure_persistent_isolcpus() {
     echo -e "  Altering kernel arguments via atomic single-pass tracking layers.\n"
     echo -e "  Enter the thread/core indexes you want completely blocked from the kernel loader."
     echo -e "  Examples: ${YELLOW}12${NC} (Isolates thread 12) or ${YELLOW}12,13${NC} (Isolates threads 12 and 13)"
-    echo -e "  Type ${RED}clear${NC} to completely wipe all active isolation parameters.\n"
+    echo -e "  ${DIM}──────────────────────────────────────────────────────────────────────────────────${RESET}"
+    echo -e "  💡 ${BIGreen}HOW TO RESTORE CORES:${RESET}"
+    echo -e "     Type ${GREEN}clear${RESET} inside the box below to completely remove your static fences"
+    echo -e "     and reactivate all isolated threads back to stock active states."
+    echo -e "  ${DIM}──────────────────────────────────────────────────────────────────────────────────${RESET}\n"
     type_prompt "👉 Target Isolation Mask: " 0.03
     local user_cores; read -r user_cores
     [ -z "$user_cores" ] && { echo -e "[-] No entry detected. Bypassing."; sleep 1; return 0; }
 
     local target_val=""
     [ "$user_cores" != "clear" ] && target_val="$user_cores"
+    
+    # Passes directly to the sync pipeline without ever prompting for an "accept" string!
     execute_atomic_karg_sync "$target_val"
 }
 
