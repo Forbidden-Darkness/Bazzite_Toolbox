@@ -1197,23 +1197,13 @@ execute_smu_core_unlock() {
 # SUBROUTINE: PERSISTENT COMMAND-LINE ARGUMENT INJECTION MODULE (ISOLCPUS)
 # ==============================================================================
 configure_persistent_isolcpus() {
-    local grub_default="/etc/default/grub"
-    echo -e "\n${CYAN}[ℹ] Persistent Kernel Boot Parameter Configuration Engine${RESET}"
-
-    if [[ ! -f "$grub_default" ]]; then
-        echo -e "${BIRed}❌ ERROR: Standard GRUB file configuration node not found at $grub_default${NC}"
-        read -p "Press Enter to return..."
-        return 1
-    fi
-
-    # 🛡️ DEFENSIVE SAFETY GATE: Guidance for bad core / B7 boot-loop bypass
+    echo -e "\n${CYAN}[ℹ] Bazzite Atomic Kernel Boot Parameter Configuration Engine${RESET}"
+    
     echo -e "${BOLD}${YELLOW}⚠️  PRE-BOOT SILICON ISOLATION SHIELD:${RESET}"
-    echo -e "  If your APU exhibits unstable silicon or hits a B7/boot loop freeze,"
-    echo -e "  you ${BOLD}MUST${RESET} isolate the unstable core indexes right here ${BOLD}BEFORE${RESET}"
-    echo -e "  enabling the 8-core mode inside your Forbidden Darkness Bios settings."
+    echo -e "  Altering kernel arguments via atomic ostree tracking layers."
     echo ""
     echo -e "  Enter the thread/core indexes you want completely blocked from the kernel loader."
-    echo -e "  Examples: ${YELLOW}6,7${NC} (Isolates threads 6 and 7) or ${YELLOW}3${NC} (Isolates thread 3 exclusively)"
+    echo -e "  Examples: ${YELLOW}12${NC} (Isolates thread 12 exclusively) or ${YELLOW}12,13${NC} (Isolates threads 12 and 13)"
     echo -e "  Type ${RED}clear${NC} to completely wipe all active isolation parameters."
     echo ""
     type_prompt "👉 Target Isolation Mask: " 0.03
@@ -1224,31 +1214,29 @@ configure_persistent_isolcpus() {
         sleep 1; return 0
     fi
 
-    # Clean existing isolcpus parameters out of the target file
-    sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' "$grub_default"
-    sudo sed -i 's/  */ /g' "$grub_default"
+    # 🧼 Atomic Sweep: Automatically searches for and purges any legacy isolcpus parameters cleanly
+    echo -e "${YELLOW}[⚙] Sanitizing current atomic kernel arguments...${NC}"
+    local active_karg; active_karg=$(rpm-ostree kargs | grep -o 'isolcpus=[^ ]*' | cut -d= -f2 || echo "")
+    if [[ -n "$active_karg" ]]; then
+        sudo rpm-ostree kargs --delete="isolcpus=${active_karg}" &>/dev/null
+    fi
 
     if [[ "$user_cores" != "clear" ]]; then
-        # Inject the fresh isolation string parameters back into the GRUB block
-        sudo sed -i "s/\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)\"/\1 isolcpus=${user_cores}\"/" "$grub_default"
-        echo -e "${GREEN}[+] Appended 'isolcpus=${user_cores}' to boot records successfully.${NC}"
-        TABLE_DIRTY=0; SERVICE_PENDING=1
+        # 🎯 THE ATOMIC FIX: Appends parameters straight into Bazzite's boot deployment tree!
+        echo -e "${CYAN}[⚙] Deploying 'isolcpus=${user_cores}' into master ostree records...${NC}"
+        if sudo rpm-ostree kargs --append="isolcpus=${user_cores}"; then
+            echo -e "${BIGreen}[✓] SUCCESS: Committed 'isolcpus=${user_cores}' into atomic tracking rows.${NC}"
+            TABLE_DIRTY=0; SERVICE_PENDING=1
+        else
+            err "Atomic deployment gate rejected the configuration layout."
+            read -p "Press Enter to return..." && return 1
+        fi
     else
-        echo -e "${YELLOW}[+] Cleared all active isolcpus parameters from configuration records.${NC}"
+        echo -e "${GREEN}[+] Successfully cleared all isolation parameters from atomic records.${NC}"
         TABLE_DIRTY=0; SERVICE_PENDING=1
     fi
 
-    # 🚀 SYSTEM BOOTLOADER RE-COMPILATION PASS
-    echo -e "${CYAN}[⚙] Re-compiling system boot configuration files across target records...${NC}"
-    if command -v update-grub &>/dev/null; then
-        sudo update-grub
-    elif command -v grub2-mkconfig &>/dev/null; then
-        sudo grub2-mkconfig -o /boot/grub2/grub.cfg
-    elif command -v grub-mkconfig &>/dev/null; then
-        sudo grub-mkconfig -o /boot/grub/grub.cfg
-    fi
-
-    echo -e "\n${BIGreen}[✓] SUCCESS: GRUB records re-compiled! You can now safely unlock your BIOS and reboot.${NC}"
+    echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment recompiled! System changes require a reboot to load.${NC}"
     type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
     local reboot_choice; read -r reboot_choice
     if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
