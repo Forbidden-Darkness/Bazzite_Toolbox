@@ -1153,7 +1153,7 @@ view_core_live_manager() {
 # ==============================================================================
 execute_smu_core_unlock() {
     echo -e "\n${YELLOW}[⚙] Initiating low-level native SMU core unlock sequence...${NC}"
-
+    
     local before_mask; before_mask=$(smn_read32 "$CPU_MASK_REG" 2>/dev/null || echo "0x00")
     info "Current Core Presence Silicon Mask: $before_mask"
 
@@ -1162,17 +1162,16 @@ execute_smu_core_unlock() {
         info "Perform a system cold reset/reboot to bring up all 8 cores (16 threads)."
     else
         echo -e "${CYAN}[ℹ] Transmitting Queue 3 mailbox command 0x98 payload...${NC}"
-
+        
         local status_response
-        # 🎯 PURE BASH GATE: Dispatches command 0x98 via your script's own setpci engine
         if status_response=$(smu_q3_send "$SMU_MSG_WRITE_FF" "$CPU_MASK_REG"); then
             local status_hex; status_hex=$(printf '0x%02X' $((status_response)))
             info "SMU mailbox transaction complete. Response status: $status_hex"
-
+            
             sleep 0.2
             local after_mask; after_mask=$(smn_read32 "$CPU_MASK_REG" 2>/dev/null || echo "failed")
             info "Verification Core Silicon Mask after write: $after_mask"
-
+            
             if [[ "$after_mask" == "0x000000ff" || "$after_mask" == "0xff" ]]; then
                 echo -e "${BIGreen}[✓] SUCCESS: CPU core unlock armed inside SMU runtime registers!${NC}"
                 TABLE_DIRTY=0; SERVICE_PENDING=1
@@ -1194,13 +1193,19 @@ execute_smu_core_unlock() {
 configure_persistent_isolcpus() {
     local grub_default="/etc/default/grub"
     echo -e "\n${CYAN}[ℹ] Persistent Kernel Boot Parameter Configuration Engine${RESET}"
-
+    
     if [[ ! -f "$grub_default" ]]; then
         echo -e "${BIRed}❌ ERROR: Standard GRUB file configuration node not found at $grub_default${NC}"
         read -p "Press Enter to return..."
         return 1
     fi
 
+    # 🛡️ DEFENSIVE PROTOCOL: Explicit safety reminder detailing the bad core workaround sequence
+    echo -e "${BOLD}${YELLOW}⚠️  SILICON HARVEST SAFETY GATE PROTOCOL:${RESET}"
+    echo -e "  If you have an unstable or defective core from an 8-core unlock trial,"
+    echo -e "  you ${BOLD}MUST${RESET} fence it off here ${BOLD}BEFORE${RESET} enabling the unlock in the BIOS mod."
+    echo -e "  This forces the Linux OS scheduler to bypass the bad core completely on boot."
+    echo ""
     echo -e "  Specify core index parameters to completely isolate from the Linux scheduler."
     echo -e "  Examples: ${YELLOW}6,7${NC} (Isolates cores 6 and 7) or ${YELLOW}4-7${NC} (Isolates cores 4 through 7)"
     echo -e "  Type ${RED}clear${NC} to completely wipe all isolcpus strings from boot records."
