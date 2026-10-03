@@ -1268,6 +1268,94 @@ execute_atomic_karg_sync() {
     TABLE_DIRTY=0; SERVICE_PENDING=1
 }
 
+# ==============================================================================
+# SUBROUTINE: STANDALONE GRAPHICAL BOOT SPLASH SCREEN RESTORATION UTILITY
+# ==============================================================================
+repair_boot_splash_only() {
+    clear
+    echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
+    echo -e "${DIM}│${RESET}                 📟  Bazzite Dedicated Boot Splash Screen Repair Utility             ${DIM}│${RESET}"
+    echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
+    echo ""
+    echo -e "  ${BOLD}${YELLOW}⚠️  GRAPHICAL SPLASH RESET PROTOCOL:${RESET}"
+    echo -e "  This function will force-inject Red Hat Graphical Boot (rhgb) and quiet"
+    echo -e "  parameters straight into Bazzite's atomic tracking deployment tree."
+    echo -e "  This sweeps away scrolling text and restores your black boot-up splash animations."
+    echo ""
+
+    type_prompt "❓ Initialize standalone splash screen repair pass now? (y/N): " 0.03
+    local start_repair; read -r start_repair
+
+    if [[ ! "$start_repair" =~ ^[Yy]$ ]]; then
+        echo -e "\n${YELLOW}[-] Repair sequence bypassed. Returning cleanly to toolkit...${NC}"
+        sleep 1.5; return 0
+    fi
+
+    echo -e "\n${YELLOW}[⚙] Scanning current deployment boot parameter strings...${NC}"
+    local current_kargs; current_kargs=$(rpm-ostree kargs)
+
+    # Extract any current instances of rhgb or quiet to avoid stacking duplicate commands
+    local has_rhgb; has_f_rhgb=$(echo "$current_kargs" | grep -o 'rhgb' || echo "")
+    local has_quiet; has_f_quiet=$(echo "$current_kargs" | grep -o 'quiet' || echo "")
+
+    local -a repair_args=()
+
+    # 🧼 FORCE-PURGE ENFORCEMENT: Cleanly stages deletes if flags are missing or misconfigured
+    if [[ -z "$has_f_rhgb" || -z "$has_f_quiet" ]]; then
+        # Safely stage cleanup fields to avoid empty string padding blocks
+        [[ -n "$has_f_rhgb" ]] && repair_args+=( --delete="rhgb" )
+        [[ -n "$has_f_quiet" ]] && repair_args+=( --delete="quiet" )
+    fi
+
+    # 🎯 ATOMIC APPEND FLAGS: Hard-locks your graphical boot layers into the transaction block
+    repair_args+=( --append="rhgb" --append="quiet" )
+
+    echo -e "${CYAN}[+] Staging recovery targets: [rhgb] [quiet] elements...${NC}"
+    if [[ ${#repair_args[@]} -gt 0 ]]; then
+        echo -e "${CYAN}[⚙] Dispatching dedicated splash recovery transaction...${NC}"
+
+        # 🚀 CLEAN ISOLATED PIPE: Executes the array configurations smoothly in the background
+        rpm-ostree kargs "${repair_args[@]}" &>/dev/null &
+        local transaction_pid=$!
+        local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+
+        while kill -0 "$transaction_pid" 2>/dev/null; do
+            for frame in "${spinner[@]}"; do
+                echo -ne "\r  \033[0;36m[$frame] Re-building atomic deployment records cleanly...${NC}"
+                sleep 0.08
+            done
+        done
+        echo -ne "\r                                                                         \r"
+
+        wait "$transaction_pid"
+        if [ $? -eq 0 ]; then
+            echo -e "${BIGreen}[✓] SUCCESS: Graphical splash configurations force-restored!${NC}"
+
+            # Clean legacy GRUB backups if present to ensure system config purity
+            if [[ -f "/etc/default/grub" ]]; then
+                sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
+                sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null
+            fi
+        else
+            echo -e "${BIRed}❌ ERROR: Bazzite atomic tracker rejected the repair sequence layout.${NC}"
+            read -p "Press Enter to return..."
+            return 1
+        fi
+    else
+        echo -e "${GREEN}[+] Verification Pass Complete: Splash screen arguments are already optimally active.${NC}"
+        sleep 1.5; return 0
+    fi
+
+    # 🚀 ATOMIC REBOOT DIALOG
+    echo -e "\n${BIGreen}[✓] SUCCESS: Deployment sync complete! System changes require a reboot to mount.${NC}"
+    type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
+    local reboot_choice; read -r reboot_choice
+    if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
+        sync && sleep 1 && reboot
+    fi
+}
+
 uninstall_cu_live_manager() {
     log "${RED}[Uninstall] Initializing CU Live Manager rollback suite...${NC}"
     sudo systemctl disable --now bc250-cu-live-manager.service >> "$LOG_FILE" 2>&1 || true
@@ -1333,18 +1421,18 @@ while true; do
     echo ""
     echo -e "    ${BOLD}${YELLOW}• Silicon Stability Testing Channels:${RESET}"
     echo -e "      ${CYAN}[4]${RESET}   Launch Silicon Per-Core Stability Sweep ${DIM}(test-cores Curve Validation)${RESET}"    
-    echo -e "      ${CYAN}[5]${RESET}   Launch CPU Core Scheduler & Isolation Matrix ${DIM}(Live Core Matrix & Isolcpus)${RESET}"
+    echo -e "      ${CYAN}[5]${RESET}   Launch CPU Core Scheduler & Isolation Matrix ${DIM}(Live Core Matrix & Isolcpus)${RESET}"    
+    echo -e "      ${CYAN}[6]${RESET}   Force-Restore Graphical Boot Splash Screen ${DIM}(Repair rhgb / quiet Flags)${RESET}"
     echo ""
     echo -e "  ${DIM}──────────────────────────────────────────────────────────────────────────────────${RESET}"
     echo -e "      ${BOLD}${MAGENTA}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
     echo ""
 
-    type_prompt "  Select an option [ 1a-5, M, C, ↵ ]: " 0.03
+    # 🧬 FIXED PROMPT FIELD: Realigned selection string boundary matrix to explicitly read up to option 6
+    type_prompt "  Select an option [ 1a-6, M, C, ↵ ]: " 0.03
     choice=""
-    # 🧬 FIXED INPUT FIELD: Removed '-n 1' to allow multi-character menu selections (1a, 2b, etc.)
     read -r choice
-    echo ""
-    
+    echo ""    
     # Convert input to lowercase or handle multi-case matching smoothly
     case "$choice" in
         1a|1A) run_phase1 ;;
@@ -1361,7 +1449,13 @@ while true; do
         3a|3A) uninstall_cpu_profiles ;;
         3b|3B) uninstall_cu_manager ;;
         4) run_stability_sweep ;;
-        5) view_core_live_manager ;; # 🚀 NOW REACHABLE UNDER OPTION 4
+        5) view_core_live_manager ;;        
+        6) repair_boot_splash_only ;;
+        "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; exit 0 ;;
+        *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
+    esac
+done
+
         "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; exit 0 ;;
         *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
     esac
