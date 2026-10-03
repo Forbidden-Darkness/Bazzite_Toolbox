@@ -998,7 +998,7 @@ view_core_live_manager() {
     while true; do
         clear
         echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
-        echo -e "${DIM}│${RESET}                 📟  Interactive Core Optimizer & Isolation Matrix                 ${DIM}│${RESET}"
+        echo -e "${DIM}│${RESET}                 📟  Interactive Core Optimizer & Isolation Matrix                  ${DIM}│${RESET}"
         echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
         echo ""
         echo -e "  ${BOLD}${YELLOW}Active Hardware Real-Time Telemetry Profile:${RESET}"
