@@ -2,24 +2,30 @@
 
 clear
 # Color definitions
+CPU_MASK_REG="0x5A870"
+SMU_MSG_WRITE_FF="0x98"
+NC='\033[0m'
+RESET='\033[0m'
+YELLOW='\033[1;33m'
 RED='\033[0;31m'
 B_RED='\033[1;31m'   # Bold Red for high-visibility Red Pill elements
 GREEN='\033[0;32m'
 B_GREEN='\033[1;32m' # Bold Green for verified/active status
-YELLOW='\033[0;33m'
 B_YELLOW='\033[1;33m'
 B_BLUE='\033[1;34m'  # Bold Blue for high-visibility Blue Pill elements
 B_VIOLET='\033[1;35m' # Bold Violet for ACPI Fix elements
 CYAN='\033[0;36m'
 BIBlack='\033[1;90m'      # Black
-BIRed='\033[1;91m'        # Red
-BIGreen='\033[1;92m'      # Green
+BIRed='\033[1;31m'        # Red
+MAGENTA='\033[0;35m'
+BIGreen='\033[1;32m'      # Green
 BIYellow='\033[1;93m'     # Yellow
 BIBlue='\033[1;94m'       # Blue
 BIPurple='\033[1;95m'     # Purple
 BICyan='\033[1;96m'       # Cyan
 BIWhite='\033[1;97m'      # White
-NC='\033[0m' # No Color (Reset)
+DIM='\033[2m'
+BOLD='\033[1m'
 
 # 🧬 DYNAMIC GITHUB STRINGS FOR MODDED PYTHON OVERRIDES
 MODDED_APPLY_URL="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250_apply.py"
@@ -992,7 +998,6 @@ view_core_live_manager() {
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
     local cmdline_file="/proc/cmdline"
     local menu_index=0
-    # 🎯 IMMUTABLE HARDEST CEILING: Force a full 16-thread mapping window regardless of safe boot configurations
     local static_max_threads=16
 
     while true; do
@@ -1032,25 +1037,28 @@ view_core_live_manager() {
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Live Scheduler Grid Matrix (All Silicon Channels Exposed):${RESET}\n"
 
-        # 🚀 FORCED 16-ROW SCAN ENGINE: Maps every potential logical thread row with Isolcpus tracking
         local -a core_labels
         for ((i=0; i<static_max_threads; i++)); do
             local sys_online_file="/sys/devices/system/cpu/cpu${i}/online"
+            local is_fenced=0
+            if [[ -n "$active_isolated" && "$active_isolated" != "None" ]]; then
+                if [[ ",${active_isolated}," == *",${i},"* || "${active_isolated}" == "${i}" ]]; then
+                    is_fenced=1
+                elif [[ "$active_isolated" == *"-"* ]]; then
+                    local start_r; start_r=$(echo "$active_isolated" | cut -d'-' -f1)
+                    local end_r; end_r=$(echo "$active_isolated" | cut -d'-' -f2)
+                    if (( i >= start_r && i <= end_r )); then is_fenced=1; fi
+                fi
+            fi
 
-            # Check if this explicit index sits inside your live isolcpus boot boundary mask
-            if [[ ",${active_isolated}," == *",${i},"* ]] || [[ "${active_isolated}" == "${i}" ]] || \
-               [[ "${active_isolated}" == *"-"* && $(python3 -c "import sys; r=list(map(int,'${active_isolated}'.split('-'))); print(1 if r[0]<= $i <=r[1] else 0)" 2>/dev/null) -eq 1 ]]; then
-                # 🎯 LOCKED DETECTOR: Flags the thread as isolated from the operating system load balancer
+            if [[ "$is_fenced" -eq 1 ]]; then
                 core_labels[$i]="${MAGENTA}⚡ ISOLATED (Fenced)${RESET}"
             elif [[ ! -d "/sys/devices/system/cpu/cpu${i}" ]]; then
                 core_labels[$i]="${DIM}□ DISABLED (BIOS Hidden)${RESET}"
             elif [[ -f "$sys_online_file" ]]; then
                 local is_online; is_online=$(cat "$sys_online_file" 2>/dev/null)
-                if [[ "$is_online" -eq 1 ]]; then
-                    core_labels[$i]="${GREEN}■ ACTIVE${RESET}"
-                else
-                    core_labels[$i]="${RED}□ INACTIVE (Hotplugged)${RESET}"
-                fi
+                if [[ "$is_online" -eq 1 ]]; then core_labels[$i]="${GREEN}■ ACTIVE${RESET}"
+                else core_labels[$i]="${RED}□ INACTIVE (Hotplugged)${RESET}"; fi
             else
                 core_labels[$i]="${GREEN}■ ACTIVE${RESET}"
             fi
@@ -1061,227 +1069,79 @@ view_core_live_manager() {
                 echo -e "       [Thread $(printf "%02d" $i)] [ ${core_labels[$i]} ]"
             fi
         done
-
         # Context Menu Base Actions Footer Rows (Decoded Step Borders)
         echo ""
         local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
-        if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
-            c_edit="${DIM}"; c_write="${GREEN}${BOLD}"
-        elif [ "${SERVICE_PENDING:-0}" -eq 1 ]; then
-            c_write="${DIM}"; c_install="${GREEN}${BOLD}"
-        fi
+        if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then c_edit="${DIM}"; c_write="${GREEN}${BOLD}"
+        elif [ "${SERVICE_PENDING:-0}" -eq 1 ]; then c_write="${DIM}"; c_install="${GREEN}${BOLD}"; fi
 
-        if [[ "$menu_index" -eq "$static_max_threads" ]]; then
-            echo -e "    ${YELLOW}👉 ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline${RESET}"
-        else
-            echo -e "       ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline"
-        fi
-        if [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
-            echo -e "    ${YELLOW}👉 ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters${RESET}"
-        else
-            echo -e "       ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters"
-        fi
-        if [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
-            echo -e "    ${YELLOW}👉 ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table${RESET}"
-        else
-            echo -e "       ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table"
-        fi
-        if [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
-            echo -e "    ${YELLOW}👉 ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu${RESET}"
-        else
-            echo -e "       ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu"
-        fi
+        if [[ "$menu_index" -eq "$static_max_threads" ]]; then echo -e "    ${YELLOW}👉 ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline${RESET}"
+        else echo -e "       ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline"; fi
+        if [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then echo -e "    ${YELLOW}👉 ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters${RESET}"
+        else echo -e "       ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters"; fi
+        if [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then echo -e "    ${YELLOW}👉 ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table${RESET}"
+        else echo -e "       ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table"; fi
+        if [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then echo -e "    ${YELLOW}👉 ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu${RESET}"
+        else echo -e "       ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu"; fi
 
         echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} keys to navigate rows. Press ${GREEN}[Enter]${RESET} to execute choice parameter."
 
-        # 🧠 DIRECT HOTKEY CONFIGURATION: W/S for navigation, C/c for instant commit
         read -s -n 1 key
         case "$key" in
-            [Ww])
-                ((menu_index--))
-                if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi
-                ;;
-            [Ss])
-                ((menu_index++))
-                if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
-                ;;
+            [Ww]) ((menu_index--)); if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi ;;
+            [Ss]) ((menu_index++)); if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi ;;
             [Cc])
                 if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
-                    echo -e "\n${YELLOW}[⚙] Capturing core snapshot map... translating to atomic arguments...${NC}"
-
                     local offline_list=""
                     for ((core_id=0; core_id<static_max_threads; core_id++)); do
                         local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
                         if [[ -f "$core_file" ]]; then
-                            local state; state=$(cat "$core_file" 2>/dev/null)
-                            if [[ "$state" -eq 0 ]]; then
-                                if [[ -z "$offline_list" ]]; then
-                                    offline_list="${core_id}"
-                                else
-                                    offline_list="${offline_list},${core_id}"
-                                fi
+                            if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
+                                [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
                             fi
                         fi
                     done
-
-                    local karg_cmd=""
-                    local current_kargs; current_kargs=$(rpm-ostree kargs)
-                    local old_isolcpus; old_isolcpus=$(echo "$current_kargs" | grep -o 'isolcpus=[^ ]*' || echo "")
-
-                    if [[ -n "$old_isolcpus" ]]; then
-                        karg_cmd="--delete=\"$old_isolcpus\""
-                    fi
-
-                    if [[ -n "$offline_list" ]]; then
-                        karg_cmd="$karg_cmd --append=\"rhgb\" --append=\"quiet\" --append=\"isolcpus=${offline_list}\""
-                        echo -e "${CYAN}[+] Staging core layout fence: isolcpus=${offline_list}...${NC}"
-                    else
-                        karg_cmd="$karg_cmd --append=\"rhgb\" --append=\"quiet\""
-                        echo -e "${YELLOW}[⚙] Staging complete core isolation purge...${NC}"
-                    fi
-
-                    if [[ -n "$karg_cmd" ]]; then
-                        echo -e "${CYAN}[⚙] Dispatching unified rpm-ostree transaction suite...${NC}"
-
-                        eval "rpm-ostree kargs $karg_cmd" &>/dev/null &
-                        local transaction_pid=$!
-                        local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
-
-                        while kill -0 "$transaction_pid" 2>/dev/null; do
-                            for frame in "${spinner[@]}"; do
-                                echo -ne "\r  \033[0;36m[$frame] Re-building atomic boot records cleanly in background...${NC}"
-                                sleep 0.08
-                            done
-                        done
-                        echo -ne "\r                                                                         \r"
-                        wait "$transaction_pid"
-
-                        echo -e "${BIGreen}[✓] SUCCESS: Core configurations permanently frozen in Bazzite boot deployment!${NC}"
-                        TABLE_DIRTY=0; SERVICE_PENDING=1
-                        sleep 1.5
-                    else
-                        echo -e "[-] No matrix modifications detected. Disks are already in sync."
-                        sleep 1.5; continue
-                    fi
-
-                    if [[ -f "/etc/default/grub" ]]; then
-                        sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
-                        sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null
-                    fi
-
-                    echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! System changes require a reboot to load.${NC}"
-                    type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
-                    local reboot_choice; read -r reboot_choice
-                    if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
-                        echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
-                        sync && sleep 1 && reboot
-                    fi
+                    execute_atomic_karg_sync "$offline_list"
                 else
                     echo -e "\n${YELLOW}[!] Warning: No core configuration changes are currently cached in workspace.${NC}"
                     sleep 1.5
                 fi
                 ;;
-            "") # User pressed [Enter] key on their highlighted row selection
+            "")
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
-
                     if [[ "$menu_index" -eq 0 ]]; then
                         echo -e "\n${BIRed}[!] ERROR: CPU Core 0 is the primary system bootstrap anchor and cannot be offlined.${NC}"
                         sleep 1.5; continue
                     fi
-
                     if [[ -f "$target_cpu_file" ]]; then
-                        local current_state; current_state=$(cat "$target_cpu_file" 2>/dev/null)
-                        if [[ "$current_state" -eq 1 ]]; then
+                        if [[ $(cat "$target_cpu_file" 2>/dev/null) -eq 1 ]]; then
                             echo 0 > "$target_cpu_file" 2>/dev/null
                             echo -e "\n${YELLOW}[⚙] Thread ${menu_index} hotplugged OFFLINE... OS scheduler fence dropped.${NC}"
-                            TABLE_DIRTY=1; SERVICE_PENDING=0
                         else
                             echo 1 > "$target_cpu_file" 2>/dev/null
                             echo -e "\n${BIGreen}[✓] Thread ${menu_index} hotplugged ONLINE... OS scheduler fence restored.${NC}"
-                            TABLE_DIRTY=1; SERVICE_PENDING=0
                         fi
-                        sync && sleep 0.5
+                        TABLE_DIRTY=1; SERVICE_PENDING=0; sync && sleep 0.5
                     else
                         echo -e "\n${BIRed}[!] ERROR: Core/Thread ${menu_index} is hidden by BIOS configuration or un-enumerated by AGESA.${NC}"
-                        echo -e "${YELLOW}    To isolate this thread pre-boot, please navigate to option [i] below.${NC}"
                         sleep 2.5
                     fi
-                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
-                    execute_smu_core_unlock
-                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
-                    configure_persistent_isolcpus
+                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then execute_smu_core_unlock
+                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then configure_persistent_isolcpus
                 elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
-                    # 🎯 SYNCHRONIZED BACKUP: Runs the same clean atomic loop if they highlight [c] and press Enter!
                     if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
-                        echo -e "\n${YELLOW}[⚙] Capturing core snapshot map... translating to atomic arguments...${NC}"
-
                         local offline_list=""
                         for ((core_id=0; core_id<static_max_threads; core_id++)); do
                             local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
                             if [[ -f "$core_file" ]]; then
-                                local state; state=$(cat "$core_file" 2>/dev/null)
-                                if [[ "$state" -eq 0 ]]; then
-                                    if [[ -z "$offline_list" ]]; then
-                                        offline_list="${core_id}"
-                                    else
-                                        offline_list="${offline_list},${core_id}"
-                                    fi
+                                if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
+                                    [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
                                 fi
                             fi
                         done
-
-                        local karg_cmd=""
-                        local current_kargs; current_kargs=$(rpm-ostree kargs)
-                        local old_isolcpus; old_isolcpus=$(echo "$current_kargs" | grep -o 'isolcpus=[^ ]*' || echo "")
-
-                        if [[ -n "$old_isolcpus" ]]; then
-                            karg_cmd="--delete=\"$old_isolcpus\""
-                        fi
-
-                        if [[ -n "$offline_list" ]]; then
-                            karg_cmd="$karg_cmd --append=\"rhgb\" --append=\"quiet\" --append=\"isolcpus=${offline_list}\""
-                            echo -e "${CYAN}[+] Staging core layout fence: isolcpus=${offline_list}...${NC}"
-                        else
-                            karg_cmd="$karg_cmd --append=\"rhgb\" --append=\"quiet\""
-                            echo -e "${YELLOW}[⚙] Staging complete core isolation purge...${NC}"
-                        fi
-
-                        if [[ -n "$karg_cmd" ]]; then
-                            echo -e "${CYAN}[⚙] Dispatching unified rpm-ostree transaction suite...${NC}"
-                            eval "rpm-ostree kargs $karg_cmd" &>/dev/null &
-                            local transaction_pid=$!
-                            local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
-
-                            while kill -0 "$transaction_pid" 2>/dev/null; do
-                                for frame in "${spinner[@]}"; do
-                                    echo -ne "\r  \033[0;36m[$frame] Re-building atomic boot records cleanly in background...${NC}"
-                                    sleep 0.08
-                                done
-                            done
-                            echo -ne "\r                                                                         \r"
-                            wait "$transaction_pid"
-
-                            echo -e "${BIGreen}[✓] SUCCESS: Core configurations permanently frozen in Bazzite boot deployment!${NC}"
-                            TABLE_DIRTY=0; SERVICE_PENDING=1; sleep 1.5
-                        else
-                            echo -e "[-] No matrix modifications detected. Disks are already in sync."
-                            sleep 1.5; continue
-                        fi
-
-                        if [[ -f "/etc/default/grub" ]]; then
-                            sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
-                            sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null
-                        fi
-
-                        echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! System changes require a reboot to load.${NC}"
-                        type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
-                        local reboot_choice; read -r reboot_choice
-                        if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
-                            echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
-                            sync && sleep 1 && reboot
-                        fi
+                        execute_atomic_karg_sync "$offline_list"
                     else
                         echo -e "\n${YELLOW}[!] Warning: No core configuration changes are currently cached in workspace.${NC}"
                         sleep 1.5
@@ -1338,85 +1198,74 @@ execute_smu_core_unlock() {
 }
 
 # ==============================================================================
-# OPTIMIZED: ATOMIC ISOLATION SHIELD WITH GRAPHICAL SPLASH REPAIR ENGINE
+# SUBROUTINE: INTERACTIVE MANUAL INJECTION ENGINE
 # ==============================================================================
 configure_persistent_isolcpus() {
     echo -e "\n${CYAN}[ℹ] Bazzite Atomic Kernel Boot Parameter Configuration Engine${RESET}"
-
     echo -e "${BOLD}${YELLOW}⚠️  PRE-BOOT SILICON ISOLATION SHIELD:${RESET}"
-    echo -e "  Altering kernel arguments via atomic single-pass tracking layers."
-    echo ""
+    echo -e "  Altering kernel arguments via atomic single-pass tracking layers.\n"
     echo -e "  Enter the thread/core indexes you want completely blocked from the kernel loader."
-    echo -e "  Examples: ${YELLOW}12${NC} (Isolates thread 12 exclusively) or ${YELLOW}12,13${NC} (Isolates threads 12 and 13)"
-    echo -e "  Type ${RED}clear${NC} to completely wipe all active isolation parameters."
-    echo ""
+    echo -e "  Examples: ${YELLOW}12${NC} (Isolates thread 12) or ${YELLOW}12,13${NC} (Isolates threads 12 and 13)"
+    echo -e "  Type ${RED}clear${NC} to completely wipe all active isolation parameters.\n"
     type_prompt "👉 Target Isolation Mask: " 0.03
     local user_cores; read -r user_cores
+    [ -z "$user_cores" ] && { echo -e "[-] No entry detected. Bypassing."; sleep 1; return 0; }
 
-    if [[ -z "$user_cores" ]]; then
-        echo -e "[-] No entry detected. Bypassing changes."
-        sleep 1; return 0
-    fi
+    local target_val=""
+    [ "$user_cores" != "clear" ] && target_val="$user_cores"
+    execute_atomic_karg_sync "$target_val"
+}
 
-    echo -e "${YELLOW}[⚙] Scanning current deployment for old isolation arguments...${NC}"
+# ==============================================================================
+# SUBROUTINE: UNIFIED ATOMIC EXECUTION PIPE WITH LIVE VISUAL SPINNER
+# ==============================================================================
+execute_atomic_karg_sync() {
+    local target_cores="$1"
+    echo -e "\n${YELLOW}[⚙] Scanning current deployment and formatting instruction parameters...${NC}"
     local current_kargs; current_kargs=$(rpm-ostree kargs)
     local old_isolcpus; old_isolcpus=$(echo "$current_kargs" | grep -o 'isolcpus=[^ ]*' || echo "")
 
-    local karg_cmd=""
-    [[ -n "$old_isolcpus" ]] && karg_cmd="--delete=\"$old_isolcpus\""
+    local -a karg_args=()
+    [ -n "$old_isolcpus" ] && karg_args+=( --delete="$old_isolcpus" )
 
-    # 🎯 THE PERMANENT SPLASH REPAIR GATES: Forces rhgb and quiet to deploy on option [i] as well!
-    if [[ "$user_cores" != "clear" ]]; then
-        karg_cmd="$karg_cmd --append=\"rhgb\" --append=\"quiet\" --append=\"isolcpus=${user_cores}\""
-        echo -e "${CYAN}[+] Staging parameters: isolcpus=${user_cores}...${NC}"
+    if [ -n "$target_cores" ]; then
+        karg_args+=( --append="rhgb" --append="quiet" --append="isolcpus=${target_cores}" )
+        echo -e "${CYAN}[+] Staging core layout fence: isolcpus=${target_cores}...${NC}"
     else
-        karg_cmd="$karg_cmd --append=\"rhgb\" --append=\"quiet\""
+        karg_args+=( --append="rhgb" --append="quiet" )
         echo -e "${YELLOW}[⚙] Staging complete core isolation purge...${NC}"
     fi
 
-    if [[ -n "$karg_cmd" ]]; then
-        echo -e "${CYAN}[⚙] Initializing unified rpm-ostree transaction suite...${NC}"
+    echo -e "${CYAN}[⚙] Dispatching unified rpm-ostree transaction suite...${NC}"
+    rpm-ostree kargs "${karg_args[@]}" &>/dev/null &
+    local transaction_pid=$!
+    local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
 
-        # 🚀 BACKGROUND THE TASK: Hides stdout logs and spins off the background compiler
-        eval "rpm-ostree kargs $karg_cmd" &>/dev/null &
-        local transaction_pid=$!
-
-        # 🧠 THE VISUAL SPINNER ENGINE: Syncs perfectly with your toolkit styles
-        local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
-
-        while kill -0 "$transaction_pid" 2>/dev/null; do
-            for frame in "${spinner[@]}"; do
-                echo -ne "\r  \033[0;36m[$frame] Re-building atomic boot records cleanly in background...${NC}"
-                sleep 0.08
-            done
+    while kill -0 "$transaction_pid" 2>/dev/null; do
+        for frame in "${spinner[@]}"; do
+            echo -ne "\r  \033[0;36m[$frame] Re-building atomic boot records cleanly in background...${NC}"
+            sleep 0.08
         done
-        echo -ne "\r                                                                         \r"
+    done
+    echo -ne "\r                                                                         \r"
+    wait "$transaction_pid"
 
-        wait "$transaction_pid"
-        if [ $? -eq 0 ]; then
-            echo -e "${BIGreen}[✓] SUCCESS: Committed atomic boot constraints flawlessly!${NC}"
-            TABLE_DIRTY=0; SERVICE_PENDING=1
-        else
-            echo -e "${BIRed}❌ ERROR: Bazzite atomic tracker rejected the pooled instruction framing.${NC}"
-            read -p "Press Enter to return..." && return 1
+    if [ $? -eq 0 ]; then
+        echo -e "${BIGreen}[✓] SUCCESS: Core configurations permanently frozen in Bazzite boot deployment!${NC}"
+        [ -f "/etc/default/grub" ] && { sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null; sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null; }
+
+        echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! System changes require a reboot to load.${NC}"
+        type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
+        local reboot_choice; read -r reboot_choice
+        if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
+            sync && sleep 1 && reboot
         fi
     else
-        echo -e "[-] No workspace changes required. System parameters already clean."
-        sleep 1.5; return 0
+        echo -e "${BIRed}❌ ERROR: Bazzite atomic tracker rejected the pooled instruction framing.${NC}"
+        read -p "Press Enter to return..."
     fi
-
-    if [[ -f "/etc/default/grub" ]]; then
-        sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
-        sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null
-    fi
-
-    echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! System changes require a reboot to load.${NC}"
-    type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
-    local reboot_choice; read -r reboot_choice
-    if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
-        sync && sleep 1 && reboot
-    fi
+    TABLE_DIRTY=0; SERVICE_PENDING=1
 }
 
 uninstall_cu_live_manager() {
