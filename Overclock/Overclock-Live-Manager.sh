@@ -991,7 +991,7 @@ uninstall_cpu_overclock() {
 }
 
 # ==============================================================================
-# 🎯 MAIN MODULE: Live CPU Core Scheduler & Isolcpus System Manager
+# 🎯 FINAL UNIFIED MODULE: CPU SCHEDULER & ATOMIC ISOLATION MATRIX (PART 1)
 # ==============================================================================
 view_core_live_manager() {
     local native_user="${SUDO_USER:-$(logname 2>/dev/null || whoami)}"
@@ -1064,7 +1064,7 @@ view_core_live_manager() {
             fi
 
             if [[ "$i" -eq "$menu_index" ]]; then
-                echo -e "    ${YELLOW}👉 [Thread $(printf "%02d" $i)] [ ${core_labels[$i]} ]   <-- Press [Enter] to Toggle State${RESET}"
+                echo -e "    ${YELLOW}👉 [Thread $(printf "%02d" $i)] [ ${core_labels[$i]} ]   <-- Press [Spacebar] to Toggle State${RESET}"
             else
                 echo -e "       [Thread $(printf "%02d" $i)] [ ${core_labels[$i]} ]"
             fi
@@ -1085,30 +1085,13 @@ view_core_live_manager() {
         else echo -e "       ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu"; fi
 
         echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-        echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} keys to navigate rows. Press ${GREEN}[Enter]${RESET} to execute choice parameter."
+        echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} keys to navigate rows. Press ${GREEN}[Spacebar]${RESET} to toggle states. Press ${GREEN}[Enter]${RESET} to execute."
 
         read -s -n 1 key
         case "$key" in
             [Ww]) ((menu_index--)); if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi ;;
             [Ss]) ((menu_index++)); if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi ;;
-            [Cc])
-                if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
-                    local offline_list=""
-                    for ((core_id=0; core_id<static_max_threads; core_id++)); do
-                        local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
-                        if [[ -f "$core_file" ]]; then
-                            if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
-                                [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
-                            fi
-                        fi
-                    done
-                    execute_atomic_karg_sync "$offline_list"
-                else
-                    echo -e "\n${YELLOW}[!] Warning: No core configuration changes are currently cached in workspace.${NC}"
-                    sleep 1.5
-                fi
-                ;;
-            "")
+            " ") # 🎯 THE SPACEBAR TOGGLE ACTION GATES
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
                     if [[ "$menu_index" -eq 0 ]]; then
@@ -1128,8 +1111,34 @@ view_core_live_manager() {
                         echo -e "\n${BIRed}[!] ERROR: Core/Thread ${menu_index} is hidden by BIOS configuration or un-enumerated by AGESA.${NC}"
                         sleep 2.5
                     fi
-                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then execute_smu_core_unlock
-                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then configure_persistent_isolcpus
+                fi
+                ;;
+            [Cc]|[cc])
+                # Direct alphanumeric shortcut fallback trigger for immediate commit saves
+                if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
+                    local offline_list=""
+                    for ((core_id=0; core_id<static_max_threads; core_id++)); do
+                        local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
+                        if [[ -f "$core_file" ]]; then
+                            if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
+                                [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
+                            fi
+                        fi
+                    done
+                    execute_atomic_karg_sync "$offline_list"
+                else
+                    echo -e "\n${YELLOW}[!] Warning: No core configuration changes are currently cached in workspace.${NC}"
+                    sleep 1.5
+                fi
+                ;;
+            "") # 🎯 ENTER KEY DISPATCH ROUTER
+                if ((menu_index >= 0 && menu_index < static_max_threads)); then
+                    echo -e "\n${YELLOW}[ℹ] Navigation Notice: Use [Spacebar] to toggle threads. Press [Enter] on footer buttons to save.${NC}"
+                    sleep 1.5; continue
+                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
+                    execute_smu_core_unlock
+                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
+                    configure_persistent_isolcpus
                 elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
                     if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
                         local offline_list=""
@@ -1217,32 +1226,26 @@ configure_persistent_isolcpus() {
 }
 
 # ==============================================================================
-# SUBROUTINE: UNIFIED ATOMIC EXECUTION PIPE WITH BAZZITE 44 DELAY PROTECTION
+# SUBROUTINE: UNIFIED ATOMIC EXECUTION PIPE WITH STRICT REBOOT VALIDATION
 # ==============================================================================
 execute_atomic_karg_sync() {
     local target_cores="$1"
     echo -e "\n${YELLOW}[⚙] Scanning current deployment and formatting instruction parameters...${NC}"
     local current_kargs; current_kargs=$(rpm-ostree kargs)
-
-    # Isolate any active core masks and the explicit Bazzite 44 hardware delay tokens
     local old_isolcpus; old_isolcpus=$(echo "$current_kargs" | grep -o 'isolcpus=[^ ]*' || echo "")
     local old_dcmask; old_dcmask=$(echo "$current_kargs" | grep -o 'amdgpu.dcdebugmask=[^ ]*' || echo "")
 
-    # Initialize the single-pass instruction cleanup array
     local -a karg_args=()
     [ -n "$old_isolcpus" ] && karg_args+=( --delete="$old_isolcpus" )
     [ -n "$old_dcmask" ] && karg_args+=( --delete="$old_dcmask" )
 
-    # 🎯 BACKWARD COMPATIBLE DETECTOR: Preserves your active fix if present on disk
     local append_dcmask=""
     if [[ -n "$old_dcmask" ]]; then
         append_dcmask="amdgpu.dcdebugmask=0x10"
     elif dmesg 2>/dev/null | grep -Eqi "(fc44|plasma-sddm-race|7.2.7-ogc)"; then
-        # Auto-inject safety buffer if the underlying kernel version reports the new base system
         append_dcmask="amdgpu.dcdebugmask=0x10"
     fi
 
-    # Assemble parameter instructions safely based on active tracking fences
     if [ -n "$target_cores" ]; then
         if [[ -n "$append_dcmask" ]]; then
             karg_args+=( --append="rhgb" --append="quiet" --append="$append_dcmask" --append="isolcpus=${target_cores}" )
@@ -1258,6 +1261,7 @@ execute_atomic_karg_sync() {
         fi
         echo -e "${YELLOW}[⚙] Staging complete core isolation purge...${NC}"
     fi
+
     echo -e "${CYAN}[⚙] Dispatching unified rpm-ostree transaction suite...${NC}"
     rpm-ostree kargs "${karg_args[@]}" &>/dev/null &
     local transaction_pid=$!
@@ -1276,13 +1280,19 @@ execute_atomic_karg_sync() {
         echo -e "${BIGreen}[✓] SUCCESS: Core configurations permanently frozen in Bazzite boot deployment!${NC}"
         [ -f "/etc/default/grub" ] && { sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null; sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null; }
 
-        echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! System changes require a reboot to load.${NC}"
-        type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
-        local reboot_choice; read -r reboot_choice
-        if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
-            echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
+        # 🚀 THE STRICT ACCEPT GATES: Locked securely behind a text verification pass
+        echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! A system reboot is required to apply the mask layout.${NC}"
+        echo -e "  To execute a system cold reset right now, please type ${YELLOW}accept${NC} or ${YELLOW}ACCEPT${NC} to confirm."
+        type_prompt "👉 Verification Command Input: " 0.03
+        local confirm_reboot; read -r confirm_reboot
+
+        if [[ "$confirm_reboot" == "accept" || "$confirm_reboot" == "ACCEPT" ]]; then
+            echo -e "\n${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
             sync && sleep 1 && reboot
         fi
+        echo -e "\n${BIRed}[-] Verification failed or bypassed. Skipping automated reboot tracking sequence.${NC}"
+        type_prompt "    Press Enter to return to the core optimization dashboard..." 0.03
+        read -r
     else
         echo -e "${BIRed}❌ ERROR: Bazzite atomic tracker rejected the pooled instruction framing.${NC}"
         read -p "Press Enter to return..."
