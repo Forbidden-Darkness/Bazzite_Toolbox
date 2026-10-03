@@ -1087,18 +1087,11 @@ view_core_live_manager() {
         echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} keys to navigate rows. Press ${GREEN}[Spacebar]${RESET} to toggle states. Press ${GREEN}[Enter]${RESET} to execute."
 
-        # 🎯 THE FIX: Clearing IFS forces Bash to read raw space and raw carriage returns cleanly!
         IFS= read -r -s -n 1 key
         case "$key" in
-            [Ww])
-                ((menu_index--))
-                if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi
-                ;;
-            [Ss])
-                ((menu_index++))
-                if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
-                ;;
-            " ") # ⚡ SPACEBAR: This will now catch the literal space cleanly every single time!
+            [Ww]) ((menu_index--)); if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi ;;
+            [Ss]) ((menu_index++)); if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi ;;
+            " ") # SPACEBAR TOGGLE ACTION GATES
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
                     if [[ "$menu_index" -eq 0 ]]; then
@@ -1138,7 +1131,7 @@ view_core_live_manager() {
                     sleep 1.5
                 fi
                 ;;
-            "") # 🎯 ENTER KEY: Fires cleanly when you hit Enter on highlighted choice paths
+            ""|$'\n') # 🎯 THE FIXED ENTER GATES: Matches both empty and carriage return tokens flawlessly!
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     echo -e "\n${YELLOW}[ℹ] Navigation Notice: Use [Spacebar] to toggle threads. Press [Enter] on footer buttons to save.${NC}"
                     sleep 1.5; continue
