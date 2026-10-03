@@ -1201,17 +1201,16 @@ configure_persistent_isolcpus() {
         return 1
     fi
 
-    # 🛡️ DEFENSIVE PROTOCOL: Explicit safety reminder detailing the bad core workaround sequence
-    echo -e "${BOLD}${YELLOW}⚠️  SILICON HARVEST SAFETY GATE PROTOCOL:${RESET}"
-    echo -e "  If you have an unstable or defective core from an 8-core unlock trial,"
-    echo -e "  you ${BOLD}MUST${RESET} fence it off here ${BOLD}BEFORE${RESET} enabling the unlock in the BIOS mod."
-    echo -e "  This forces the Linux OS scheduler to bypass the bad core completely on boot."
+    # 🛡️ DEFENSIVE PROTOCOL: Explicit instructions for handling unstable silicon harvests
+    echo -e "${BOLD}${YELLOW}⚠️  PRE-BOOT HARVEST ISOLATION PROTOCOL:${RESET}"
+    echo -e "  If your system crashes or refuses to boot when enabling 8 cores,"
+    echo -e "  you ${BOLD}MUST${RESET} isolate the unstable cores here ${BOLD}BEFORE${RESET} modifying your BIOS."
+    echo -e "  This permanently blocks the Linux scheduler from ever touching them."
     echo ""
-    echo -e "  Specify core index parameters to completely isolate from the Linux scheduler."
-    echo -e "  Examples: ${YELLOW}6,7${NC} (Isolates cores 6 and 7) or ${YELLOW}4-7${NC} (Isolates cores 4 through 7)"
-    echo -e "  Type ${RED}clear${NC} to completely wipe all isolcpus strings from boot records."
+    echo -e "  Enter the Core indexes you wish to fence (e.g., ${YELLOW}6,7${NC} or a single core like ${YELLOW}7${NC}):"
+    echo -e "  Type ${RED}clear${NC} to completely wipe all isolation fences."
     echo ""
-    type_prompt "👉 Enter isolation targets: " 0.03
+    type_prompt "👉 Target Isolation Mask: " 0.03
     local user_cores; read -r user_cores
 
     if [[ -z "$user_cores" ]]; then
@@ -1219,22 +1218,20 @@ configure_persistent_isolcpus() {
         sleep 1; return 0
     fi
 
-    # Clean existing isolcpus parameters out of the file first
+    # Strip old entries
     sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' "$grub_default"
     sudo sed -i 's/  */ /g' "$grub_default"
 
     if [[ "$user_cores" != "clear" ]]; then
-        # Inject the fresh parameter back into the GRUB line string layout
-        sudo sed -i "s/\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)\"/\1 isolcpus=${user_cores}\"/" "$grub_default"
-        echo -e "${GREEN}[+] Appended 'isolcpus=${user_cores}' to boot command line strings successfully.${NC}"
+        sudo sed -i "s/\(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*\)\"/\1 isolcpus=${user_cores}\//" "$grub_default"
+        echo -e "${GREEN}[+] Successfully committed 'isolcpus=${user_cores}' to boot records.${NC}"
         TABLE_DIRTY=0; SERVICE_PENDING=1
     else
         echo -e "${YELLOW}[+] Cleared all isolcpus parameters from configuration records.${NC}"
         TABLE_DIRTY=0; SERVICE_PENDING=1
     fi
 
-    # 🚀 BOOTLOADER ENGINE RECOMPILATION PASS
-    echo -e "${CYAN}[⚙] Re-compiling system boot configuration files across target records...${NC}"
+    echo -e "${CYAN}[⚙] Re-compiling system bootloader configurations...${NC}"
     if command -v update-grub &>/dev/null; then
         sudo update-grub
     elif command -v grub2-mkconfig &>/dev/null; then
@@ -1243,11 +1240,10 @@ configure_persistent_isolcpus() {
         sudo grub-mkconfig -o /boot/grub/grub.cfg
     fi
 
-    echo -e "\n${BIGreen}[✓] SUCCESS: Boot records compiled cleanly! System changes require a reboot to load.${NC}"
-    type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
+    echo -e "\n${BIGreen}[✓] SUCCESS: GRUB re-compiled! You can now safely enable the BIOS mod and reboot.${NC}"
+    type_prompt "❓ Execute system cold reset right now? (y/N): " 0.03
     local reboot_choice; read -r reboot_choice
     if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
         sync && sleep 1 && sudo reboot
     fi
 }
