@@ -1107,10 +1107,43 @@ view_core_live_manager() {
                 if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
                 ;;
             [Cc])
-                # 🎯 INSTANT COMMIT HOTKEY: Fires immediately when pressing C or c
+                # 🎯 FIXED FIXED: The hotkey now actively writes configuration parameters to disk and prompts to reboot!
                 if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
-                    echo -e "\n${BIGreen}[✓] SUCCESS: Core configuration snapshot compiled into memory table stack!${NC}"
-                    TABLE_DIRTY=0; SERVICE_PENDING=1; sleep 1.5
+                    echo -e "\n${YELLOW}[⚙] Committing structural core configuration snapshot to disk profile...${NC}"
+                    
+                    # 🧼 Establish local target mask array
+                    local offline_list=""
+                    for ((core_id=0; core_id<static_max_threads; core_id++)); do
+                        local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
+                        if [[ -f "$core_file" ]]; then
+                            local state; state=$(cat "$core_file" 2>/dev/null)
+                            if [[ "$state" -eq 0 ]]; then
+                                if [[ -z "$offline_list" ]]; then
+                                    offline_list="${core_id}"
+                                else
+                                    offline_list="${offline_list},${core_id}"
+                               fi
+                            fi
+                        fi
+                    done
+
+                    # Inject the offline array parameter straight into your toolkit runtime profile file
+                    local conf_profile="${base_dir}/.core_manager_profile.conf"
+                    echo "OFFLINE_CORES=\"${offline_list}\"" > "$conf_profile"
+                    sync
+
+                    echo -e "${BIGreen}[✓] SUCCESS: Core status matrix compiled and written to local tracking file!${NC}"
+                    TABLE_DIRTY=0; SERVICE_PENDING=1
+                    sleep 1.5
+
+                    # 🚀 AUTOMATED REBOOT GATES
+                    echo -e "\n${YELLOW}[!] To permanently secure this layout across hardware initialization passes, a system reset is recommended.${NC}"
+                    type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
+                    local reboot_choice; read -r reboot_choice
+                    if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
+                        echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
+                        sync && sleep 1 && reboot
+                    fi
                 else
                     echo -e "\n${YELLOW}[!] Warning: No core configuration changes are currently cached in workspace.${NC}"
                     sleep 1.5
