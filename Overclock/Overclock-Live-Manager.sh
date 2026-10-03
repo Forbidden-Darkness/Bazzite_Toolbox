@@ -1217,25 +1217,47 @@ configure_persistent_isolcpus() {
 }
 
 # ==============================================================================
-# SUBROUTINE: UNIFIED ATOMIC EXECUTION PIPE WITH LIVE VISUAL SPINNER
+# SUBROUTINE: UNIFIED ATOMIC EXECUTION PIPE WITH BAZZITE 44 DELAY PROTECTION
 # ==============================================================================
 execute_atomic_karg_sync() {
     local target_cores="$1"
     echo -e "\n${YELLOW}[⚙] Scanning current deployment and formatting instruction parameters...${NC}"
     local current_kargs; current_kargs=$(rpm-ostree kargs)
-    local old_isolcpus; old_isolcpus=$(echo "$current_kargs" | grep -o 'isolcpus=[^ ]*' || echo "")
 
+    # Isolate any active core masks and the explicit Bazzite 44 hardware delay tokens
+    local old_isolcpus; old_isolcpus=$(echo "$current_kargs" | grep -o 'isolcpus=[^ ]*' || echo "")
+    local old_dcmask; old_dcmask=$(echo "$current_kargs" | grep -o 'amdgpu.dcdebugmask=[^ ]*' || echo "")
+
+    # Initialize the single-pass instruction cleanup array
     local -a karg_args=()
     [ -n "$old_isolcpus" ] && karg_args+=( --delete="$old_isolcpus" )
+    [ -n "$old_dcmask" ] && karg_args+=( --delete="$old_dcmask" )
 
-    if [ -n "$target_cores" ]; then
-        karg_args+=( --append="rhgb" --append="quiet" --append="isolcpus=${target_cores}" )
-        echo -e "${CYAN}[+] Staging core layout fence: isolcpus=${target_cores}...${NC}"
-    else
-        karg_args+=( --append="rhgb" --append="quiet" )
-        echo -e "${YELLOW}[⚙] Staging complete core isolation purge...${NC}"
+    # 🎯 BACKWARD COMPATIBLE DETECTOR: Preserves your active fix if present on disk
+    local append_dcmask=""
+    if [[ -n "$old_dcmask" ]]; then
+        append_dcmask="amdgpu.dcdebugmask=0x10"
+    elif dmesg 2>/dev/null | grep -Eqi "(fc44|plasma-sddm-race|7.2.7-ogc)"; then
+        # Auto-inject safety buffer if the underlying kernel version reports the new base system
+        append_dcmask="amdgpu.dcdebugmask=0x10"
     fi
 
+    # Assemble parameter instructions safely based on active tracking fences
+    if [ -n "$target_cores" ]; then
+        if [[ -n "$append_dcmask" ]]; then
+            karg_args+=( --append="rhgb" --append="quiet" --append="$append_dcmask" --append="isolcpus=${target_cores}" )
+        else
+            karg_args+=( --append="rhgb" --append="quiet" --append="isolcpus=${target_cores}" )
+        fi
+        echo -e "${CYAN}[+] Staging core layout fence: isolcpus=${target_cores}...${NC}"
+    else
+        if [[ -n "$append_dcmask" ]]; then
+            karg_args+=( --append="rhgb" --append="quiet" --append="$append_dcmask" )
+        else
+            karg_args+=( --append="rhgb" --append="quiet" )
+        fi
+        echo -e "${YELLOW}[⚙] Staging complete core isolation purge...${NC}"
+    fi
     echo -e "${CYAN}[⚙] Dispatching unified rpm-ostree transaction suite...${NC}"
     rpm-ostree kargs "${karg_args[@]}" &>/dev/null &
     local transaction_pid=$!
