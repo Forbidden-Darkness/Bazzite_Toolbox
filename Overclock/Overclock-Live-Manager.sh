@@ -1130,19 +1130,32 @@ view_core_live_manager() {
                 fi
                 ;;
             [Cc]|[cc]|"ENTER")
-                # 🎯 MASTER COMMIT GATES: Enter or C/c instantly commits changes from ANY location!
-                local offline_list=""
-                for ((core_id=0; core_id<static_max_threads; core_id++)); do
-                    local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
-                    if [[ -f "$core_file" ]]; then
-                        if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
-                            [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
+                # 🧠 PRE-COMMIT CONFIRMATION SENSOR: Strict verification gate checks BEFORE writing to storage!
+                echo -e "\n${YELLOW}[⚠️] WARNING: You are about to permanently modify Bazzite's atomic kernel arguments.${NC}"
+                echo -e "    To compile your live matrix changes and stage a system reset, type ${GREEN}accept${NC} or ${GREEN}ACCEPT${NC}."
+                type_prompt "👉 Verification Command Input: " 0.03
+                local confirm_commit; read -r confirm_reboot
+
+                if [[ "$confirm_commit" == "accept" || "$confirm_commit" == "ACCEPT" ]]; then
+                    # 🔓 GATE PASSED: Proceed to read matrix records and execute disk updates cleanly
+                    local offline_list=""
+                    for ((core_id=0; core_id<static_max_threads; core_id++)); do
+                        local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
+                        if [[ -f "$core_file" ]]; then
+                            if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
+                                [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
+                            fi
                         fi
-                    fi
-                done
-                
-                # Directly pipe data arrays down to the spinner utility
-                execute_atomic_karg_sync "$offline_list"
+                    done
+                    
+                    # Safe to pass data layers downstream to the unified array builder
+                    execute_atomic_karg_sync "$offline_list"
+                else
+                    # 🔒 GATE BLOCKED: Storage remains pristine and untouched
+                    echo -e "\n${BIRed}[-] Verification failed or bypassed. Aborting commit pass. Disks remain pristine.${NC}"
+                    type_prompt "    Press Enter to return to the core optimization dashboard..." 0.03
+                    read -r
+                fi
                 ;;
             [Ee]|[ee]) 
                 execute_smu_core_unlock 
@@ -1155,7 +1168,6 @@ view_core_live_manager() {
                 sleep 0.5; return 0 
                 ;;
             *)
-                # Safe bypass for unbound random characters
                 continue
                 ;;
         esac
@@ -1274,15 +1286,13 @@ execute_atomic_karg_sync() {
     if [ $? -eq 0 ]; then
         echo -e "${BIGreen}[✓] SUCCESS: Core configurations permanently frozen in Bazzite boot deployment!${NC}"
         [ -f "/etc/default/grub" ] && { sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null; sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null; }
-
-        # 🚀 THE STRICT ACCEPT GATES: Locked securely behind a text verification pass
-        echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! A system reboot is required to apply the mask layout.${NC}"
-        echo -e "  To execute a system cold reset right now, please type ${YELLOW}accept${NC} or ${YELLOW}ACCEPT${NC} to confirm."
-        type_prompt "👉 Verification Command Input: " 0.03
-        local confirm_reboot; read -r confirm_reboot
-
-        if [[ "$confirm_reboot" == "accept" || "$confirm_reboot" == "ACCEPT" ]]; then
-            echo -e "\n${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
+        
+        # 🚀 ATOMIC REBOOT DIALOG (Front-gate already passed safely)
+        echo -e "\n${BIGreen}[✓] SUCCESS: Atomic deployment updated! System changes require a reboot to load.${NC}"
+        type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
+        local reboot_choice; read -r reboot_choice
+        if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
             sync && sleep 1 && reboot
         fi
         echo -e "\n${BIRed}[-] Verification failed or bypassed. Skipping automated reboot tracking sequence.${NC}"
