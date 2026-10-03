@@ -1138,17 +1138,7 @@ view_core_live_manager() {
                 fi
                 ;;
             [Cc]|[cc]|"ENTER")
-                # 🎯 INSTANT COMMIT TRIGGER: Enter or C key fires the commit process immediately!
-                local offline_list=""
-                for ((core_id=0; core_id<static_max_threads; core_id++)); do
-                    local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
-                    if [[ -f "$core_file" ]]; then
-                        if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
-                            [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
-                        fi
-                    fi
-                done
-                execute_atomic_karg_sync "$offline_list"
+                execute_pre_commit_gate
                 ;;
             [Ee]|[ee]) execute_smu_core_unlock ;;
             [Ii]|[ii]) configure_persistent_isolcpus ;;
