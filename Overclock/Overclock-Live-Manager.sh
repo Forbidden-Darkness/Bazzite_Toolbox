@@ -1085,14 +1085,14 @@ view_core_live_manager() {
         else echo -e "       ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu"; fi
 
         echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-        echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} keys to navigate rows. Press ${GREEN}[Spacebar]${RESET} to toggle states. Press ${GREEN}[Enter]${RESET} to execute."
+        echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} to move. Press ${GREEN}[Spacebar]${RESET} to toggle thread state. Press ${GREEN}[Enter]${RESET} to commit table changes."
 
-        # 🎯 ULTIMATE INPUT FIX: Captures single hotkeys, spaces, and multi-character Enter key returns cleanly
+        # 🎯 INPUT READ RE-ROUTING: Spacebar toggles states, Enter instantly commits and prompts accept!
         local key=""
         IFS= read -r -s -n 1 raw_key
         key="$raw_key"
         
-        # If the key is empty or a carriage return, swallow any lingering newline buffer characters
+        # Intercept and translate any carriage returns or newlines uniformly on your handheld terminal
         if [[ -z "$key" || "$key" == $'\r' || "$key" == $'\n' ]]; then
             read -r -s -t 0.1 next_char 2>/dev/null
             key="ENTER"
@@ -1107,7 +1107,7 @@ view_core_live_manager() {
                 ((menu_index++))
                 if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
                 ;;
-            " ") # SPACEBAR TOGGLE ACTION GATES
+            " ") # SPACEBAR ONLY: Toggles your volatile hotplug threads on the fly
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
                     if [[ "$menu_index" -eq 0 ]]; then
@@ -1129,8 +1129,8 @@ view_core_live_manager() {
                     fi
                 fi
                 ;;
-            [Cc])
-                # Direct hotkey fallback for instant commit
+            [Cc]|[cc]|"ENTER")
+                # 🎯 MASTER COMMIT GATES: Enter or C/c instantly commits changes from ANY location!
                 local offline_list=""
                 for ((core_id=0; core_id<static_max_threads; core_id++)); do
                     local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
@@ -1140,65 +1140,24 @@ view_core_live_manager() {
                         fi
                     fi
                 done
+                
+                # Directly pipe data arrays down to the spinner utility
                 execute_atomic_karg_sync "$offline_list"
                 ;;
-            "ENTER") # 🎯 HARD-LOCKED FIXED ENTER ROUTER: Intercepted precisely on every terminal!
-                if ((menu_index >= 0 && menu_index < static_max_threads)); then
-                    echo -e "\n${YELLOW}[ℹ] Navigation Notice: Use [Spacebar] to toggle threads. Press [Enter] on footer buttons to save.${NC}"
-                    sleep 1.5; continue
-                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
-                    execute_smu_core_unlock
-                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
-                    configure_persistent_isolcpus
-                elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
-                    # 🚀 FORCE EXECUTION GATES: Runs the transaction sync pass directly
-                    local offline_list=""
-                    for ((core_id=0; core_id<static_max_threads; core_id++)); do
-                        local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
-                        if [[ -f "$core_file" ]]; then
-                            if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
-                                [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
-                            fi
-                        fi
-                    done
-                    execute_atomic_karg_sync "$offline_list"
-                elif [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
-                    echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
-                    sleep 0.5; return 0
-                fi
+            [Ee]|[ee]) 
+                execute_smu_core_unlock 
                 ;;
-            ""|$'\n') # 🎯 THE FIXED ENTER GATES: Matches both empty and carriage return tokens flawlessly!
-                if ((menu_index >= 0 && menu_index < static_max_threads)); then
-                    echo -e "\n${YELLOW}[ℹ] Navigation Notice: Use [Spacebar] to toggle threads. Press [Enter] on footer buttons to save.${NC}"
-                    sleep 1.5; continue
-                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
-                    execute_smu_core_unlock
-                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
-                    configure_persistent_isolcpus
-                elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
-                    if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
-                        local offline_list=""
-                        for ((core_id=0; core_id<static_max_threads; core_id++)); do
-                            local core_file="/sys/devices/system/cpu/cpu${core_id}/online"
-                            if [[ -f "$core_file" ]]; then
-                                if [[ $(cat "$core_file" 2>/dev/null) -eq 0 ]]; then
-                                    [ -z "$offline_list" ] && offline_list="${core_id}" || offline_list="${offline_list},${core_id}"
-                                fi
-                            fi
-                        done
-                        execute_atomic_karg_sync "$offline_list"
-                    else
-                        echo -e "\n${YELLOW}[!] Warning: No core configuration changes are currently cached in workspace.${NC}"
-                        sleep 1.5
-                    fi
-                elif [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
-                    echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
-                    sleep 0.5; return 0
-                fi
+            [Ii]|[ii]) 
+                configure_persistent_isolcpus 
                 ;;
-            [Ee]|[ee]) execute_smu_core_unlock ;;
-            [Ii]|[ii]) configure_persistent_isolcpus ;;
-            [Qq]|[qq]) echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"; sleep 0.5; return 0 ;;
+            [Qq]|[qq]) 
+                echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
+                sleep 0.5; return 0 
+                ;;
+            *)
+                # Safe bypass for unbound random characters
+                continue
+                ;;
         esac
     done
 }
