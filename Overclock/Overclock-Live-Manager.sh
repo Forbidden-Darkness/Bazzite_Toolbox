@@ -1013,16 +1013,21 @@ view_core_live_manager() {
         local detected_cores; detected_cores=$(nproc --all 2>/dev/null || echo "0")
         local active_isolated; active_isolated=$(grep -o 'isolcpus=[0-7,-]*' "$cmdline_file" | cut -d= -f2 2>/dev/null || echo "None")
 
-        # 🎯 PURE BASH PROBE: Reads the register via your native setpci layer
+        # 🎯 LOCKED FIX: Uses a direct setpci wrapper sequence so it runs 100% independently!
         local smu_probe_status="Unknown"
         if command -v setpci &>/dev/null && [ -e "/sys/bus/pci/devices/0000:00:00.0/config" ]; then
-            local raw_mask; raw_mask=$(smn_read32 "0x0115A870" 2>/dev/null || echo "failed")
-            if [[ "$raw_mask" == "0x000000ff" || "$raw_mask" == "0xff" ]]; then
+            # Writes the address to index register B8, then reads the data from register BC
+            setpci -s "0000:00:00.0" B8.L=0115A870 2>/dev/null
+            local raw_mask; raw_mask=$(setpci -s "0000:00:00.0" BC.L 2>/dev/null | tr '[:upper:]' '[:lower:]' || echo "failed")
+
+            if [[ "$raw_mask" == "000000ff" || "$raw_mask" == "ff" ]]; then
                 smu_probe_status="8 Cores (SMU Patched)"
-            elif [[ "$raw_mask" == "0x00000077" || "$raw_mask" == "0x77" ]]; then
+            elif [[ "$raw_mask" == "00000077" || "$raw_mask" == "77" ]]; then
                 smu_probe_status="6 Cores (Stock Matrix)"
+            elif [[ "$raw_mask" == "failed" ]]; then
+                smu_probe_status="Unknown (Bus Error)"
             else
-                smu_probe_status="Custom (${raw_mask})"
+                smu_probe_status="Custom (0x${raw_mask})"
             fi
         fi
 
