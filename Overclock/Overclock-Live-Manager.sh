@@ -1087,15 +1087,14 @@ view_core_live_manager() {
         echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} to move. Press ${GREEN}[Spacebar]${RESET} to toggle thread state. Press ${GREEN}[Enter]${RESET} to commit table changes."
 
-        # 🧠 UNIFIED INPUT CAPTURE: Spacebar is now the master action trigger for all menu items
+        # 🎯 INPUT READ RE-ROUTING: Safe character isolation to catch spacebar and enter cleanly
         local key=""
         IFS= read -r -s -n 1 raw_key
         key="$raw_key"
-        
-        # 🎯 SPACEBAR CONVERSION GATES: Treats a raw space space bar input as the execution token
-        if [[ -z "$key" || "$key" == " " || "$key" == $'\r' || "$key" == $'\n' ]]; then
+
+        if [[ -z "$key" || "$key" == $'\r' || "$key" == $'\n' ]]; then
             read -r -s -t 0.1 next_char 2>/dev/null
-            key="EXECUTE"
+            key="ENTER"
         fi
 
         case "$key" in
@@ -1107,50 +1106,7 @@ view_core_live_manager() {
                 ((menu_index++))
                 if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
                 ;;
-            "EXECUTE")
-                if ((menu_index >= 0 && menu_index < static_max_threads)); then
-                    # 🚀 SPACEBAR TRIGGERED ON CORE ROW: Toggles the volatile hotplug thread state
-                    local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
-                    if [[ "$menu_index" -eq 0 ]]; then
-                        echo -e "\n${BIRed}[!] ERROR: CPU Core 0 is the primary system bootstrap anchor and cannot be offlined.${NC}"
-                        sleep 1.5; continue
-                    fi
-                    if [[ -f "$target_cpu_file" ]]; then
-                        if [[ $(cat "$target_cpu_file" 2>/dev/null) -eq 1 ]]; then
-                            echo 0 > "$target_cpu_file" 2>/dev/null
-                            echo -e "\n${YELLOW}[⚙] Thread ${menu_index} hotplugged OFFLINE... OS scheduler fence dropped.${NC}"
-                        else
-                            echo 1 > "$target_cpu_file" 2>/dev/null
-                            echo -e "\n${BIGreen}[✓] Thread ${menu_index} hotplugged ONLINE... OS scheduler fence restored.${NC}"
-                        fi
-                        TABLE_DIRTY=1; SERVICE_PENDING=0; sync && sleep 0.5
-                    else
-                        echo -e "\n${BIRed}[!] ERROR: Core/Thread ${menu_index} is hidden by BIOS configuration or un-enumerated by AGESA.${NC}"
-                        sleep 2.5
-                    fi
-        # Context Menu Base Actions Footer Rows (Decoded Step Borders)
-        echo ""
-        local c_edit="${CYAN}" local c_write="${CYAN}" local c_install="${CYAN}"
-        if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then c_edit="${DIM}"; c_write="${GREEN}${BOLD}"
-        elif [ "${SERVICE_PENDING:-0}" -eq 1 ]; then c_write="${DIM}"; c_install="${GREEN}${BOLD}"; fi
-
-        if [[ "$menu_index" -eq "$static_max_threads" ]]; then echo -e "    ${YELLOW}👉 ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline${RESET}"
-        else echo -e "       ${c_edit}[e]${RESET} Trigger SMU Mailbox Hardware Core Unlock Toolchain Pipeline"; fi
-        if [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then echo -e "    ${YELLOW}👉 ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters${RESET}"
-        else echo -e "       ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters"; fi
-        if [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then echo -e "    ${YELLOW}👉 ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table${RESET}"
-        else echo -e "       ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table"; fi
-        if [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then echo -e "    ${YELLOW}👉 ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu${RESET}"
-        else echo -e "       ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu"; fi
-
-        echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-        echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} to move. Press ${GREEN}[Spacebar]${RESET} or ${GREEN}[Enter]${RESET} to fire highlighted choices."
-
-        IFS= read -r -s -n 1 key
-        case "$key" in
-            [Ww]) ((menu_index--)); if ((menu_index < 0)); then menu_index=$((static_max_threads + 3)); fi ;;
-            [Ss]) ((menu_index++)); if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi ;;
-            " ") # 🎯 THE FIXED SPACEBAR GATES: Toggles cores OR fires highlighted menu options!
+            " ") # ⚡ SPACEBAR TOGGLE ACTION GATES: Volatile core hotplugging
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
                     if [[ "$menu_index" -eq 0 ]]; then
@@ -1170,19 +1126,10 @@ view_core_live_manager() {
                         echo -e "\n${BIRed}[!] ERROR: Core/Thread ${menu_index} is hidden by BIOS configuration or un-enumerated by AGESA.${NC}"
                         sleep 2.5
                     fi
-                elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
-                    execute_smu_core_unlock
-                elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
-                    configure_persistent_isolcpus
-                elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
-                    execute_pre_commit_gate
-                elif [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
-                    echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
-                    sleep 0.5; return 0
                 fi
                 ;;
             [Cc]|[cc])
-                # Immediate alphanumeric hotkey fallback for instant commits
+                # Direct alphanumeric shortcut fallback trigger for immediate commit saves
                 execute_pre_commit_gate
                 ;;
             ""|$'\n') # 🎯 THE FIXED ENTER GATES: Executes highlighted menu actions natively!
