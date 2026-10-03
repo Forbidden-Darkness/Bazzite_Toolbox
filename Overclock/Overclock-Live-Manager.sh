@@ -1095,7 +1095,7 @@ view_core_live_manager() {
         echo -e "\n  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
         echo -e "  ${BOLD}${WHITE}Navigation Controls:${RESET} Use ${CYAN}W / S${RESET} keys to navigate rows. Press ${GREEN}[Enter]${RESET} to execute choice parameter."
 
-        # 🧠 KEYBOARD INTERCEPT MAPPING ENGINE
+        # 🧠 CORRECTED MAPPING ENGINE: Separates navigation from execution keys cleanly
         read -s -n 1 key
         case "$key" in
             [Ww])
@@ -1106,9 +1106,9 @@ view_core_live_manager() {
                 ((menu_index++))
                 if ((menu_index > (static_max_threads + 3))); then menu_index=0; fi
                 ;;
-            "") # User pressed [Enter] key
+            "") # User pressed [Enter] key on their highlighted row selection
                 if ((menu_index >= 0 && menu_index < static_max_threads)); then
-                    # 🎯 DYNAMIC CORES HOTPLUG TOGGLE GATES
+                    # 🎯 DYNAMIC THREAD HOTPLUG TOGGLE GATES
                     local target_cpu_file="/sys/devices/system/cpu/cpu${menu_index}/online"
                     
                     if [[ "$menu_index" -eq 0 ]]; then
@@ -1134,10 +1134,13 @@ view_core_live_manager() {
                         sleep 2.5
                     fi
                 elif [[ "$menu_index" -eq "$static_max_threads" ]]; then
+                    # User highlighted [e] and hit Enter
                     execute_smu_core_unlock
                 elif [[ "$menu_index" -eq $((static_max_threads + 1)) ]]; then
+                    # User highlighted [i] and hit Enter
                     configure_persistent_isolcpus
                 elif [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
+                    # 🎯 CHOSEN BY SELECTION: User highlighted [w] and hit Enter to commit!
                     if [ "${TABLE_DIRTY:-0}" -eq 1 ]; then
                         echo -e "\n${BIGreen}[✓] SUCCESS: Core configuration snapshot compiled into memory table stack!${NC}"
                         TABLE_DIRTY=0; SERVICE_PENDING=1; sleep 1.5
@@ -1146,14 +1149,21 @@ view_core_live_manager() {
                         sleep 1.5
                     fi
                 elif [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
+                    # User highlighted [q] and hit Enter
                     echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"
                     sleep 0.5; return 0
                 fi
                 ;;
-            [Ee]|[ee]) execute_smu_core_unlock ;;
-            [Ii]|[ii]) configure_persistent_isolcpus ;;
-            [Qq]|[qq]) echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"; sleep 0.5; return 0 ;;
-         Pap) ;;
+            [Ee]|[ee]) 
+                # Immediate hotkey fallback safety entries
+                execute_smu_core_unlock 
+                ;;
+            [Ii]|[ii]) 
+                configure_persistent_isolcpus 
+                ;;
+            [Qq]|[qq]) 
+                echo -e "\n${GREEN}[+] Returning cleanly to toolkit dashboard menu...${NC}"; sleep 0.5; return 0 
+                ;;
         esac
     done
 }
