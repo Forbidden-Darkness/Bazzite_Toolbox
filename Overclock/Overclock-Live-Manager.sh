@@ -1282,10 +1282,10 @@ repair_boot_splash_only() {
     echo -e "  parameters straight into Bazzite's atomic tracking deployment tree."
     echo -e "  This sweeps away scrolling text and restores your black boot-up splash animations."
     echo ""
-
+    
     type_prompt "❓ Initialize standalone splash screen repair pass now? (y/N): " 0.03
     local start_repair; read -r start_repair
-
+    
     if [[ ! "$start_repair" =~ ^[Yy]$ ]]; then
         echo -e "\n${YELLOW}[-] Repair sequence bypassed. Returning cleanly to toolkit...${NC}"
         sleep 1.5; return 0
@@ -1293,27 +1293,24 @@ repair_boot_splash_only() {
 
     echo -e "\n${YELLOW}[⚙] Scanning current deployment boot parameter strings...${NC}"
     local current_kargs; current_kargs=$(rpm-ostree kargs)
-
-    # Extract any current instances of rhgb or quiet to avoid stacking duplicate commands
-    local has_rhgb; has_f_rhgb=$(echo "$current_kargs" | grep -o 'rhgb' || echo "")
-    local has_quiet; has_f_quiet=$(echo "$current_kargs" | grep -o 'quiet' || echo "")
+    
+    # 🎯 FIXED SYNTAX: Variable declarations harmonized perfectly to prevent parameter drops
+    local has_rhgb; has_rhgb=$(echo "$current_kargs" | grep -o 'rhgb' || echo "")
+    local has_quiet; has_quiet=$(echo "$current_kargs" | grep -o 'quiet' || echo "")
 
     local -a repair_args=()
+    
+    # 🧼 FORCE-PURGE ENFORCEMENT: Safely stages deletes to ensure no duplicate tracking arguments stack up
+    if [[ -n "$has_rhgb" ]]; then repair_args+=( --delete="rhgb" ); fi
+    if [[ -n "$has_quiet" ]]; then repair_args+=( --delete="quiet" ); fi
 
-    # 🧼 FORCE-PURGE ENFORCEMENT: Cleanly stages deletes if flags are missing or misconfigured
-    if [[ -z "$has_f_rhgb" || -z "$has_f_quiet" ]]; then
-        # Safely stage cleanup fields to avoid empty string padding blocks
-        [[ -n "$has_f_rhgb" ]] && repair_args+=( --delete="rhgb" )
-        [[ -n "$has_f_quiet" ]] && repair_args+=( --delete="quiet" )
-    fi
-
-    # 🎯 ATOMIC APPEND FLAGS: Hard-locks your graphical boot layers into the transaction block
+    # 🎯 ATOMIC APPEND FLAGS: Hard-locks your graphical boot layers cleanly into the array rows
     repair_args+=( --append="rhgb" --append="quiet" )
-
+    
     echo -e "${CYAN}[+] Staging recovery targets: [rhgb] [quiet] elements...${NC}"
     if [[ ${#repair_args[@]} -gt 0 ]]; then
         echo -e "${CYAN}[⚙] Dispatching dedicated splash recovery transaction...${NC}"
-
+        
         # 🚀 CLEAN ISOLATED PIPE: Executes the array configurations smoothly in the background
         rpm-ostree kargs "${repair_args[@]}" &>/dev/null &
         local transaction_pid=$!
@@ -1330,7 +1327,7 @@ repair_boot_splash_only() {
         wait "$transaction_pid"
         if [ $? -eq 0 ]; then
             echo -e "${BIGreen}[✓] SUCCESS: Graphical splash configurations force-restored!${NC}"
-
+            
             # Clean legacy GRUB backups if present to ensure system config purity
             if [[ -f "/etc/default/grub" ]]; then
                 sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
