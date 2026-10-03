@@ -1082,9 +1082,9 @@ view_core_live_manager() {
             echo -e "       ${c_install}[i]${RESET} Configure Persistent Static bootloader Isolcpus Parameters"
         fi
         if [[ "$menu_index" -eq $((static_max_threads + 2)) ]]; then
-            echo -e "    ${YELLOW}👉 ${c_write}[w]${RESET} Commit Structural Core Mask Changes & Save Service Table${RESET}"
+            echo -e "    ${YELLOW}👉 ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table${RESET}"
         else
-            echo -e "       ${c_write}[w]${RESET} Commit Structural Core Mask Changes & Save Service Table"
+            echo -e "       ${c_write}[c]${RESET} Commit Structural Core Mask Changes & Save Service Table"
         fi
         if [[ "$menu_index" -eq $((static_max_threads + 3)) ]]; then
             echo -e "    ${YELLOW}👉 ${RED}[q]${RESET} Return Cleanly to Master Toolkit Dashboard Menu${RESET}"
