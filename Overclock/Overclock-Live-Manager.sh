@@ -1581,107 +1581,6 @@ view_vram_temperatures() {
 }
 
 # ==============================================================================
-# SUBROUTINE: AUTOMATED BC250-TELEMETRY DAEMON AND WEB DASHBOARD INSTALLER
-# ==============================================================================
-install_bc250_telemetry_daemon() {
-    clear
-    local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
-    local daemon_dir="${base_dir}/bc250-telemetry-daemon"
-    local service_file="/etc/systemd/system/bc250-telemetry.service"
-    local target_bin="/usr/local/bin/bc250-telemetry"
-
-    echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
-    echo -e "${DIM}│${RESET}                📟  AMD BC-250 Complete VRM & Rail Telemetry Installer             ${DIM}│${RESET}"
-    echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
-    echo ""
-    echo -e "  ${BOLD}${YELLOW}⚠️  HARDWARE BUS REQUISITE FLAG:${RESET}"
-    echo -e "  This daemon reads direct rail voltages and current loads from your physical VRMs."
-    echo -e "  To prevent connection time-outs, you must have physically jumped the monitoring"
-    echo -e "  wires between ${MAGENTA}I2C_HEADER1${RESET} and ${MAGENTA}TPMS1${RESET} on your board."
-    echo ""
-    
-    type_prompt "❓ Download and configure persistent telemetry background daemon? (y/N): " 0.03
-    local run_install; read -r run_install
-    if [[ ! "$run_install" =~ ^[Yy]$ ]]; then
-        echo -e "\n${YELLOW}[-] Setup bypassed. Returning to toolkit matrix loops...${NC}"
-        sleep 1.5; return 0
-    fi
-
-    # Clean out any old broken configurations recursively
-    sudo systemctl disable --now bc250-telemetry.service &>/dev/null || true
-    sudo rm -f "$service_file" "$target_bin"
-    sudo rm -rf "$daemon_dir"
-    sudo mkdir -p "$daemon_dir"
-
-    echo -e "\n${YELLOW}[⚙] Retrieving compiled Linux release architecture from repository tracks...${NC}"
-    
-    # Fetch the archive file bundle
-    sudo curl -L -o "${daemon_dir}/telemetry.tar.gz" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" >> "$LOG_FILE" 2>&1
-    
-    if [[ ! -s "${daemon_dir}/telemetry.tar.gz" ]]; then
-        echo -e "${BIRed}❌ ERROR: Network download failed. The release track could not be reached.${NC}"
-        sudo rm -rf "$daemon_dir"
-        read -p "Press Enter to return..." && return 1
-    fi
-
-    # 🚀 NATURAL EXTRACTION: Unpack exactly how tar does it naturally without any extra forced flags
-    sudo tar -xzf "${daemon_dir}/telemetry.tar.gz" -C "$daemon_dir" 2>/dev/null
-    sudo rm -f "${daemon_dir}/telemetry.tar.gz"
-
-    # 🎯 THE MANUAL MATCH FIX: Locate and move the binary exactly like your working manual commands!
-    if [[ -f "${daemon_dir}/bc250-telemetry" ]]; then
-        sudo mv "${daemon_dir}/bc250-telemetry" "$target_bin"
-    else
-        sudo mv "${daemon_dir}"/bc250-telemetry-*/bc250-telemetry "$target_bin" 2>/dev/null
-    fi
-
-    # Check the final system path explicitly
-    if [[ ! -f "$target_bin" ]]; then
-        echo -e "${BIRed}❌ ERROR: Binary extraction failed. Executable could not be mapped.${NC}"
-        sudo rm -rf "$daemon_dir"
-        read -p "Press Enter to return..." && return 1
-    fi
-
-    sudo chmod +x "$target_bin"
-
-    # 📝 SYSTEMD PROFILE GENERATION
-    echo -e "${CYAN}[+] Compiling background unit manager service tracking maps...${NC}"
-    sudo cat << EOF | sudo tee "$service_file" > /dev/null
-[Unit]
-Description=AMD BC-250 Complete VRM Hardware Telemetry Daemon
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=${target_bin} --port=8085
-Restart=always
-RestartSec=5
-WorkingDirectory=${daemon_dir}
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    echo -e "${CYAN}[⚙] Activating telemetry daemon synchronization pipelines...${NC}"
-    sudo systemctl daemon-reload
-    sudo systemctl enable --now bc250-telemetry.service &>/dev/null
-
-    sleep 0.8
-    if systemctl is-active --quiet bc250-telemetry.service; then
-        echo -e "\n${BIGreen}[✓] SUCCESS: Telemetry background daemon successfully armed and executing!${NC}"
-        echo -e "    Real-time diagnostics are broadcasting live over your network dashboard."
-        echo -e "    👉 Open Web Console: ${GREEN}http://localhost:8085${NC} or ${GREEN}http://$(hostname -I | awk '{print $1}'):8085${NC}"
-    else
-        echo -e "\n${BIRed}❌ WARNING: Service launched but timed out early. Hardware link required!${NC}"
-        echo -e "             Review the 'hardware.md' requirements file regarding your jump wire pins."
-    fi
-
-    play_success_chime
-    echo -e "\n${GREEN}    Press [Enter] to return cleanly to the toolkit dashboard menu...${NC}"
-    read -r
-}
-
-# ==============================================================================
 # SUBROUTINE: PRODUCTION-READY CU LIVE MANAGER COMPLETE ROLLBACK UTILITY (PART 1)
 # ==============================================================================
 uninstall_cu_live_manager() {
@@ -1813,8 +1712,7 @@ while true; do
     echo -e "      ${CYAN}[4]${RESET}   Launch Silicon Per-Core Stability Sweep ${DIM}(test-cores Curve Validation)${RESET}"    
     echo -e "      ${CYAN}[5]${RESET}   Launch CPU Core Scheduler & Isolation Matrix ${DIM}(Live Core Matrix & Isolcpus)${RESET}"    
     echo -e "      ${CYAN}[6]${RESET}   Force-Restore Graphical Boot Splash Screen ${DIM}(Repair rhgb / quiet Flags)${RESET}"
-    echo -e "      ${CYAN}[7]${RESET}   Query GDDR6 Real-Time Memory Temperature Telemetries ${DIM}(Sensors View)${RESET}"
-    echo -e "      ${CYAN}[8]${RESET}   Deploy VRM Hardware Telemetry Service Daemon ${DIM}(onlinermm Web Dashboard)${RESET}"
+    echo -e "      ${CYAN}[7]${RESET}   Query GDDR6 Real-Time Memory Temperature Telemetries ${DIM}(Sensors View)${RESET}"    
     echo ""
     echo -e "  ${DIM}──────────────────────────────────────────────────────────────────────────────────${RESET}"
     echo -e "      ${BOLD}${WHITE}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
@@ -1842,8 +1740,7 @@ while true; do
         4) run_stability_sweep ;;
         5) view_core_live_manager ;;        
         6) repair_boot_splash_only ;;
-        7) view_vram_temperatures ;;
-        8) install_bc250_telemetry_daemon ;;
+        7) view_vram_temperatures ;;        
         "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; exit 0 ;;
         *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
     esac
