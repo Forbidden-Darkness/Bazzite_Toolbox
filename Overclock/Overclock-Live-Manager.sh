@@ -1607,7 +1607,7 @@ install_bc250_telemetry_daemon() {
         sleep 1.5; return 0
     fi
 
-    # Clean out any old broken configurations recursively
+    # Clean out any old broken configurations and paths recursively
     sudo systemctl disable --now bc250-telemetry.service &>/dev/null || true
     sudo rm -f "$service_file" "$target_bin"
     sudo rm -rf "$daemon_dir"
@@ -1615,7 +1615,7 @@ install_bc250_telemetry_daemon() {
 
     echo -e "\n${YELLOW}[⚙] Retrieving compiled Linux release architecture from repository tracks...${NC}"
     
-    # 🎯 THE FIX: Fetch the actual compiled release asset archive
+    # Fetch the actual release asset archive safely
     sudo curl -L -o "${daemon_dir}/telemetry.tar.gz" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" >> "$LOG_FILE" 2>&1
     
     if [[ ! -s "${daemon_dir}/telemetry.tar.gz" ]]; then
@@ -1624,19 +1624,18 @@ install_bc250_telemetry_daemon() {
         read -p "Press Enter to return..." && return 1
     fi
 
-    # 🎯 THE FIX: Unpack the archive cleanly to isolate the real compiled binary file
-    sudo tar -xzf "${daemon_dir}/telemetry.tar.gz" -C "$daemon_dir" 2>/dev/null
+    # 🎯 THE FIX: --strip-components=1 strips the inner folder name out of the extraction pass entirely!
+    # This automatically flattens the file map structure straight into your daemon directory path.
+    sudo tar -xzf "${daemon_dir}/telemetry.tar.gz" --strip-components=1 -C "$daemon_dir" 2>/dev/null
     sudo rm -f "${daemon_dir}/telemetry.tar.gz"
 
-    # Move the actual executable binary up out of the extracted directory into system bin space
+    # Move the flattened binary up out of the temporary sandbox folder directly into /usr/local/bin/
     if [[ -f "${daemon_dir}/bc250-telemetry" ]]; then
         sudo mv "${daemon_dir}/bc250-telemetry" "$target_bin"
-    elif [[ -f "${daemon_dir}/bin/bc250-telemetry" ]]; then
-        sudo mv "${daemon_dir}/bin/bc250-telemetry" "$target_bin"
     fi
 
     if [[ ! -f "$target_bin" ]]; then
-        echo -e "${BIRed}❌ ERROR: Binary extraction failed. The pre-compiled executable was missing from the archive.${NC}"
+        echo -e "${BIRed}❌ ERROR: Binary extraction failed. Executable could not be mapped.${NC}"
         sudo rm -rf "$daemon_dir"
         read -p "Press Enter to return..." && return 1
     fi
