@@ -1063,6 +1063,7 @@ run_stability_sweep() {
         *) echo -e "\n${YELLOW}[-] Sweep sequence aborted cleanly. Disks remain pristine.${NC}"; sleep 1; return 0 ;;
     esac
     # 🎯 AUTOMATED AFFINITY STEPPER: Loops sequentially through every online silicon thread channel
+    # 🎯 AUTOMATED AFFINITY STEPPER: Loops sequentially through every online silicon thread channel
     local total_online_cores; total_online_cores=$(nproc --all 2>/dev/null || echo "16")
     echo -e "\n${YELLOW}[⚙] Commencing stability sweep across ${total_online_cores} active paths...${NC}"
     echo -e "    Using testing tool: ${CYAN}${stress_bin}${NC} (${test_duration} seconds per processor block)\n"
@@ -1080,10 +1081,10 @@ run_stability_sweep() {
 
         echo -ne "  [Thread $(printf "%02d" $core_id)] ${YELLOW}🔄 Initializing core affinity load...${NC}"
 
-        # 🚀 HARDENED AFFINITY WORKLOAD: Forces stress-ng to maintain root privileges to prevent early exits
+        # 🚀 UNIVERSAL PRIVILEGED AFFINITY PIPE: Uses standard CPU operations to prevent sandbox crashes
         if [[ "$stress_bin" == "stress-ng" ]]; then
-            # 🎯 THE FIX: Added --no-drop-root to stop the sandbox from forcing a false failure state
-            taskset -c "$core_id" stress-ng --no-drop-root --cpu 1 --cpu-method matrix3d --timeout "${test_duration}s" &>/dev/null &
+            # 🎯 FIXED: Replaced matrix3d with standard --cpu 1 to bypass container limits cleanly
+            taskset -c "$core_id" stress-ng --no-drop-root --cpu 1 --timeout "${test_duration}s" &>/dev/null &
         else
             taskset -c "$core_id" stress --cpu 1 --timeout "${test_duration}" &>/dev/null &
         fi
