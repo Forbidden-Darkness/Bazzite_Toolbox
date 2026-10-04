@@ -4,7 +4,6 @@ clear
 # ==============================================================================
 # PREMIUM SYSTEM GRAPHICAL TERMINAL PROPERTIES & STYLING LOGIC
 # ==============================================================================
-# 🧬 FIXED GLOBAL CARDS: Removed accidental 'local' keywords to prevent global runtime compilation errors
 RED='\033[0;31m'    B_RED='\033[1;31m'     GREEN='\033[0;32m'
 YELLOW='\033[1;33m' B_BLUE='\033[1;34m'    CYAN='\033[0;36m'
 BIYellow='\033[1;93m' BICyan='\033[1;96m'  BIWhite='\033[1;97m'
@@ -22,7 +21,7 @@ REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 SCRIPT_PATH=$(realpath "$0")
 
-# 🧬 AUDIO CONFIRMATION CORE: Fixed the run_uid variable typo to secure perfect sound tracking
+# 🧬 AUDIO CONFIRMATION CORE
 play_success_chime() {
     echo -ne '\e[?5h'; sleep 0.1; echo -ne '\e[?5l'
     local real_uid; real_uid=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
@@ -102,16 +101,21 @@ echo -e "     ${RED}[Enter]${NC} Abort Adapter Tweaks and Return Back to Master 
 echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
 echo ""
 
-local ACTION_CHOICE; read -r -p "   Select target network power plane option [1-2]: " ACTION_CHOICE
-local WOL_SETTING="" local ACTION_TEXT=""
+# 🎯 FIXED: Removed 'local' keyword to align variable execution directly inside the script core body
+read -r -p "   Select target network power plane option [1-2]: " ACTION_CHOICE
+WOL_SETTING=""
+ACTION_TEXT=""
 
 if [ "$ACTION_CHOICE" = "1" ]; then
-    WOL_SETTING="magic"; ACTION_TEXT="Enabling"
+    WOL_SETTING="magic"
+    ACTION_TEXT="Enabling"
 elif [ "$ACTION_CHOICE" = "2" ]; then
-    WOL_SETTING="ignore"; ACTION_TEXT="Disabling"
+    WOL_SETTING="ignore"
+    ACTION_TEXT="Disabling"
 elif [ -z "$ACTION_CHOICE" ]; then
     echo -e "\n  ${YELLOW}[-] Operation aborted. Returning safely to master toolkit interface...${NC}"
-    sleep 1.0; exit 0
+    sleep 1.0
+    exit 0
 else
     print_error "Invalid operational constraint array choice selection. Aborting execution thread."
     exit 1
@@ -191,10 +195,10 @@ for CONN in "${TARGET_CONNECTIONS[@]}"; do
     nmcli c show "$CONN" | grep -i "wake-on-lan" | sed 's/^/       /'
     echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
 done
+
 # ==============================================================================
 # POST-CONFIGURATION DAEMON RESTART INTERFACE
 # ==============================================================================
-# 🚀 CHIME INITIALIZATION: Fire audio notification loop exactly upon task success [1.14]
 play_success_chime
 
 print_success "Network hardware silicon adapter tuning parameter injection cycle complete!"
@@ -208,17 +212,24 @@ echo -e "     ${RED}[3]${RESET} Exit installer engine immediately          ${DIM
 echo -e "  ${DIM}  ───────────────────────────────────────────────────────────────────────────────────────────${NC}"
 echo ""
 
-local POST_CHOICE; read -r -p "   Select hardware post-processing action target [1-3]: " POST_CHOICE
+# 🎯 FIXED: Removed 'local' keyword to align variable execution directly inside the script core body
+read -r -p "   Select hardware post-processing action target [1-3]: " POST_CHOICE
 case "$POST_CHOICE" in
     1)
         echo -e "\n  ${GREEN}[+] Flushing NetworkManager routing profiles into operating system memory space...${NC}"
         systemctl restart NetworkManager
         print_success "Network stack parameters successfully cleared and initialized!"
-        sleep 1.2; exit 0 ;;
+        sleep 1.2
+        exit 0
+        ;;
     2)
         echo -e "\n  ${GREEN}[+] Commencing hard kernel synchronization pass... Rebooting device now...${NC}"
-        sleep 1.5; reboot ;;
+        sleep 1.5
+        reboot
+        ;;
     *)
         echo -e "\n  ${YELLOW}[-] Terminating session pipeline. Modifications locked into static system storage profiles.${NC}"
-        sleep 1.2; exit 0 ;;
+        sleep 1.2
+        exit 0
+        ;;
 esac
