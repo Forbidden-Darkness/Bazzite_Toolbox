@@ -3103,6 +3103,80 @@ apply_vram_optimization() {
     return 0
 }
 
+# ==============================================================================
+# SUBROUTINE: CLONE, COMPILE, AND INJECT NCT6687 SENSOR EXTENSION MODULE
+# ==============================================================================
+deploy_nct6687_source_layer() {
+    clear
+    echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
+    echo -e "${DIM}│${RESET}               📟  AMD BC-250 NCT6687 Source Compiler & Driver Deploy               ${DIM}│${RESET}"
+    echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
+    echo ""
+    echo -e "  ${BOLD}${YELLOW}⚠️  HARDWARE COMPILATION REQUISITE PASS:${RESET}"
+    echo -e "  This automation pulls the raw source code from Fred78290/nct6687d,"
+    echo -e "  compiles the module, blacklists the default read-only k10temp nct6683 driver,"
+    echo -e "  and regenerates your Bazzite (Fedora) Dracut initramfs image files securely."
+    echo ""
+
+    type_prompt "❓ Download and compile the NCT6687 hardware sensor driver? (y/N): " 0.03
+    local run_install; read -r run_install
+    if [[ ! "$run_install" =~ ^[Yy]$ ]]; then
+        echo -e "\n${YELLOW}[-] Operation bypassed. Returning to main loop dashboard...${NC}"
+        sleep 1.2; return 0
+    fi
+
+    # 🧼 CLEANING PREprevious TRACKS: Clear out old build sandboxes if present
+    sudo rm -rf /tmp/nct6687d
+
+    echo -e "\n${YELLOW}[⚙] Cloning repository source code from Fred78290/nct6687d...${NC}"
+    git clone https://github.com/Fred78290/nct6687d.git /tmp/nct6687d >> "$LOG_FILE" 2>&1
+    
+    if [ ! -d "/tmp/nct6687d" ]; then
+        echo -e "${BIRed}❌ ERROR: Network clone failed. GitHub repository is unreached.${NC}"
+        read -p "Press Enter to return..." && return 1
+    fi
+
+    cd /tmp/nct6687d || return 1
+
+    echo -e "${CYAN}[⚙] Compiling kernel module headers...${NC}"
+    make >> "$LOG_FILE" 2>&1
+    
+    echo -e "${CYAN}[⚙] Installing module files to target hardware paths...${NC}"
+    sudo make install >> "$LOG_FILE" 2>&1
+
+    # 📝 SECTOR MODPROBE AND CONFIGURATION HOOKS: Your exact documentation instructions applied exactly!
+    echo -e "${CYAN}[+] Blacklisting nct6683 and writing module options rules...${NC}"
+    echo "blacklist nct6683" | sudo tee /etc/modprobe.d/sensors.conf > /dev/null
+    echo "options nct6687 force=true" | sudo tee -a /etc/modprobe.d/sensors.conf > /dev/null
+    echo "nct6687" | sudo tee /etc/modules-load.d/99-sensors.conf > /dev/null
+
+    # Enforce resource laxity so ACPI doesn't block out the driver queries on boot
+    if ! rpm-ostree kargs | grep -q "acpi_enforce_resources=lax"; then
+        echo -e "${CYAN}[⚙] Injecting acpi_enforce_resources=lax into boot loader...${NC}"
+        sudo rpm-ostree kargs --append=acpi_enforce_resources=lax >> "$LOG_FILE" 2>&1
+    fi
+
+    # 🚀 REBUILD INITRAMFS: Triggers your documented Fedora dracut pipeline
+    echo -e "${YELLOW}[⚙] Regenerating all Dracut initramfs images... (This takes a moment)${NC}"
+    sudo dracut --regenerate-all --force >> "$LOG_FILE" 2>&1
+    local dracut_status=$?
+
+    if [ "$dracut_status" -eq 0 ]; then
+        echo -e "\n${BIGreen}[✓] SUCCESS: NCT6687 source driver compiled, blacklisted, and layered!${NC}"
+        play_success_chime
+        
+        type_prompt "\n❓ Execute a system reboot right now to activate the sensors? (y/N): " 0.03
+        local post_reboot; read -r post_reboot
+        if [[ "$post_reboot" =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}[!] Syncing cached storage files... Rebooting platform...${NC}"
+            sync && sleep 1 && reboot
+        fi
+    else
+        echo -e "\n${BIRed}❌ ERROR: Dracut initramfs image rebuild failed. Review lines in log file.${NC}"
+        read -p "Press Enter to return..." && return 1
+    fi
+}
+
 toggle_mglru_optimization() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
     local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
@@ -4305,6 +4379,7 @@ show_menu() {
             8) apply_gpu_power_shield ;;
             9) toggle_ram_split ;;
             10) resolve_safe_system_paths ;;
+            11) deploy_nct6687_source_layer ;;
 
             a|A)
                 echo -e "${GREEN}Executing Temporary Start...${NC}"
