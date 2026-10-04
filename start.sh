@@ -4365,7 +4365,7 @@ show_menu() {
         type_prompt "  Select an option [00-08, A-I, M, O, P, R, S, X]: " 0.03
 
         choice=""
-        read -n 1 -s choice || true
+        read -n 2 -s choice || true
         echo ""
 
         case "$choice" in
