@@ -1049,9 +1049,9 @@ run_stability_sweep() {
     fi
 
     echo -e "  Available Automated Test Profiles:"
-    echo -e "    ${CYAN}[1]${RESET} Ultra-Fast Validation Pass  ${DIM}(15 Seconds per Core Row — Quick Verification)${RESET}"
-    echo -e "    ${CYAN}[2]${RESET} Deep Hardware Burn-In Sweep ${DIM}(60 Seconds per Core Row — Thorough Validation)${RESET}"
-    echo -e "    ${CYAN}[3]${RESET} Cancel & Exit               ${DIM}(Abort validation testing and return to master menu)${RESET}"
+    echo -e "    [1] Ultra-Fast Validation Pass  ${DIM}(15 Seconds per Core Row — Quick Verification)${RESET}"
+    echo -e "    [2] Deep Hardware Burn-In Sweep ${DIM}(60 Seconds per Core Row — Thorough Validation)${RESET}"
+    echo -e "    [3] Cancel & Exit               ${DIM}(Abort validation testing and return to master menu)${RESET}"
     echo ""
     type_prompt "👉 Select test duration profile: " 0.03
     local sweep_choice; read -r sweep_choice
@@ -1060,9 +1060,9 @@ run_stability_sweep() {
     case "$sweep_choice" in
         1) test_duration=15 ;;
         2) test_duration=60 ;;
-        *) echo -e "\n${YELLOW}[-] Sweep sequence aborted cleanly. Disks remain pristine.${NC}"; sleep 1; return 0 ;;
+        *) echo -e "\n${YELLOW}[-] Sweep sequence aborted cleanly. Returning to master menu...${NC}"; sleep 1; return 0 ;;
     esac
-    # 🎯 AUTOMATED AFFINITY STEPPER: Loops sequentially through every online silicon thread channel
+
     local total_online_cores; total_online_cores=$(nproc --all 2>/dev/null || echo "16")
     echo -e "\n${YELLOW}[⚙] Commencing stability sweep across ${total_online_cores} active paths...${NC}"
     echo -e "    Using testing tool: ${CYAN}${stress_bin}${NC} (${test_duration} seconds per processor block)\n"
@@ -1080,28 +1080,15 @@ run_stability_sweep() {
 
         echo -ne "  [Thread $(printf "%02d" $core_id)] ${YELLOW}🔄 Initializing core affinity load...${NC}"
 
-        # 🚀 PRIVILEGED TASKSET ENGINE: Enforces absolute root authority on the affinity mapping matrix
+        # 🚀 THE NATIVE REPAIR: Runs synchronously so the shell accurately captures the execution pass
+        # The timeout is handled natively by the binary, keeping the terminal processing bulletproof
         if [[ "$stress_bin" == "stress-ng" ]]; then
-            # 🎯 THE FIX: Added explicit sudo before taskset to prevent absolute environment execution rejections
-            sudo taskset -c "$core_id" stress-ng --no-drop-root --cpu 1 --timeout "${test_duration}s" &>/dev/null &
+            # We use 1 instance of the standard cpu stressor pinned exactly to our target thread via taskset
+            taskset -c "$core_id" stress-ng --cpu 1 --timeout "${test_duration}s" >/dev/null 2>&1
         else
-            # 🎯 THE FIX: Added explicit sudo here as well to protect the fallback execution routes
-            sudo taskset -c "$core_id" stress --cpu 1 --timeout "${test_duration}" &>/dev/null &
+            taskset -c "$core_id" stress --cpu 1 --timeout "${test_duration}" >/dev/null 2>&1
         fi
         
-        local stress_pid=$!
-        local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
-
-        # Core Stress Monitoring Loop
-        while kill -0 "$stress_pid" 2>/dev/null; do
-            for frame in "${spinner[@]}"; do
-                echo -ne "\r  [Thread $(printf "%02d" $core_id)] \033[0;36m[$frame] Validating core stability registers...${NC}"
-                sleep 0.1
-            done
-        done
-
-        # Catch process return output frames to determine lane structural health
-        wait "$stress_pid"
         local exit_status=$?
 
         if [ "$exit_status" -eq 0 ]; then
