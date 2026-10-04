@@ -1080,9 +1080,10 @@ run_stability_sweep() {
 
         echo -ne "  [Thread $(printf "%02d" $core_id)] ${YELLOW}🔄 Initializing core affinity load...${NC}"
 
-        # 🚀 DETACHED AFFINITY WORKLOAD: Pins the stress command precisely to the targeted CPU lane
+        # 🚀 HARDENED AFFINITY WORKLOAD: Forces stress-ng to maintain root privileges to prevent early exits
         if [[ "$stress_bin" == "stress-ng" ]]; then
-            taskset -c "$core_id" stress-ng --cpu 1 --cpu-method matrix3d --timeout "${test_duration}s" &>/dev/null &
+            # 🎯 THE FIX: Added --no-drop-root to stop the sandbox from forcing a false failure state
+            taskset -c "$core_id" stress-ng --no-drop-root --cpu 1 --cpu-method matrix3d --timeout "${test_duration}s" &>/dev/null &
         else
             taskset -c "$core_id" stress --cpu 1 --timeout "${test_duration}" &>/dev/null &
         fi
