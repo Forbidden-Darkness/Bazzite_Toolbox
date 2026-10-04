@@ -3104,28 +3104,29 @@ apply_vram_optimization() {
 }
 
 # ==============================================================================
-# SUBROUTINE: CLONE, COMPILE, AND INJECT NCT6687 SENSOR EXTENSION MODULE
+# SUBROUTINE: CLONE, DKMS COMPILE, AND INJECT NCT6687 SENSOR EXTENSION MODULE
 # ==============================================================================
 deploy_nct6687_source_layer() {
     clear
     echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
-    echo -e "${DIM}│${RESET}               📟  AMD BC-250 NCT6687 Source Compiler & Driver Deploy               ${DIM}│${RESET}"
+    echo -e "${DIM}│${RESET}               📟  AMD BC-250 NCT6687 DKMS Layer & Driver Deploy                    ${DIM}│${RESET}"
     echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
     echo ""
     echo -e "  ${BOLD}${YELLOW}⚠️  HARDWARE COMPILATION REQUISITE PASS:${RESET}"
     echo -e "  This automation pulls the raw source code from Fred78290/nct6687d,"
-    echo -e "  compiles the module, blacklists the default read-only k10temp nct6683 driver,"
-    echo -e "  and regenerates your Bazzite (Fedora) Dracut initramfs image files securely."
+    echo -e "  compiles the module using DKMS to bypass atomic file system restrictions,"
+    echo -e "  blacklists the default read-only k10temp nct6683 driver, and regenerates"
+    echo -e "  your Bazzite (Fedora) Dracut initramfs image files securely."
     echo ""
 
-    type_prompt "❓ Download and compile the NCT6687 hardware sensor driver? (y/N): " 0.03
+    type_prompt "❓ Download and compile the NCT6687 hardware sensor driver via DKMS? (y/N): " 0.03
     local run_install; read -r run_install
     if [[ ! "$run_install" =~ ^[Yy]$ ]]; then
         echo -e "\n${YELLOW}[-] Operation bypassed. Returning to main loop dashboard...${NC}"
         sleep 1.2; return 0
     fi
 
-    # 🧼 CLEANING PREprevious TRACKS: Clear out old build sandboxes if present
+    # Clean out any old broken manual or temporary build sandboxes
     sudo rm -rf /tmp/nct6687d
 
     echo -e "\n${YELLOW}[⚙] Cloning repository source code from Fred78290/nct6687d...${NC}"
@@ -3138,14 +3139,23 @@ deploy_nct6687_source_layer() {
 
     cd /tmp/nct6687d || return 1
 
-    echo -e "${CYAN}[⚙] Compiling kernel module headers...${NC}"
-    make >> "$LOG_FILE" 2>&1
-    
-    echo -e "${CYAN}[⚙] Installing module files to target hardware paths...${NC}"
-    sudo make install >> "$LOG_FILE" 2>&1
+    # Verify if DKMS packages are layered on the host before continuing
+    if ! command -v dkms &>/dev/null; then
+        echo -e "${YELLOW}[ℹ] DKMS tool arrays missing. Layering tracking package...${NC}"
+        sudo rpm-ostree install --idempotent --allow-inactive dkms >> "$LOG_FILE" 2>&1
+        if ! command -v dkms &>/dev/null; then
+            echo -e "${BIRed}❌ ERROR: System failed to layer DKMS component. Reboot required.${NC}"
+            read -p "Press Enter to return..." && return 1
+        fi
+    fi
 
-    # 📝 SECTOR MODPROBE AND CONFIGURATION HOOKS: Your exact documentation instructions applied exactly!
+    echo -e "${CYAN}[⚙] Handing module over to DKMS compilation pipelines...${NC}"
+    # 🎯 THE IMMUTABILITY FIX: Uses the repository's native DKMS framework to safely register the module
+    sudo make dkms/install >> "$LOG_FILE" 2>&1
+
+    # 📝 SECTOR MODPROBE AND CONFIGURATION HOOKS
     echo -e "${CYAN}[+] Blacklisting nct6683 and writing module options rules...${NC}"
+    sudo mkdir -p /etc/modprobe.d /etc/modules-load.d 2>/dev/null
     echo "blacklist nct6683" | sudo tee /etc/modprobe.d/sensors.conf > /dev/null
     echo "options nct6687 force=true" | sudo tee -a /etc/modprobe.d/sensors.conf > /dev/null
     echo "nct6687" | sudo tee /etc/modules-load.d/99-sensors.conf > /dev/null
@@ -3156,13 +3166,13 @@ deploy_nct6687_source_layer() {
         sudo rpm-ostree kargs --append=acpi_enforce_resources=lax >> "$LOG_FILE" 2>&1
     fi
 
-    # 🚀 REBUILD INITRAMFS: Triggers your documented Fedora dracut pipeline
+    # 🚀 REBUILD INITRAMFS NATIVELY VIA BAZZITE REGENERATORS
     echo -e "${YELLOW}[⚙] Regenerating all Dracut initramfs images... (This takes a moment)${NC}"
     sudo dracut --regenerate-all --force >> "$LOG_FILE" 2>&1
     local dracut_status=$?
 
     if [ "$dracut_status" -eq 0 ]; then
-        echo -e "\n${BIGreen}[✓] SUCCESS: NCT6687 source driver compiled, blacklisted, and layered!${NC}"
+        echo -e "\n${BIGreen}[✓] SUCCESS: NCT6687 driver compiled via DKMS and securely layered!${NC}"
         play_success_chime
         
         type_prompt "\n❓ Execute a system reboot right now to activate the sensors? (y/N): " 0.03
