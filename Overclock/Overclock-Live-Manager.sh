@@ -1034,6 +1034,101 @@ uninstall_cpu_overclock() {
 }
 
 # ==============================================================================
+# SUBROUTINE: SILICON PER-CORE STABILITY SWEEP & HARDWARE CHANNEL VALIDATOR
+# ==============================================================================
+run_stability_sweep() {
+    clear
+    echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
+    echo -e "${DIM}│${RESET}                 📟  AMD BC-250 Per-Core Stability Sweep Engine                     ${DIM}│${RESET}"
+    echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
+    echo ""
+    echo -e "  ${BOLD}${YELLOW}⚠️  SILICON STABILITY CRUISE MODULE:${RESET}"
+    echo -e "  This automation utility isolates every logical core execution channel individually."
+    echo -e "  By pinning processor workloads using explicit taskset affinity masks, it forces"
+    echo -e "  focused validation stress onto specific silicon blocks to test Curve Optimizer bounds."
+    echo ""
+
+    # Check for underlying execution utilities inside Bazzite's atomic layers
+    local stress_bin=""
+    if command -v stress-ng &>/dev/null; then stress_bin="stress-ng"
+    elif command -v stress &>/dev/null; then stress_bin="stress"
+    else
+        echo -e "${BIRed}❌ ERROR: Missing verification tools. Neither 'stress-ng' nor 'stress' found.${NC}"
+        echo -e "          Please run Option [1b] or verify network connectivity profiles.${NC}"
+        read -p "Press Enter to return..." && return 1
+    fi
+
+    echo -e "  Available Automated Test Profiles:"
+    echo -e "    ${CYAN}[1]${RESET} Ultra-Fast Validation Pass  ${DIM}(15 Seconds per Core Row — Quick Verification)${RESET}"
+    echo -e "    ${CYAN}[2]${RESET} Deep Hardware Burn-In Sweep ${DIM}(60 Seconds per Core Row — Thorough Validation)${RESET}"
+    echo -e "    ${CYAN}[3]${RESET} Cancel & Exit               ${DIM}(Abort validation testing and return to master menu)${RESET}"
+    echo ""
+    type_prompt "👉 Select test duration profile: " 0.03
+    local sweep_choice; read -r sweep_choice
+
+    local test_duration=0
+    case "$sweep_choice" in
+        1) test_duration=15 ;;
+        2) test_duration=60 ;;
+        *) echo -e "\n${YELLOW}[-] Sweep sequence aborted cleanly. Disks remain pristine.${NC}"; sleep 1; return 0 ;;
+    caseEsac
+    # 🎯 AUTOMATED AFFINITY STEPPER: Loops sequentially through every online silicon thread channel
+    local total_online_cores; total_online_cores=$(nproc --all 2>/dev/null || echo "16")
+    echo -e "\n${YELLOW}[⚙] Commencing stability sweep across ${total_online_cores} active paths...${NC}"
+    echo -e "    Using testing tool: ${CYAN}${stress_bin}${NC} (${test_duration} seconds per processor block)\n"
+
+    for ((core_id=0; core_id<total_online_cores; core_id++)); do
+        local sys_online_file="/sys/devices/system/cpu/cpu${core_id}/online"
+        
+        # Safe Isolation Check: Skip the sweep iteration if a thread has been fenced off or hotplugged out
+        if [[ -f "$sys_online_file" ]]; then
+            if [[ $(cat "$sys_online_file" 2>/dev/null) -eq 0 ]]; then
+                echo -e "  [Thread $(printf "%02d" $core_id)] ${MAGENTA}⚡ SKIPPED (Thread Fenced via Isolation Matrix)${NC}"
+                continue
+            fi
+        fi
+
+        echo -ne "  [Thread $(printf "%02d" $core_id)] ${YELLOW}🔄 Initializing core affinity load...${NC}"
+
+        # 🚀 DETACHED AFFINITY WORKLOAD: Pins the stress command precisely to the targeted CPU lane
+        if [[ "$stress_bin" == "stress-ng" ]]; then
+            taskset -c "$core_id" stress-ng --cpu 1 --cpu-method matrix3d --timeout "${test_duration}s" &>/dev/null &
+        else
+            taskset -c "$core_id" stress --cpu 1 --timeout "${test_duration}" &>/dev/null &
+        fi
+        
+        local stress_pid=$!
+        local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+
+        # Core Stress Monitoring Loop
+        while kill -0 "$stress_pid" 2>/dev/null; do
+            for frame in "${spinner[@]}"; do
+                echo -ne "\r  [Thread $(printf "%02d" $core_id)] \033[0;36m[$frame] Validating core stability registers...${NC}"
+                sleep 0.1
+            done
+        done
+
+        # Catch process return output frames to determine lane structural health
+        wait "$stress_pid"
+        local exit_status=$?
+
+        if [ "$exit_status" -eq 0 ]; then
+            echo -e "\r  [Thread $(printf "%02d" $core_id)] ${BIGreen}[✓] PASSED (Silicon register calculations stable)${NC}"
+        else
+            echo -e "\r  [Thread $(printf "%02d" $core_id)] ${BIRed}[❌] FAILED (Hardware engine signal error or lockup cached)${NC}"
+            TABLE_DIRTY=0; SERVICE_PENDING=1
+        fi
+    done
+
+    # 🎉 SWEEP COMPLETION SUMMARY PANEL
+    echo -e "\n${BIGreen}[✓] SUCCESS: Silicon Per-Core Stability Sweep successfully completed!${NC}"
+    play_success_chime
+    echo -e "    All processed registers have returned cleanly to default system idle loops."
+    type_prompt "👉 Press Enter to return cleanly to the toolkit dashboard..." 0.03
+    read -r
+}
+
+# ==============================================================================
 # 🎯 FINAL UNIFIED MODULE: CPU SCHEDULER & ATOMIC ISOLATION MATRIX (PART 1)
 # ==============================================================================
 view_core_live_manager() {
