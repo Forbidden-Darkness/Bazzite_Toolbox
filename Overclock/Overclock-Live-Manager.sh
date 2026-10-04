@@ -1524,6 +1524,67 @@ repair_boot_splash_only() {
 }
 
 # ==============================================================================
+# SUBROUTINE: GDDR6 HARDWARE VRAM TELEMETRY MONITOR & COLD DATA VIEW
+# ==============================================================================
+view_vram_temperatures() {
+    clear
+    local py_script="$HOME/.local/share/bc250_mem_temp.py"
+    
+    # 🛡️ VERIFICATION PASS: Safety check to guarantee file presence before loop init
+    if [[ ! -f "$py_script" ]]; then
+        echo -e "${BIRed}❌ ERROR: Missing target dependency wrapper script row.${NC}"
+        echo -e "          Please ensure the Python script is saved to: ${YELLOW}${py_script}${NC}"
+        read -p "Press Enter to return..." && return 1
+    fi
+
+    echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
+    echo -e "${DIM}│${RESET}               📟  AMD BC-250 GDDR6 Live VRAM Temperature Telemetry                 ${DIM}│${RESET}"
+    echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
+    echo ""
+    echo -e "  ${BOLD}${YELLOW}Active Hardware Real-Time Sensor Grid:${RESET}"
+    echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
+
+    # Execute Python background mapper thread and isolate standard exit string codes
+    local raw_output; raw_output=$(python3 "$py_script" 2>/dev/null)
+    local exit_code=$?
+
+    if [[ "$exit_code" -eq 2 || "$raw_output" == "ERR_BIOS_LOCKED" ]]; then
+        # 🔒 HARDWARE GATE ALIGNED: Friendly fallback message blocks crashes if P3.00 BIOS isn't active
+        echo -e "  ${BIRed}❌ DIAGNOSTIC CRASH ABORT: GDDR6 Memory Registers are locked by AGESA.${NC}"
+        echo -e "  ${YELLOW}[ℹ] Solution Requirement Matrix:${NC}"
+        echo -e "      Your system reports active hardware masks, but you must be running a"
+        echo -e "      ${GREEN}P3.00 BIOS${NC} or newer to expose live memory thermal registers to the OS."
+        echo -e "      Stock mining profiles (V3/V5 base software layout) are completely unmapped."
+        echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
+        read -p "👉 Press Enter to return cleanly to toolkit..." && return 0
+    elif [[ "$exit_code" -ne 0 || -z "$raw_output" || "$raw_output" == "ERR_BUS_ERROR" ]]; then
+        echo -e "  ${BIRed}❌ ERROR: Hardware bus communication timeout. Configuration registers un-enumerated.${NC}"
+        read -p "Press Enter to return..." && return 1
+    fi
+
+    # 📊 TELEMETRY CHART MATRIX: Parsed line arrays output color-coded structural heat index bounds
+    IFS='|' read -r tA tB tC tD <<< "$raw_output"
+    
+    # Color-coded helper loop function
+    format_temp_color() {
+        local val="$1"
+        if (( val >= 85 )); then echo -e "${RED}${val}°C 🔥 [CRITICAL]${NC}"
+        elif (( val >= 75 )); then echo -e "${YELLOW}${val}°C ⚠️ [WARN]${NC}"
+        else echo -e "${GREEN}${val}°C [OPTIMAL]${NC}"; fi
+    }
+
+    echo -e "    Memory Controller Channel A Thermals : $(format_temp_color "$tA")"
+    echo -e "    Memory Controller Channel B Thermals : $(format_temp_color "$tB")"
+    echo -e "    Memory Controller Channel C Thermals : $(format_temp_color "$tC")"
+    echo -e "    Memory Controller Channel D Thermals : $(format_temp_color "$tD")"
+    echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
+    echo -e "  ${DIM}Operating limits: Optimal <75°C | Maximum 85°C Tjmax limit throttling boundaries.${RESET}\n"
+    
+    type_prompt "👉 Press Enter to return cleanly to dashboard matrix loops..." 0.03
+    read -r
+}
+
+# ==============================================================================
 # SUBROUTINE: PRODUCTION-READY CU LIVE MANAGER COMPLETE ROLLBACK UTILITY (PART 1)
 # ==============================================================================
 uninstall_cu_live_manager() {
@@ -1655,13 +1716,13 @@ while true; do
     echo -e "      ${CYAN}[4]${RESET}   Launch Silicon Per-Core Stability Sweep ${DIM}(test-cores Curve Validation)${RESET}"    
     echo -e "      ${CYAN}[5]${RESET}   Launch CPU Core Scheduler & Isolation Matrix ${DIM}(Live Core Matrix & Isolcpus)${RESET}"    
     echo -e "      ${CYAN}[6]${RESET}   Force-Restore Graphical Boot Splash Screen ${DIM}(Repair rhgb / quiet Flags)${RESET}"
+    echo -e "      ${CYAN}[7]${RESET}   Query GDDR6 Real-Time Memory Temperature Telemetries ${DIM}(Sensors View)${RESET}"
     echo ""
     echo -e "  ${DIM}──────────────────────────────────────────────────────────────────────────────────${RESET}"
-    echo -e "      ${BOLD}${MAGENTA}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
+    echo -e "      ${BOLD}${WHITE}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
     echo ""
-
-    # 🧬 FIXED PROMPT FIELD: Realigned selection string boundary matrix to explicitly read up to option 6
-    type_prompt "  Select an option [ 1a-6, M, C, ↵ ]: " 0.03
+    
+    type_prompt "  Select an option [ 1a-7, M, C, ↵ ]: " 0.03
     choice=""
     read -r choice
     echo ""    
