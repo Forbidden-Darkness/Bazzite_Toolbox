@@ -1524,76 +1524,6 @@ repair_boot_splash_only() {
 }
 
 # ==============================================================================
-# SUBROUTINE: GDDR6 HARDWARE VRAM TELEMETRY MONITOR & COLD DATA VIEW
-# ==============================================================================
-view_vram_temperatures() {
-    clear
-    local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
-    local py_script="${base_dir}/bc250_mem_temp.py"
-    
-    # 🎯 AUTOMATED UPSTREAM FETCH: If the file doesn't exist, download it cleanly on the fly
-    if [[ ! -f "$py_script" ]]; then
-        echo -e "${YELLOW}[⚙] Telemetry file missing. Fetching fresh dependency layout...${NC}"
-        
-        # Pulls the true raw code lines from your repository branch cleanly
-        sudo curl -sSL -o "$py_script" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250_mem_temp.py" >> "$LOG_FILE" 2>&1
-        
-        # Final validation pass to verify the download was successful
-        if [[ ! -f "$py_script" || ! -s "$py_script" ]]; then
-            echo -e "${BIRed}❌ ERROR: Network download interface failed or repository asset path is dead.${NC}"
-            sudo rm -f "$py_script" 2>/dev/null
-            read -p "Press Enter to return..." && return 1
-        fi
-        
-        sudo chmod +x "$py_script"
-        echo -e "${BIGreen}[✓] Dependency resolved. Initializing sensor tracking...${NC}\n"
-        sleep 1
-    fi
-
-    echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
-    echo -e "${DIM}│${RESET}               📟  AMD BC-250 GDDR6 Live VRAM Temperature Telemetry                 ${DIM}│${RESET}"
-    echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
-    echo ""
-    echo -e "  ${BOLD}${YELLOW}Active Hardware Real-Time Sensor Grid:${RESET}"
-    echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-
-    local raw_output; raw_output=$(python3 "$py_script" 2>/dev/null)
-    local exit_code=$?
-
-    if [[ "$exit_code" -eq 2 || "$raw_output" == "ERR_BIOS_LOCKED" ]]; then
-        echo -e "  ${BIRed}❌ DIAGNOSTIC CRASH ABORT: GDDR6 Memory Registers are locked by AGESA.${NC}"
-        echo -e "  ${YELLOW}[ℹ] Solution Requirement Matrix:${NC}"
-        echo -e "      Your system reports active hardware masks, but you must be running a"
-        echo -e "      ${GREEN}P3.00 BIOS${NC} or newer to expose live memory thermal registers to the OS."
-        echo -e "      Stock mining profiles (V3/V5 base software layout) are completely unmapped."
-        echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-        read -p "👉 Press Enter to return cleanly to toolkit..." && return 0
-    elif [[ "$exit_code" -ne 0 || -z "$raw_output" || "$raw_output" == "ERR_BUS_ERROR" ]]; then
-        echo -e "  ${BIRed}❌ ERROR: Hardware bus communication timeout. Configuration registers un-enumerated.${NC}"
-        read -p "Press Enter to return..." && return 1
-    fi
-
-    IFS='|' read -r tA tB tC tD <<< "$raw_output"
-    
-    format_temp_color() {
-        local val="$1"
-        if (( val >= 85 )); then echo -e "${RED}${val}°C 🔥 [CRITICAL]${NC}"
-        elif (( val >= 75 )); then echo -e "${YELLOW}${val}°C ⚠️ [WARN]${NC}"
-        else echo -e "${GREEN}${val}°C [OPTIMAL]${NC}"; fi
-    }
-
-    echo -e "    Memory Controller Channel A Thermals : $(format_temp_color "$tA")"
-    echo -e "    Memory Controller Channel B Thermals : $(format_temp_color "$tB")"
-    echo -e "    Memory Controller Channel C Thermals : $(format_temp_color "$tC")"
-    echo -e "    Memory Controller Channel D Thermals : $(format_temp_color "$tD")"
-    echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-    echo -e "  ${DIM}Operating limits: Optimal <75°C | Maximum 85°C Tjmax limit throttling boundaries.${RESET}\n"
-    
-    type_prompt "👉 Press Enter to return cleanly to dashboard matrix loops..." 0.03
-    read -r
-}
-
-# ==============================================================================
 # SUBROUTINE: PRODUCTION-READY CU LIVE MANAGER COMPLETE ROLLBACK UTILITY (PART 1)
 # ==============================================================================
 uninstall_cu_live_manager() {
@@ -1724,8 +1654,7 @@ while true; do
     echo -e "    ${BOLD}${YELLOW}• Silicon Stability Testing Channels:${RESET}"
     echo -e "      ${CYAN}[4]${RESET}   Launch Silicon Per-Core Stability Sweep ${DIM}(test-cores Curve Validation)${RESET}"    
     echo -e "      ${CYAN}[5]${RESET}   Launch CPU Core Scheduler & Isolation Matrix ${DIM}(Live Core Matrix & Isolcpus)${RESET}"    
-    echo -e "      ${CYAN}[6]${RESET}   Force-Restore Graphical Boot Splash Screen ${DIM}(Repair rhgb / quiet Flags)${RESET}"
-    echo -e "      ${CYAN}[7]${RESET}   Query GDDR6 Real-Time Memory Temperature Telemetries ${DIM}(Sensors View)${RESET}"    
+    echo -e "      ${CYAN}[6]${RESET}   Force-Restore Graphical Boot Splash Screen ${DIM}(Repair rhgb / quiet Flags)${RESET}"        
     echo ""
     echo -e "  ${DIM}──────────────────────────────────────────────────────────────────────────────────${RESET}"
     echo -e "      ${BOLD}${WHITE}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
@@ -1752,8 +1681,7 @@ while true; do
         3b|3B) uninstall_cu_live_manager ;;
         4) run_stability_sweep ;;
         5) view_core_live_manager ;;        
-        6) repair_boot_splash_only ;;
-        7) view_vram_temperatures ;;        
+        6) repair_boot_splash_only ;;                
         "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; exit 0 ;;
         *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
     esac
