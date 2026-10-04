@@ -1528,7 +1528,9 @@ repair_boot_splash_only() {
 # ==============================================================================
 view_vram_temperatures() {
     clear
-    local py_script="$HOME/.local/share/bc250_mem_temp.py"
+    # 🎯 THE PORTABILITY FIX: Changes path lookup from $HOME to your exact script directory row
+    local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
+    local py_script="${base_dir}/bc250_mem_temp.py"
     
     # 🛡️ VERIFICATION PASS: Safety check to guarantee file presence before loop init
     if [[ ! -f "$py_script" ]]; then
@@ -1549,7 +1551,6 @@ view_vram_temperatures() {
     local exit_code=$?
 
     if [[ "$exit_code" -eq 2 || "$raw_output" == "ERR_BIOS_LOCKED" ]]; then
-        # 🔒 HARDWARE GATE ALIGNED: Friendly fallback message blocks crashes if P3.00 BIOS isn't active
         echo -e "  ${BIRed}❌ DIAGNOSTIC CRASH ABORT: GDDR6 Memory Registers are locked by AGESA.${NC}"
         echo -e "  ${YELLOW}[ℹ] Solution Requirement Matrix:${NC}"
         echo -e "      Your system reports active hardware masks, but you must be running a"
@@ -1565,13 +1566,23 @@ view_vram_temperatures() {
     # 📊 TELEMETRY CHART MATRIX: Parsed line arrays output color-coded structural heat index bounds
     IFS='|' read -r tA tB tC tD <<< "$raw_output"
     
-    # Color-coded helper loop function
     format_temp_color() {
         local val="$1"
         if (( val >= 85 )); then echo -e "${RED}${val}°C 🔥 [CRITICAL]${NC}"
         elif (( val >= 75 )); then echo -e "${YELLOW}${val}°C ⚠️ [WARN]${NC}"
         else echo -e "${GREEN}${val}°C [OPTIMAL]${NC}"; fi
     }
+
+    echo -e "    Memory Controller Channel A Thermals : $(format_temp_color "$tA")"
+    echo -e "    Memory Controller Channel B Thermals : $(format_temp_color "$tB")"
+    echo -e "    Memory Controller Channel C Thermals : $(format_temp_color "$tC")"
+    echo -e "    Memory Controller Channel D Thermals : $(format_temp_color "$tD")"
+    echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
+    echo -e "  ${DIM}Operating limits: Optimal <75°C | Maximum 85°C Tjmax limit throttling boundaries.${RESET}\n"
+    
+    type_prompt "👉 Press Enter to return cleanly to dashboard matrix loops..." 0.03
+    read -r
+}
 
     echo -e "    Memory Controller Channel A Thermals : $(format_temp_color "$tA")"
     echo -e "    Memory Controller Channel B Thermals : $(format_temp_color "$tB")"
