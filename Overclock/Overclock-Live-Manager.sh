@@ -1587,8 +1587,10 @@ install_bc250_telemetry_daemon() {
     clear
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
     local daemon_dir="${base_dir}/bc250-telemetry-daemon"
-    local target_bin="${daemon_dir}/bc250-telemetry"
     local service_file="/etc/systemd/system/bc250-telemetry.service"
+    
+    # 🎯 THE FIX: Store binary inside an executable system path block to bypass noexec blocks
+    local target_bin="/usr/local/bin/bc250-telemetry"
 
     echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
     echo -e "${DIM}│${RESET}                📟  AMD BC-250 Complete VRM & Rail Telemetry Installer             ${DIM}│${RESET}"
@@ -1607,28 +1609,27 @@ install_bc250_telemetry_daemon() {
         sleep 1.5; return 0
     fi
 
-    # Clean out any old broken configurations recursively
+    # Clean out any old broken configurations and target directory paths recursively
     sudo systemctl disable --now bc250-telemetry.service &>/dev/null || true
-    sudo rm -f "$service_file"
+    sudo rm -f "$service_file" "$target_bin"
     sudo rm -rf "$daemon_dir"
     sudo mkdir -p "$daemon_dir"
 
-    echo -e "\n${YELLOW}[⚙] Downloading pre-compiled static binary directly from repository...${NC}"
+    echo -e "\n${YELLOW}[⚙] Downloading pre-compiled static binary straight to system bin layers...${NC}"
     
-    # 🎯 THE FIX: Fetch the actual compiled executable directly, bypassing tar extractions entirely
+    # Secure binary acquisition path directly to the native executable node tree
     sudo curl -L -o "$target_bin" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" >> "$LOG_FILE" 2>&1
     
-    # Verify file was downloaded and is not an empty error file
     if [[ ! -s "$target_bin" || $(stat -c%s "$target_bin") -le 1000 ]]; then
         echo -e "${BIRed}❌ ERROR: Network download failed. The compiled binary path could not be reached.${NC}"
+        sudo rm -f "$target_bin"
         sudo rm -rf "$daemon_dir"
         read -p "Press Enter to return..." && return 1
     fi
 
-    # Mark the binary as executable natively
     sudo chmod +x "$target_bin"
 
-    # 📝 SYSTEMD PROFILE GENERATION
+    # 📝 SYSTEMD PROFILE GENERATION: Keeps working context logs locally inside your repository folder
     echo -e "${CYAN}[+] Compiling background unit manager service tracking maps...${NC}"
     sudo cat << EOF | sudo tee "$service_file" > /dev/null
 [Unit]
@@ -1656,10 +1657,10 @@ EOF
         echo -e "    Real-time diagnostics are broadcasting live over your network dashboard."
         echo -e "    👉 Open Web Console: ${GREEN}http://localhost:8085${NC} or ${GREEN}http://$(hostname -I | awk '{print $1}'):8085${NC}"
     else
-        echo -e "\n${BIRed}❌ WARNING: Service launched but terminated early. Hardware check required!${NC}"
+        echo -e "\n${BIRed}❌ WARNING: Service launched but timed out early. Hardware link required!${NC}"
         echo -e "             Review the 'hardware.md' requirements file regarding your jump wire pins."
     fi
-     
+
     play_success_chime
     echo -e "\n${GREEN}    Press [Enter] to return cleanly to the toolkit dashboard menu...${NC}"
     read -r
