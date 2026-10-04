@@ -1406,17 +1406,82 @@ repair_boot_splash_only() {
     fi
 }
 
+# ==============================================================================
+# SUBROUTINE: PRODUCTION-READY CU LIVE MANAGER COMPLETE ROLLBACK UTILITY (PART 1)
+# ==============================================================================
 uninstall_cu_live_manager() {
-    log "${RED}[Uninstall] Initializing CU Live Manager rollback suite...${NC}"
-    sudo systemctl disable --now bc250-cu-live-manager.service >> "$LOG_FILE" 2>&1 || true
-    sudo rm -f /etc/systemd/system/bc250-cu-live-manager.service
-    sudo rm -f /usr/local/bin/bc250-cu-live-manager
-    sudo rm -f /etc/bc250-cu-live-manager.conf
-    sudo rm -f /tmp/bc250-cu-live-manager.sh
-    sudo rpm-ostree uninstall umr >> "$LOG_FILE" 2>&1
-    sudo systemctl daemon-reload
-    play_success_chime
-    prompt_reboot
+    # 🧠 PRE-REMOVAL SECURITY GATES: Strict verification check BEFORE any system files are altered!
+    echo -e "\n${BIRed}[⚠️] CRITICAL NOTICE: You are about to completely wipe the CU Live Manager Suite.${NC}"
+    echo -e "    This will strip all systemd service profiles and revert atomic boot loader flags."
+    echo -e "    To proceed with the permanent removal, please type ${YELLOW}accept${NC} or ${YELLOW}ACCEPT${NC}."
+    type_prompt "👉 Verification Command Input: " 0.03
+    local confirm_uninstall; read -r confirm_uninstall
+
+    if [[ "$confirm_uninstall" == "accept" || "$confirm_uninstall" == "ACCEPT" ]]; then
+        # 🔓 GATE PASSED: Proceed natively to file structure demolition and service purging
+        log "${RED}[Uninstall] Initializing CU Live Manager rollback suite...${NC}"
+
+        sudo systemctl disable --now bc250-cu-live-manager.service >> "$LOG_FILE" 2>&1 || true
+        sudo rm -f /etc/systemd/system/bc250-cu-live-manager.service
+        sudo rm -f /usr/local/bin/bc250-cu-live-manager
+        sudo rm -f /etc/bc250-cu-live-manager.conf
+        sudo rm -f /tmp/bc250-cu-live-manager.sh
+        sudo rpm-ostree uninstall umr >> "$LOG_FILE" 2>&1
+        sudo systemctl daemon-reload
+
+        # Staging the cleanup parameter array metrics
+        echo -e "\n${YELLOW}[⚙] Scanning deployment tracker for lingering toolkit boot parameters...${NC}"
+        local current_kargs; current_kargs=$(rpm-ostree kargs)
+        local old_isolcpus; old_isolcpus=$(echo "$current_kargs" | grep -o 'isolcpus=[^ ]*' || echo "")
+        local old_dcmask; old_dcmask=$(echo "$current_kargs" | grep -o 'amdgpu.dcdebugmask=[^ ]*' || echo "")
+
+        local -a karg_args=()
+        [ -n "$old_isolcpus" ] && karg_args+=( --delete="$old_isolcpus" )
+        [ -n "$old_dcmask" ] && karg_args+=( --delete="$old_dcmask" )
+
+        # Force-append standard desktop splash elements back to clean out configurations safely
+        karg_args+=( --append="rhgb" --append="quiet" )
+        # 🚀 CLEAN INSTRUCTION PIPE: Passes the combined array arguments smoothly to rpm-ostree
+        if [[ ${#karg_args[@]} -gt 0 ]]; then
+            echo -e "${CYAN}[⚙] Dispatching atomic parameter cleanup transaction...${NC}"
+
+            rpm-ostree kargs "${karg_args[@]}" &>/dev/null &
+            local transaction_pid=$!
+            local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+
+            while kill -0 "$transaction_pid" 2>/dev/null; do
+                for frame in "${spinner[@]}"; do
+                    echo -ne "\r  \033[0;36m[$frame] Cleaning up atomic boot parameter records...${NC}"
+                    sleep 0.08
+                done
+            done
+            echo -ne "\r                                                                         \r"
+            wait "$transaction_pid"
+        fi
+
+        # Synchronize and clean local legacy GRUB configuration strings if present
+        if [[ -f "/etc/default/grub" ]]; then
+            sudo sed -i 's/\([ "]\)isolcpus=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
+            sudo sed -i 's/\([ "]\)amdgpu.dcdebugmask=[^ "]*\([ "]\)/\1\2/g' /etc/default/grub 2>/dev/null
+            sudo sed -i 's/  */ /g' /etc/default/grub 2>/dev/null
+        fi
+
+        # 🎉 COMPLETION SECTOR: Audio feedback triggers alongside your custom reboot prompts
+        echo -e "\n${BIGreen}[✓] SUCCESS: CU Live Manager Suite has been completely scrubbed from the system!${NC}"
+        play_success_chime
+
+        type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
+        local reboot_choice; read -r reboot_choice
+        if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
+            sync && sleep 1 && reboot
+        fi
+    else
+        # 🔒 GATE BLOCKED: User didn't type accept, keep system completely untouched
+        echo -e "\n${BIRed}[-] Verification failed or bypassed. Aborting removal suite pass. System state preserved.${NC}"
+        type_prompt "    Press Enter to return to the toolkit menu..." 0.03
+        read -r
+    fi
 }
 
 type_prompt() {
@@ -1497,7 +1562,7 @@ while true; do
                 exec bash "$SCRIPT_PATH" "$@"
                 ;;
         3a|3A) uninstall_cpu_profiles ;;
-        3b|3B) uninstall_cu_manager ;;
+        3b|3B) uninstall_cu_live_manager ;;
         4) run_stability_sweep ;;
         5) view_core_live_manager ;;        
         6) repair_boot_splash_only ;;
