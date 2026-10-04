@@ -1531,10 +1531,23 @@ view_vram_temperatures() {
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
     local py_script="${base_dir}/bc250_mem_temp.py"
     
+    # 🎯 AUTOMATED UPSTREAM FETCH: If the file doesn't exist, download it cleanly on the fly
     if [[ ! -f "$py_script" ]]; then
-        echo -e "${BIRed}❌ ERROR: Missing target dependency wrapper script row.${NC}"
-        echo -e "          Please ensure the Python script is saved to: ${YELLOW}${py_script}${NC}"
-        read -p "Press Enter to return..." && return 1
+        echo -e "${YELLOW}[⚙] Telemetry file missing. Fetching fresh dependency layout...${NC}"
+        
+        # Pulls the true raw code lines from your repository branch cleanly
+        sudo curl -sSL -o "$py_script" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/bc250_mem_temp.py" >> "$LOG_FILE" 2>&1
+        
+        # Final validation pass to verify the download was successful
+        if [[ ! -f "$py_script" || ! -s "$py_script" ]]; then
+            echo -e "${BIRed}❌ ERROR: Network download interface failed or repository asset path is dead.${NC}"
+            sudo rm -f "$py_script" 2>/dev/null
+            read -p "Press Enter to return..." && return 1
+        fi
+        
+        sudo chmod +x "$py_script"
+        echo -e "${BIGreen}[✓] Dependency resolved. Initializing sensor tracking...${NC}\n"
+        sleep 1
     fi
 
     echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
