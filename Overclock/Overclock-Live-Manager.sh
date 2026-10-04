@@ -1744,6 +1744,7 @@ while true; do
         4) run_stability_sweep ;;
         5) view_core_live_manager ;;        
         6) repair_boot_splash_only ;;
+        7) view_vram_temperatures ;;
         "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; exit 0 ;;
         *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
     esac
