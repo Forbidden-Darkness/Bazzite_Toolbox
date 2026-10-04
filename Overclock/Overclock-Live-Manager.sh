@@ -1624,11 +1624,11 @@ install_bc250_telemetry_daemon() {
         read -p "Press Enter to return..." && return 1
     fi
 
-    # Extract the archive layers cleanly into a temporary workspace folder
+    # 🚀 NATURAL EXTRACTION: Unpack exactly how tar does it naturally without any extra forced flags
     sudo tar -xzf "${daemon_dir}/telemetry.tar.gz" -C "$daemon_dir" 2>/dev/null
     sudo rm -f "${daemon_dir}/telemetry.tar.gz"
 
-    # 🎯 THE ABSOLUTE WILD-CARD FIX: Find the binary no matter what folder name GitHub put it in!
+    # 🎯 THE MANUAL MATCH FIX: Locate and move the binary exactly like your working manual commands!
     if [[ -f "${daemon_dir}/bc250-telemetry" ]]; then
         sudo mv "${daemon_dir}/bc250-telemetry" "$target_bin"
     else
