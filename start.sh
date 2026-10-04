@@ -4389,7 +4389,7 @@ show_menu() {
             08) apply_gpu_power_shield ;;
             09) toggle_ram_split ;;
             10) resolve_safe_system_paths ;;
-            11) deploy_nct6687_source_layer ;;
+            11) deploy_nct6687_sensor_layer ;;
 
             a|A)
                 echo -e "${GREEN}Executing Temporary Start...${NC}"
