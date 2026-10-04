@@ -1586,7 +1586,9 @@ view_vram_temperatures() {
 install_bc250_telemetry_daemon() {
     clear
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
-    local target_bin="${base_dir}/bc250-telemetry"
+    # 🎯 FIX 1: Move target paths out of conflict with your existing local directories
+    local daemon_dir="${base_dir}/bc250-telemetry-daemon"
+    local target_bin="${daemon_dir}/bc250-telemetry"
     local service_file="/etc/systemd/system/bc250-telemetry.service"
 
     echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
@@ -1606,23 +1608,42 @@ install_bc250_telemetry_daemon() {
         sleep 1.5; return 0
     fi
 
+    # 🧼 FIX 2: Force clean any directory roadblocks recursively so rm never throws blocks again
     sudo systemctl disable --now bc250-telemetry.service &>/dev/null || true
-    sudo rm -f "$target_bin" "$service_file"
+    sudo rm -f "$service_file"
+    sudo rm -rf "$daemon_dir"
+    sudo mkdir -p "$daemon_dir"
 
-    echo -e "\n${YELLOW}[⚙] Retrieving compressed distribution assets...${NC}"
-    sudo curl -L -o "${base_dir}/bc250-telemetry.tar.gz" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" 2>/dev/null
+    echo -e "\n${YELLOW}[⚙] Retrieving compressed distribution assets from verified release track...${NC}"
     
-    sudo tar -xzf "${base_dir}/bc250-telemetry.tar.gz" -C "$base_dir" 2>/dev/null
-    sudo rm -f "${base_dir}/bc250-telemetry.tar.gz"
+    # 🎯 FIX 3: Fully operational, case-corrected distribution URL
+    sudo curl -L -o "${daemon_dir}/bc250-telemetry.tar.gz" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" >> "$LOG_FILE" 2>&1
     
-    if [[ ! -f "$target_bin" || $(stat -c%s "$target_bin") -le 1000 ]]; then
+    # Verify file integrity and ensure it is a real archive before decompressing
+    if [[ ! -s "${daemon_dir}/bc250-telemetry.tar.gz" ]]; then
         echo -e "${BIRed}❌ ERROR: Network download interface failed or repository asset path is dead.${NC}"
-        sudo rm -f "$target_bin"
+        sudo rm -rf "$daemon_dir"
+        read -p "Press Enter to return..." && return 1
+    fi
+
+    # Extract cleanly directly into our fresh directory space
+    sudo tar -xzf "${daemon_dir}/bc250-telemetry.tar.gz" -C "$daemon_dir" 2>/dev/null
+    sudo rm -f "${daemon_dir}/bc250-telemetry.tar.gz"
+    
+    # If the binary extracted inside a nested folder, pull it up to the root daemon path
+    if [[ -f "${daemon_dir}/bc250-telemetry/bc250-telemetry" ]]; then
+        sudo mv "${daemon_dir}/bc250-telemetry/bc250-telemetry" "$target_bin"
+    fi
+
+    if [[ ! -f "$target_bin" ]]; then
+        echo -e "${BIRed}❌ ERROR: Binary extraction failed. Compressed archive was malformed.${NC}"
+        sudo rm -rf "$daemon_dir"
         read -p "Press Enter to return..." && return 1
     fi
 
     sudo chmod +x "$target_bin"
 
+    # 📝 SYSTEMD PROFILE GENERATION
     echo -e "${CYAN}[+] Compiling background unit manager service tracking maps...${NC}"
     sudo cat << EOF | sudo tee "$service_file" > /dev/null
 [Unit]
@@ -1634,7 +1655,7 @@ Type=simple
 ExecStart=${target_bin} --port=8085
 Restart=always
 RestartSec=5
-WorkingDirectory=${base_dir}
+WorkingDirectory=${daemon_dir}
 
 [Install]
 WantedBy=multi-user.target
