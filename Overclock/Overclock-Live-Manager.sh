@@ -1586,7 +1586,6 @@ view_vram_temperatures() {
 install_bc250_telemetry_daemon() {
     clear
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
-    # 🎯 FIX 1: Move target paths out of conflict with your existing local directories
     local daemon_dir="${base_dir}/bc250-telemetry-daemon"
     local target_bin="${daemon_dir}/bc250-telemetry"
     local service_file="/etc/systemd/system/bc250-telemetry.service"
@@ -1608,39 +1607,25 @@ install_bc250_telemetry_daemon() {
         sleep 1.5; return 0
     fi
 
-    # 🧼 FIX 2: Force clean any directory roadblocks recursively so rm never throws blocks again
+    # Clean out any old broken configurations recursively
     sudo systemctl disable --now bc250-telemetry.service &>/dev/null || true
     sudo rm -f "$service_file"
     sudo rm -rf "$daemon_dir"
     sudo mkdir -p "$daemon_dir"
 
-    echo -e "\n${YELLOW}[⚙] Retrieving compressed distribution assets from verified release track...${NC}"
+    echo -e "\n${YELLOW}[⚙] Downloading pre-compiled static binary directly from repository...${NC}"
     
-    # 🎯 FIX 3: Fully operational, case-corrected distribution URL
-    sudo curl -L -o "${daemon_dir}/bc250-telemetry.tar.gz" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" >> "$LOG_FILE" 2>&1
+    # 🎯 THE FIX: Fetch the actual compiled executable directly, bypassing tar extractions entirely
+    sudo curl -L -o "$target_bin" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" >> "$LOG_FILE" 2>&1
     
-    # Verify file integrity and ensure it is a real archive before decompressing
-    if [[ ! -s "${daemon_dir}/bc250-telemetry.tar.gz" ]]; then
-        echo -e "${BIRed}❌ ERROR: Network download interface failed or repository asset path is dead.${NC}"
+    # Verify file was downloaded and is not an empty error file
+    if [[ ! -s "$target_bin" || $(stat -c%s "$target_bin") -le 1000 ]]; then
+        echo -e "${BIRed}❌ ERROR: Network download failed. The compiled binary path could not be reached.${NC}"
         sudo rm -rf "$daemon_dir"
         read -p "Press Enter to return..." && return 1
     fi
 
-    # Extract cleanly directly into our fresh directory space
-    sudo tar -xzf "${daemon_dir}/bc250-telemetry.tar.gz" -C "$daemon_dir" 2>/dev/null
-    sudo rm -f "${daemon_dir}/bc250-telemetry.tar.gz"
-    
-    # If the binary extracted inside a nested folder, pull it up to the root daemon path
-    if [[ -f "${daemon_dir}/bc250-telemetry/bc250-telemetry" ]]; then
-        sudo mv "${daemon_dir}/bc250-telemetry/bc250-telemetry" "$target_bin"
-    fi
-
-    if [[ ! -f "$target_bin" ]]; then
-        echo -e "${BIRed}❌ ERROR: Binary extraction failed. Compressed archive was malformed.${NC}"
-        sudo rm -rf "$daemon_dir"
-        read -p "Press Enter to return..." && return 1
-    fi
-
+    # Mark the binary as executable natively
     sudo chmod +x "$target_bin"
 
     # 📝 SYSTEMD PROFILE GENERATION
@@ -1672,7 +1657,7 @@ EOF
         echo -e "    👉 Open Web Console: ${GREEN}http://localhost:8085${NC} or ${GREEN}http://$(hostname -I | awk '{print $1}'):8085${NC}"
     else
         echo -e "\n${BIRed}❌ WARNING: Service launched but terminated early. Hardware check required!${NC}"
-        echo -e "             Review the 'hardware.md' requirements file regarding your jump wire pins.${NC}"
+        echo -e "             Review the 'hardware.md' requirements file regarding your jump wire pins."
     fi
 
     play_success_chime
