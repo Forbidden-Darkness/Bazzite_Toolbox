@@ -350,7 +350,6 @@ configure_governor_profile() {
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "  ${CYAN}╔═ Dynamic Telemetry Scanner ═════════════════════════════════════════════════════════════════╗${NC}"
-
     local detected_cus=24
     if [[ -f /etc/bc250-cu-live-manager.conf ]]; then
         local raw_masks
@@ -374,12 +373,12 @@ configure_governor_profile() {
     local live_threads=$(nproc 2>/dev/null || echo "12")
     local detected_cores=$(( live_threads / 2 ))
 
+    echo -e "  ${CYAN}╔═ Dynamic Telemetry Scanner ═════════════════════════════════════════════════════════════════╗${RESET}"
     echo -e "  ${CYAN}║${NC}   ${BOLD}${GREEN}✔ ACTIVE HARDWARE IDENTIFIED:${NC} ${detected_cus}/40 Compute Units  │  ${detected_cores} CPU Cores / ${live_threads} Threads            ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 
     echo -e "  ${CYAN}╔═ HARDWARE AUDIT: COOLING SYSTEM AND ENVIRONMENT ════════════════════════════════════════════╗${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Red, Choice 2 in Green, Choice 3 in Yellow
     echo -e "   ${RED}1)${NC} Stock Air Cooler  │  ${GREEN}2)${NC} Premium Aftermarket Air  │  ${YELLOW}3)${NC} Liquid Cooled Core"
     echo -n "  Enter cooling profile option [1-3]: "
     local cooling_choice; read -r cooling_choice
@@ -389,17 +388,15 @@ configure_governor_profile() {
         3) THROTTLE_TEMP=65; RECOVERY_TEMP=58; COOLING_LABEL="Liquid Cooled Core";;
         *) THROTTLE_TEMP=83; RECOVERY_TEMP=75; COOLING_LABEL="Stock Air (Optimized)";;
     esac
-    # 🚀 SMART INTERFACE DETECTOR: Dynamically manages DBus based on launch style to fix the Resume Mode bug
+
     echo -e "\n  ${CYAN}╔═ SYSTEM INTERFACE AUDIT: BAZZITE EXECUTION ENVIRONMENT ═════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Are you primarily running this system inside Steam Gaming Mode (Big Picture interface)?    ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎯 FIX: Split echo -ne from the read trap to cleanly force color translation on the same line [1]
     echo -ne "  Booting into Steam Gaming Mode interface? (${GREEN}y${NC}/${RED}N${NC}): "
     local is_gaming_mode; read -r is_gaming_mode
     local dbus_state="true"
     if [[ "$is_gaming_mode" =~ ^[Yy]$ ]]; then dbus_state="false"; fi
 
-    # 📋 AUDIT NO. 2: POWER BUDGET
     echo -e "  ${CYAN}╔═ [2/5] HARDWARE AUDIT: POWER INFRASTRUCTURE overhead ═══════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Enter your physical Power Supply Unit (PSU) maximum continuous wattage rating:             ${CYAN}║${NC}"
     echo -e "  ${CYAN}╠═════════════════════════════════════════════════════════════════════════════════════════════╣${NC}"
@@ -408,33 +405,26 @@ configure_governor_profile() {
     echo ""
     local psu_wattage; read -p "  PSU Wattage Rating (e.g., 300, 450, 500): " psu_wattage
     [[ "$psu_wattage" =~ ^[0-9]+$ ]] || psu_wattage=300
-
-    # 📋 AUDIT NO. 3: FUTURE TARGET COMPUTE UNITS
     echo -e "\n  ${CYAN}╔═ [3/5] HARDWARE AUDIT: GRAPHICS COMPUTE UNIT PROFILES ══════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cus}/40 Compute Units (CUs) currently active on this core.         ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Red, Choice 2 in Green, Choice 3 in Yellow
     echo -e "   ${RED}1)${NC} Target 36 CUs Active  │  ${GREEN}2)${NC} Target 38 CUs Active  │  ${YELLOW}3)${NC} Target 40 CUs Active"
     echo -n "  Select target CU configuration profile [1-3]: "
     local cu_choice; read -r cu_choice
     local ACTIVE_CUS=38
     case "$cu_choice" in 1) ACTIVE_CUS=36;; 2) ACTIVE_CUS=38;; 3) ACTIVE_CUS=40;; esac
 
-    # 📋 AUDIT NO. 4: FUTURE TARGET CPU CORES
     echo -e "\n  ${CYAN}╔═ [4/5] HARDWARE AUDIT: CPU CORE COMPLEX ALLOCATION ═════════════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}║${NC}  Live scanner path reports ${detected_cores} CPU Cores / ${live_threads} Threads active on this node.               ${CYAN}║${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Green, Choice 2 in Yellow
     echo -e "   ${GREEN}1)${NC} Target 6 Cores / 12 Threads (Balanced)  │  ${YELLOW}2)${NC} Target 8 Cores / 16 Threads (Maximum)"
     echo -n "  Select target CPU core complex [1-2]: "
     local core_choice; read -r core_choice
     local ACTIVE_CORES=8 local INTERVAL_SAMPLE=4000
     case "$core_choice" in 1) ACTIVE_CORES=6; INTERVAL_SAMPLE=6000;; *) ACTIVE_CORES=8; INTERVAL_SAMPLE=4000;; esac
 
-    # 📋 SYSTEM TARGET TUNING LEVEL SELECTION
     echo -e "\n  ${CYAN}╔═ [5/5] HARDWARE AUDIT: SYSTEM TUNING OPTIMIZATION PROFILE ══════════════════════════════════╗${NC}"
     echo -e "  ${CYAN}╚═════════════════════════════════════════════════════════════════════════════════════════════╝${NC}"
-    # 🎨 Visual Color Anchors: Choice 1 in Green, Choice 2 in Cyan, Choice 3 in Red
     echo -e "   ${GREEN}1)${NC} Normal Computer Use  │  ${CYAN}2)${NC} Standard Gaming (1800MHz)  │  ${RED}3)${NC} Heavy Overclocking (2150MHz)"
     echo -n "  Select tuning profile [1-3]: "
     local tuning_choice; read -r tuning_choice
@@ -446,7 +436,6 @@ configure_governor_profile() {
         *) tuning_choice=1;;
     esac
 
-    # Power Safety Lockouts
     if (( psu_wattage < 400 )); then
         PROFILE_LABEL="NORMAL USE (FORCED_CLAMP)"; FREQ_MAX=1400; VOLT_MAX=780; tuning_choice=1
     elif (( psu_wattage < 500 )) && [ "$tuning_choice" -eq 3 ]; then
@@ -457,7 +446,6 @@ configure_governor_profile() {
     sudo mkdir -p /etc/cyan-skillfish-governor-smu 2>/dev/null
     [[ -f "$TARGET_CONF" ]] && sudo cp "$TARGET_CONF" "${TARGET_CONF}.bak_$(date +%Y%m%d_%H%M%S)" 2>/dev/null
 
-    # Write Master Template
     sudo bash -c "cat <<EOF > $TARGET_CONF
 # ==============================================================================
 # PROFILE TEMPLATE LAYOUT: $PROFILE_LABEL
@@ -587,6 +575,7 @@ EOF"
     echo -e "  ${YELLOW}[⚙] Cycling changes into live governor service memory...${NC}"
     sudo systemctl daemon-reload 2>/dev/null || true
     sudo systemctl restart cyan-skillfish-governor-smu 2>/dev/null || true
+    (play_success_chime &>/dev/null &)
     echo -e "  ${GREEN}[✓] Task complete! Active system profiles locked into memory space cleanly.${NC}\n"
     read -rp "  Press [Enter] to exit back to the main menu..."
 }
@@ -832,6 +821,7 @@ launch_tuning_menu() {
         esac
     done
 }
+
 prompt_reboot() {
     echo ""
     echo -e "${YELLOW}==================================================${NC}"
