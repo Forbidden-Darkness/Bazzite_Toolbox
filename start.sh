@@ -4297,8 +4297,8 @@ show_menu() {
         # --- SECTION 1: STORAGE & INITIAL MEMORY CONFIG ---
         echo -e "  ${BOLD}${MAGENTA}WARNING: Final confirmation gate. Proceeding will lock in configuration changes.${RESET}"
         echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-        echo -e "    ${CYAN}[1]${RESET} ${B_BLUE}BLUE  ●${CYAN} 16GB Swapfile Mapping   ${DIM}(Recommended for smaller NVMe setups)${RESET}"
-        echo -e "    ${CYAN}[2]${RESET} ${RED}RED   ●${CYAN} 32GB Swapfile Mapping   ${DIM}(Recommended for high-capacity NVMe)${RESET}"
+        echo -e "    ${CYAN}[01]${RESET} ${B_BLUE}BLUE  ●${CYAN} 16GB Swapfile Mapping   ${DIM}(Recommended for smaller NVMe setups)${RESET}"
+        echo -e "    ${CYAN}[02]${RESET} ${RED}RED   ●${CYAN} 32GB Swapfile Mapping   ${DIM}(Recommended for high-capacity NVMe)${RESET}"
         echo ""
 
                 # --- AUTOMATED SETUP OVERVIEW PANEL ---
@@ -4337,10 +4337,10 @@ show_menu() {
         echo -e "  ${BOLD}${YELLOW}Hardware Unlocks & Core Optimizations${RESET}"
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
         # Column 1 (Numbers 3, 5, 7)               │ Column 2 (Numbers 4, 6)
-        echo -e "    ${CYAN}[3] ACPI Table Fix${RESET}  ${DIM}(Install/Uni)${RESET}     ${CYAN}[4] Dynamic VRAM Extender${RESET} ${DIM}Unlock 14.75GB UMA ceiling allocations${RESET}"
-        echo -e "    ${CYAN}[5] CPU OC & CU Suite${RESET} ${DIM}(Live SMU)${RESET}      ${CYAN}[6] Wake-on-LAN${RESET}     ${DIM}(Port Selector)${RESET}"
-        echo -e "    ${CYAN}[7] GFX1013 / FSR 4.1.1${RESET} ${DIM}(Smart Suite)${RESET} ${CYAN}[8] Memory Interleave Balancer${RESET} ${DIM}Distribute RAM channels evenly${RESET}"
-        echo -e "    ${CYAN}[9] RAM/VRAM Split${RESET}  ${DIM}(Dynamic Split)${RESET}   ${CYAN}[10] Resolve Localized Paths${RESET}  ${DIM}Configure global XDG directory metrics${RESET}"
+        echo -e "    ${CYAN}[03] ACPI Table Fix${RESET}  ${DIM}(Install/Uni)${RESET}     ${CYAN}[04] Dynamic VRAM Extender${RESET} ${DIM}Unlock 14.75GB UMA ceiling allocations${RESET}"
+        echo -e "    ${CYAN}[05] CPU OC & CU Suite${RESET} ${DIM}(Live SMU)${RESET}      ${CYAN}[06] Wake-on-LAN${RESET}     ${DIM}(Port Selector)${RESET}"
+        echo -e "    ${CYAN}[07] GFX1013 / FSR 4.1.1${RESET} ${DIM}(Smart Suite)${RESET} ${CYAN}[08] Memory Interleave Balancer${RESET} ${DIM}Distribute RAM channels evenly${RESET}"
+        echo -e "    ${CYAN}[09] RAM/VRAM Split${RESET}  ${DIM}(Dynamic Split)${RESET}   ${CYAN}[10] Resolve Localized Paths${RESET}  ${DIM}Configure global XDG directory metrics${RESET}"
 
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
         # Column 1 (Letters M, P)                  │ Column 2 (Letters O, X)
@@ -4362,22 +4362,22 @@ show_menu() {
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
 
         # Safe Prompt Parser (Instant Typing Response Keystroke Engine)
-        type_prompt "  Select an option [0-8, A-I, M, O, P, R, S, X]: " 0.03
+        type_prompt "  Select an option [00-08, A-I, M, O, P, R, S, X]: " 0.03
 
         choice=""
         read -n 1 -s choice || true
         echo ""
 
         case "$choice" in
-            1) install_blue_pill ;;
-            2) install_red_pill ;;
-            3) toggle_acpi_fix ;;
-            4) apply_vram_optimization ;;
-            5) install_overclock ;;
-            6) install_wake_on_lan ;;
-            7) toggle_compute_queue_fix ;;
-            8) apply_gpu_power_shield ;;
-            9) toggle_ram_split ;;
+            01) install_blue_pill ;;
+            02) install_red_pill ;;
+            03) toggle_acpi_fix ;;
+            04) apply_vram_optimization ;;
+            05) install_overclock ;;
+            06) install_wake_on_lan ;;
+            07) toggle_compute_queue_fix ;;
+            08) apply_gpu_power_shield ;;
+            09) toggle_ram_split ;;
             10) resolve_safe_system_paths ;;
             11) deploy_nct6687_source_layer ;;
 
@@ -4449,7 +4449,7 @@ show_menu() {
             t|T) toggle_ds5_bridge_fix ;;
             x|X) toggle_xbox_adapter ;;
             "") stop_background_music ;;
-            0)
+            00)
                 secure_system_exit
                 ;;
             *)
