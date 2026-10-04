@@ -1588,8 +1588,6 @@ install_bc250_telemetry_daemon() {
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
     local daemon_dir="${base_dir}/bc250-telemetry-daemon"
     local service_file="/etc/systemd/system/bc250-telemetry.service"
-    
-    # 🎯 THE FIX: Store binary inside an executable system path block to bypass noexec blocks
     local target_bin="/usr/local/bin/bc250-telemetry"
 
     echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
@@ -1609,27 +1607,43 @@ install_bc250_telemetry_daemon() {
         sleep 1.5; return 0
     fi
 
-    # Clean out any old broken configurations and target directory paths recursively
+    # Clean out any old broken configurations recursively
     sudo systemctl disable --now bc250-telemetry.service &>/dev/null || true
     sudo rm -f "$service_file" "$target_bin"
     sudo rm -rf "$daemon_dir"
     sudo mkdir -p "$daemon_dir"
 
-    echo -e "\n${YELLOW}[⚙] Downloading pre-compiled static binary straight to system bin layers...${NC}"
+    echo -e "\n${YELLOW}[⚙] Retrieving compiled Linux release architecture from repository tracks...${NC}"
     
-    # Secure binary acquisition path directly to the native executable node tree
-    sudo curl -L -o "$target_bin" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" >> "$LOG_FILE" 2>&1
+    # 🎯 THE FIX: Fetch the actual compiled release asset archive
+    sudo curl -L -o "${daemon_dir}/telemetry.tar.gz" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" >> "$LOG_FILE" 2>&1
     
-    if [[ ! -s "$target_bin" || $(stat -c%s "$target_bin") -le 1000 ]]; then
-        echo -e "${BIRed}❌ ERROR: Network download failed. The compiled binary path could not be reached.${NC}"
-        sudo rm -f "$target_bin"
+    if [[ ! -s "${daemon_dir}/telemetry.tar.gz" ]]; then
+        echo -e "${BIRed}❌ ERROR: Network download failed. The release track could not be reached.${NC}"
+        sudo rm -rf "$daemon_dir"
+        read -p "Press Enter to return..." && return 1
+    fi
+
+    # 🎯 THE FIX: Unpack the archive cleanly to isolate the real compiled binary file
+    sudo tar -xzf "${daemon_dir}/telemetry.tar.gz" -C "$daemon_dir" 2>/dev/null
+    sudo rm -f "${daemon_dir}/telemetry.tar.gz"
+
+    # Move the actual executable binary up out of the extracted directory into system bin space
+    if [[ -f "${daemon_dir}/bc250-telemetry" ]]; then
+        sudo mv "${daemon_dir}/bc250-telemetry" "$target_bin"
+    elif [[ -f "${daemon_dir}/bin/bc250-telemetry" ]]; then
+        sudo mv "${daemon_dir}/bin/bc250-telemetry" "$target_bin"
+    fi
+
+    if [[ ! -f "$target_bin" ]]; then
+        echo -e "${BIRed}❌ ERROR: Binary extraction failed. The pre-compiled executable was missing from the archive.${NC}"
         sudo rm -rf "$daemon_dir"
         read -p "Press Enter to return..." && return 1
     fi
 
     sudo chmod +x "$target_bin"
 
-    # 📝 SYSTEMD PROFILE GENERATION: Keeps working context logs locally inside your repository folder
+    # 📝 SYSTEMD PROFILE GENERATION
     echo -e "${CYAN}[+] Compiling background unit manager service tracking maps...${NC}"
     sudo cat << EOF | sudo tee "$service_file" > /dev/null
 [Unit]
