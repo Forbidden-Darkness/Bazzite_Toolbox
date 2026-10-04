@@ -973,21 +973,64 @@ run_manager_phase2() {
     chmod +x bc250-cu-live-manager.sh
     sudo ./bc250-cu-live-manager.sh
 }
+
+# ==============================================================================
+# SUBROUTINE: PRODUCTION-READY CPU OVERCLOCK COMPLETE ROLLBACK UTILITY (PART 1)
+# ==============================================================================
 uninstall_cpu_overclock() {
-    log "${RED}[Uninstall] Initializing CPU Overclock rollback suite...${NC}"
-    sudo systemctl disable --now bc250-smu-oc.service >> "$LOG_FILE" 2>&1 || true
-    sudo systemctl disable --now bc250-resume.service >> "$LOG_FILE" 2>&1 || true
-    sudo rm -f /etc/systemd/system/bc250-smu-oc.service
-    sudo rm -f "$SERVICE_FILE"
-    sudo rm -f /usr/local/bin/bc250-detect
-    sudo rm -f /usr/local/bin/bc250-apply
-    sudo rm -rf /opt/bc250_smu_tools
-    sudo rm -rf /tmp/bc250_smu_oc
-    sudo rpm-ostree kargs --delete=mitigations=off >> "$LOG_FILE" 2>&1
-    sudo rpm-ostree uninstall stress python3-devel >> "$LOG_FILE" 2>&1
-    sudo systemctl daemon-reload
-    play_success_chime
-    prompt_reboot
+    # 🧠 PRE-REMOVAL SECURITY GATES: Hard-locks execution passes until verified text is captured
+    echo -e "\n${BIRed}[⚠️] CRITICAL NOTICE: You are about to completely wipe the CPU Overclock Suite.${NC}"
+    echo -e "    This will strip all systemd service profiles, smu tools, and mitigation bypasses."
+    echo -e "    To proceed with the permanent removal, please type ${YELLOW}accept${NC} or ${YELLOW}ACCEPT${NC}."
+    type_prompt "👉 Verification Command Input: " 0.03
+    local confirm_uninstall; read -r confirm_uninstall
+
+    if [[ "$confirm_uninstall" == "accept" || "$confirm_uninstall" == "ACCEPT" ]]; then
+        # 🔓 GATE PASSED: Proceed natively to file structure demolition and service purging
+        log "${RED}[Uninstall] Initializing CPU Overclock rollback suite...${NC}"
+        
+        sudo systemctl disable --now bc250-smu-oc.service >> "$LOG_FILE" 2>&1 || true
+        sudo systemctl disable --now bc250-resume.service >> "$LOG_FILE" 2>&1 || true
+        sudo rm -f /etc/systemd/system/bc250-smu-oc.service
+        sudo rm -f "$SERVICE_FILE"
+        sudo rm -f /usr/local/bin/bc250-detect
+        sudo rm -f /usr/local/bin/bc250-apply
+        sudo rm -rf /opt/bc250_smu_tools
+        sudo rm -rf /tmp/bc250_smu_oc
+        # 🚀 CLEAN INSTRUCTION PIPE: Reverts security mitigations and drops testing packages
+        echo -e "${CYAN}[⚙] Dispatching atomic package and mitigation rollback transaction...${NC}"
+        
+        sudo rpm-ostree kargs --delete=mitigations=off >> "$LOG_FILE" 2>&1 &
+        sudo rpm-ostree uninstall stress python3-devel >> "$LOG_FILE" 2>&1 &
+        local transaction_pid=$!
+        local spinner=( '⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏' )
+
+        while kill -0 "$transaction_pid" 2>/dev/null; do
+            for frame in "${spinner[@]}"; do
+                echo -ne "\r  \033[0;36m[$frame] Re-building atomic deployment records cleanly...${NC}"
+                sleep 0.08
+            done
+        done
+        echo -ne "\r                                                                         \r"
+        wait "$transaction_pid"
+        sudo systemctl daemon-reload
+
+        # 🎉 COMPLETION SECTOR: Audio feedback triggers alongside your custom reboot prompts
+        echo -e "\n${BIGreen}[✓] SUCCESS: CPU Overclock Suite has been completely scrubbed from the system!${NC}"
+        play_success_chime
+        
+        type_prompt "❓ Would you like to execute a system cold reset right now? (y/N): " 0.03
+        local reboot_choice; read -r reboot_choice
+        if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}[!] Sending ACPI Cold Reset signal... re-mounting hardware rails...${NC}"
+            sync && sleep 1 && reboot
+        fi
+    else
+        # 🔒 GATE BLOCKED: User didn't type accept, keep system completely untouched
+        echo -e "\n${BIRed}[-] Verification failed or bypassed. Aborting removal suite pass. System state preserved.${NC}"
+        type_prompt "    Press Enter to return to the toolkit menu..." 0.03
+        read -r
+    fi
 }
 
 # ==============================================================================
@@ -1561,7 +1604,7 @@ while true; do
                 sleep 0.5
                 exec bash "$SCRIPT_PATH" "$@"
                 ;;
-        3a|3A) uninstall_cpu_profiles ;;
+        3a|3A) uninstall_cpu_overclock ;;
         3b|3B) uninstall_cu_live_manager ;;
         4) run_stability_sweep ;;
         5) view_core_live_manager ;;        
