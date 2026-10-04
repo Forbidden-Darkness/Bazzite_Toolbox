@@ -1,4 +1,22 @@
 #!/usr/bin/env bash
+
+# Main logic
+if [[ -z "$DETACHED_LAUNCH_PASS" ]]; then
+    export DETACHED_LAUNCH_PASS=1
+    sleep 0.5
+
+    # Launch in a new Konsole tab (change to your terminal if needed)
+    if command -v konsole >/dev/null; then
+        konsole --new-tab -e "$0" "$@" &>/dev/null &
+    else
+        echo "Error: konsole not found. Please install it or change the terminal command."
+        exit 1
+    fi
+
+    kill_parent_terminal
+    exit 0
+fi
+
 # ==============================================================================
 # 🏛️ GROUP 1: CORE SYSTEM ENVIRONMENT, ANCHOR VARIABLES & SETUP CONTEXTS
 # ==============================================================================
@@ -36,12 +54,51 @@ REAL_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 EXTERNAL_DIR="$REAL_HOME/Applications/Bazzite_Toolbox"
 CORE_UNLOCK_CONF="/etc/bc250-core-unlock.conf"
 LOG_FILE="/var/log/bc250_oc_install.log"
-AUDIO_FILE="$EXTERNAL_DIR/Wake_on_LAN/Red-Pill-Blue-Pill.wav"
 MUSIC_LOCK_FILE="$REAL_HOME/.bc250-toolkit-music.pid"
+base_dir=$(dirname "$(readlink -f "$0")")
+ICON_FILE="${base_dir}/matrix.ico"
+# 🧼 AUTO-REPAIR SENSOR: Instantly purges the broken 404 text file if it exists
+if [[ -f "$ICON_FILE" ]]; then
+    if grep -q "404: Not Found" "$ICON_FILE" 2>/dev/null || [[ ! -s "$ICON_FILE" ]]; then
+        sudo rm -f "$ICON_FILE" 2>/dev/null
+    fi
+fi
+
+# 🎯 THE FIX: Forcefully fetches the true asset if missing or broken
+if [[ ! -f "$ICON_FILE" ]]; then
+    # Pulls straight from your master raw branch tracks cleanly
+    sudo curl -sSL -H "Cache-Control: no-cache" -o "$ICON_FILE" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/matrix.ico" >> "$LOG_FILE" 2>&1
+    sudo chown "$REAL_USER":"$REAL_USER" "$ICON_FILE" 2>/dev/null || true
+fi
+
 # ==============================================================================
-# 🎵 GROUP 2: BACKGROUND AUDIO PIPELINE ENGINES & NOTIFICATION CHIMES
+# SUBROUTINE: INTERACTIVE BACKGROUND MUSIC ENGINE WITH SEAMLESS AUDIO DOWNLOAD
 # ==============================================================================
 start_background_music() {
+    local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
+    AUDIO_FILE="${base_dir}/Red-Pill-Blue-Pill.wav"
+    MUSIC_LOCK_FILE="/tmp/bc250_music.lock"
+
+    # 🎯 SELF-HEALING ASSET GATE: If the audio track is missing, pull it down cleanly
+    if [[ ! -f "$AUDIO_FILE" ]]; then
+        echo -e "${YELLOW}[⚙] Initializing audio ambiance tracks... Downloading wave properties...${NC}"
+
+        # Pulls the raw binary audio track cleanly from your repository branch paths
+        sudo curl -sSL -o "$AUDIO_FILE" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Wake_on_LAN/Red-Pill-Blue-Pill.wav" >> "$LOG_FILE" 2>&1
+
+
+        if [[ ! -f "$AUDIO_FILE" || ! -s "$AUDIO_FILE" ]]; then
+            echo -e "${BIRed}❌ WARNING: Audio download interface dropped. Running toolkit silently...${NC}"
+            sudo rm -f "$AUDIO_FILE" 2>/dev/null
+            return 1
+        fi
+
+        # Sync ownership properties back to the local user account layers
+        sudo chown "$REAL_USER":"$REAL_USER" "$AUDIO_FILE" 2>/dev/null || true
+        echo -e "${BIGreen}[✓] Audio synchronization finalized.${NC}\n"
+        sleep 0.5
+    fi
+
     if [[ -f "$AUDIO_FILE" ]] && [[ ! -f "$MUSIC_LOCK_FILE" ]]; then
         local user_id; user_id=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
 
@@ -959,7 +1016,7 @@ migrate_legacy_install_path
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
-local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 # 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
@@ -2568,6 +2625,7 @@ toggle_compute_queue_fix() {
         echo ""
         echo -e "  ${CYAN}2) FSR 4.1.1 Smart Suite    ${RESET}  ${DIM}Toggle GFX1013 FSR 4.1.1 Vector RC11 PROD Engine${RESET}"
         echo -e "  ${CYAN}3) Strip Legacy FSR4 payload files & purge configuration states${RESET}  ${DIM}Completely remove upscaler binaries and reset game directories to factory defaults${RESET}"
+        echo ""
         echo -e "  ${CYAN}4) Install / Update Standalone Developer AppImages ${DIM}(OptiScaler / DS5 Bridge / Goverlay)${RESET}"
         echo -e "  ${CYAN}5) Deploy / Manage OptiScaler Interactive Client ${DIM}(ZIP Archive Bundle)${RESET}"
         echo ""
@@ -4315,6 +4373,7 @@ show_menu() {
                 ;;
             t|T) toggle_ds5_bridge_fix ;;
             x|X) toggle_xbox_adapter ;;
+            "") stop_background_music ;;
             0)
                 secure_system_exit
                 ;;
