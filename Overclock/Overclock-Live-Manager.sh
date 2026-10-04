@@ -1528,11 +1528,9 @@ repair_boot_splash_only() {
 # ==============================================================================
 view_vram_temperatures() {
     clear
-    # 🎯 THE PORTABILITY FIX: Changes path lookup from $HOME to your exact script directory row
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
     local py_script="${base_dir}/bc250_mem_temp.py"
     
-    # 🛡️ VERIFICATION PASS: Safety check to guarantee file presence before loop init
     if [[ ! -f "$py_script" ]]; then
         echo -e "${BIRed}❌ ERROR: Missing target dependency wrapper script row.${NC}"
         echo -e "          Please ensure the Python script is saved to: ${YELLOW}${py_script}${NC}"
@@ -1546,7 +1544,6 @@ view_vram_temperatures() {
     echo -e "  ${BOLD}${YELLOW}Active Hardware Real-Time Sensor Grid:${RESET}"
     echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
 
-    # Execute Python background mapper thread and isolate standard exit string codes
     local raw_output; raw_output=$(python3 "$py_script" 2>/dev/null)
     local exit_code=$?
 
@@ -1563,7 +1560,6 @@ view_vram_temperatures() {
         read -p "Press Enter to return..." && return 1
     fi
 
-    # 📊 TELEMETRY CHART MATRIX: Parsed line arrays output color-coded structural heat index bounds
     IFS='|' read -r tA tB tC tD <<< "$raw_output"
     
     format_temp_color() {
@@ -1572,17 +1568,6 @@ view_vram_temperatures() {
         elif (( val >= 75 )); then echo -e "${YELLOW}${val}°C ⚠️ [WARN]${NC}"
         else echo -e "${GREEN}${val}°C [OPTIMAL]${NC}"; fi
     }
-
-    echo -e "    Memory Controller Channel A Thermals : $(format_temp_color "$tA")"
-    echo -e "    Memory Controller Channel B Thermals : $(format_temp_color "$tB")"
-    echo -e "    Memory Controller Channel C Thermals : $(format_temp_color "$tC")"
-    echo -e "    Memory Controller Channel D Thermals : $(format_temp_color "$tD")"
-    echo -e "  ${DIM}─────────────────────────────────────────────────────────────────────${RESET}"
-    echo -e "  ${DIM}Operating limits: Optimal <75°C | Maximum 85°C Tjmax limit throttling boundaries.${RESET}\n"
-    
-    type_prompt "👉 Press Enter to return cleanly to dashboard matrix loops..." 0.03
-    read -r
-}
 
     echo -e "    Memory Controller Channel A Thermals : $(format_temp_color "$tA")"
     echo -e "    Memory Controller Channel B Thermals : $(format_temp_color "$tB")"
@@ -1621,17 +1606,12 @@ install_bc250_telemetry_daemon() {
         sleep 1.5; return 0
     fi
 
-    # Clean historical broken runs if present in workspace paths
     sudo systemctl disable --now bc250-telemetry.service &>/dev/null || true
     sudo rm -f "$target_bin" "$service_file"
 
-    echo -e "\n${YELLOW}[⚙] Fetching standalone static binary from onlinermm repository tracks...${NC}"
-    
-    # ⚠️ MANUALLY HANDLING THE ARCHIVE DETACHMENT PASS:
     echo -e "\n${YELLOW}[⚙] Retrieving compressed distribution assets...${NC}"
     sudo curl -L -o "${base_dir}/bc250-telemetry.tar.gz" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" 2>/dev/null
     
-    # Extract the archive layers cleanly directly inside your active workspace path
     sudo tar -xzf "${base_dir}/bc250-telemetry.tar.gz" -C "$base_dir" 2>/dev/null
     sudo rm -f "${base_dir}/bc250-telemetry.tar.gz"
     
@@ -1643,7 +1623,6 @@ install_bc250_telemetry_daemon() {
 
     sudo chmod +x "$target_bin"
 
-    # 📝 SYSTEMD PROFILE GENERATION: Constructs an isolated background runner tracking lane
     echo -e "${CYAN}[+] Compiling background unit manager service tracking maps...${NC}"
     sudo cat << EOF | sudo tee "$service_file" > /dev/null
 [Unit]
@@ -1665,7 +1644,6 @@ EOF
     sudo systemctl daemon-reload
     sudo systemctl enable --now bc250-telemetry.service &>/dev/null
 
-    # Run a fast status validation pass to check if the hardware line threw a bus timeout
     sleep 0.8
     if systemctl is-active --quiet bc250-telemetry.service; then
         echo -e "\n${BIGreen}[✓] SUCCESS: Telemetry background daemon successfully armed and executing!${NC}"
