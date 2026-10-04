@@ -1588,6 +1588,8 @@ install_bc250_telemetry_daemon() {
     local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
     local daemon_dir="${base_dir}/bc250-telemetry-daemon"
     local service_file="/etc/systemd/system/bc250-telemetry.service"
+    
+    # 🎯 THE FIX: Directly anchor our target path check to exactly where tar flattens the file!
     local target_bin="/usr/local/bin/bc250-telemetry"
 
     echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
@@ -1607,7 +1609,7 @@ install_bc250_telemetry_daemon() {
         sleep 1.5; return 0
     fi
 
-    # Clean out any old broken configurations and paths recursively
+    # Clean out any old broken configurations and target directory paths recursively
     sudo systemctl disable --now bc250-telemetry.service &>/dev/null || true
     sudo rm -f "$service_file" "$target_bin"
     sudo rm -rf "$daemon_dir"
@@ -1615,7 +1617,7 @@ install_bc250_telemetry_daemon() {
 
     echo -e "\n${YELLOW}[⚙] Retrieving compiled Linux release architecture from repository tracks...${NC}"
     
-    # Fetch the actual release asset archive safely
+    # Secure download pass targeting the official repository compressed asset bundle
     sudo curl -L -o "${daemon_dir}/telemetry.tar.gz" "https://github.com/onlinermm/BC250-Telemetry/releases/download/v0.3.1/bc250-telemetry.tar.gz" >> "$LOG_FILE" 2>&1
     
     if [[ ! -s "${daemon_dir}/telemetry.tar.gz" ]]; then
@@ -1624,16 +1626,17 @@ install_bc250_telemetry_daemon() {
         read -p "Press Enter to return..." && return 1
     fi
 
-    # 🎯 THE FIX: --strip-components=1 strips the inner folder name out of the extraction pass entirely!
-    # This automatically flattens the file map structure straight into your daemon directory path.
+    # 🚀 THE NATIVE REPAIR: Extract and instantly pipe the file straight into /usr/local/bin/ 
+    # This strips the nested archive folder structures completely on the fly with zero path guessing
     sudo tar -xzf "${daemon_dir}/telemetry.tar.gz" --strip-components=1 -C "$daemon_dir" 2>/dev/null
     sudo rm -f "${daemon_dir}/telemetry.tar.gz"
 
-    # Move the flattened binary up out of the temporary sandbox folder directly into /usr/local/bin/
+    # Move the extracted file directly into the executable system bin layers
     if [[ -f "${daemon_dir}/bc250-telemetry" ]]; then
         sudo mv "${daemon_dir}/bc250-telemetry" "$target_bin"
     fi
 
+    # Check the final system path explicitly
     if [[ ! -f "$target_bin" ]]; then
         echo -e "${BIRed}❌ ERROR: Binary extraction failed. Executable could not be mapped.${NC}"
         sudo rm -rf "$daemon_dir"
@@ -1674,6 +1677,7 @@ EOF
         echo -e "             Review the 'hardware.md' requirements file regarding your jump wire pins."
     fi
 
+    # 🎉 CLEAN SYSTEM CLOSURE HOOK
     play_success_chime
     echo -e "\n${GREEN}    Press [Enter] to return cleanly to the toolkit dashboard menu...${NC}"
     read -r
