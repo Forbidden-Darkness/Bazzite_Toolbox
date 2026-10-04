@@ -1061,7 +1061,7 @@ run_stability_sweep() {
         1) test_duration=15 ;;
         2) test_duration=60 ;;
         *) echo -e "\n${YELLOW}[-] Sweep sequence aborted cleanly. Disks remain pristine.${NC}"; sleep 1; return 0 ;;
-    caseEsac
+    esac
     # 🎯 AUTOMATED AFFINITY STEPPER: Loops sequentially through every online silicon thread channel
     local total_online_cores; total_online_cores=$(nproc --all 2>/dev/null || echo "16")
     echo -e "\n${YELLOW}[⚙] Commencing stability sweep across ${total_online_cores} active paths...${NC}"
