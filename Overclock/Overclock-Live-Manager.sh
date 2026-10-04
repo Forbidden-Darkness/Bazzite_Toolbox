@@ -1659,9 +1659,9 @@ EOF
         echo -e "\n${BIRed}❌ WARNING: Service launched but terminated early. Hardware check required!${NC}"
         echo -e "             Review the 'hardware.md' requirements file regarding your jump wire pins."
     fi
-
+     
     play_success_chime
-    type_prompt "\n    Press Enter to return cleanly to the toolkit dashboard menu..." 0.03
+    echo -e "\n${GREEN}    Press [Enter] to return cleanly to the toolkit dashboard menu...${NC}"
     read -r
 }
 
