@@ -64,13 +64,6 @@ if [[ -f "$ICON_FILE" ]]; then
     fi
 fi
 
-# 🎯 THE FIX: Forcefully fetches the true asset if missing or broken
-if [[ ! -f "$ICON_FILE" ]]; then
-    # Pulls straight from your master raw branch tracks cleanly
-    sudo curl -sSL -H "Cache-Control: no-cache" -o "$ICON_FILE" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/matrix.ico" >> "$LOG_FILE" 2>&1
-    sudo chown "$REAL_USER":"$REAL_USER" "$ICON_FILE" 2>/dev/null || true
-fi
-
 # ==============================================================================
 # SUBROUTINE: INTERACTIVE BACKGROUND MUSIC ENGINE WITH SEAMLESS AUDIO DOWNLOAD
 # ==============================================================================
@@ -841,6 +834,17 @@ run_status() {
     if [ -f "/etc/modprobe.d/increase_amd_memory.conf" ] || grep -q "ttm.pages_limit" /etc/default/grub 2>/dev/null; then vram_icon="$ICON_OK"; vram_color="$GREEN"; vram_label="ACTIVE (14.75GB Dynamic UMA allocation ceiling unlocked)"
     else vram_icon="$ICON_WARN"; vram_color="$DIM"; vram_label="CAPPED (Factory-throttled 7.4GB memory allocation limit)"; fi
     echo -e "  ${YELLOW}Dynamic VRAM${RESET}          ${vram_icon} ${vram_color}${vram_label}${RESET}"
+
+    local mglru_icon mglru_color mglru_label current_mglru
+    current_mru=$(cat /sys/kernel/mm/lru_gen/enabled 2>/dev/null || echo "0")
+    if [[ "$current_mru" == "0x0007" || "$current_mru" == "7" ]]; then
+        mglru_icon="$ICON_OK"; mglru_color="$GREEN"
+        mglru_label="[ ● AGGRESSIVE OPTIMIZATION ACTIVE ] — Low-latency scaling live."
+    else
+        mglru_icon="$ICON_WARN"; mglru_color="$DIM"
+        mglru_label="[ ○ CONSERVATIVE STOCK TRACKING ] — Reverted to default OS RAM boundaries."
+    fi
+    echo -e "  ${CYAN}MGLRU Latency Engine${RESET}  ${mglru_icon} ${mglru_color}${mglru_label}${RESET}"
 
     # 🧬 ENVIRONMENT OVERLAYS: Displays active MangoHud tracking and host breakout bus configurations [0.14]
     local hud_icon="$ICON_WARN" local hud_lbl="${YELLOW}Idle${RESET}"
@@ -3104,86 +3108,244 @@ apply_vram_optimization() {
 }
 
 # ==============================================================================
-# SUBROUTINE: CLONE, DKMS COMPILE, AND INJECT NCT6687 SENSOR EXTENSION MODULE
+# SUBROUTINE: HARDWARE HAL SYSTEM TEMPERATURE CALIBRATOR & READOUT ENGINE
+# ==============================================================================
+get_calibrated_cpu_temp() {
+    local target_hwmon=""
+    local cpu_temp="N/A"
+
+    # 🔍 SYSTEM PATH PROBE: Dynamically scans the system to locate the CPU sensor core
+    for hwmon in /sys/class/hwmon/hwmon*; do
+        if [[ -f "${hwmon}/name" ]]; then
+            local chip_name; chip_name=$(cat "${hwmon}/name" 2>/dev/null | tr -d '[:space:]')
+            # Locks onto the authentic AMD processor monitoring telemetry registry
+            if [[ "$chip_name" == "k10temp" || "$chip_name" == "zenpower" ]]; then
+                target_hwmon="$hwmon"
+                break
+            fi
+        fi
+    done
+
+    # Fallback gate targeting motherboard sensors if the core kernel tracks drop
+    if [[ -z "$target_hwmon" ]]; then
+        for hwmon in /sys/class/hwmon/hwmon*; do
+            if [[ -f "${hwmon}/name" ]]; then
+                local chip_name; chip_name=$(cat "${hwmon}/name" 2>/dev/null | tr -d '[:space:]')
+                if [[ "$chip_name" == "nct6687" || "$chip_name" == "nct6686" ]]; then
+                    target_hwmon="$hwmon"
+                    break
+                fi
+            fi
+        done
+    fi
+
+    # 📊 MATHEMATICAL CALIBRATION LAYER: Applies the missing firmware offset metrics
+    if [[ -n "$target_hwmon" && -f "${target_hwmon}/temp1_input" ]]; then
+        local raw_millidegrees; raw_millidegrees=$(cat "${target_hwmon}/temp1_input" 2>/dev/null || echo "0")
+        if (( raw_millidegrees > 0 )); then
+            local base_celsius=$(( raw_millidegrees / 1000 ))
+
+            # 🎯 THE CALIBRATION FIX: Changed to + 0 to align with native P3.00 hardware maps
+            local true_celsius=$(( base_celsius + 0 ))
+            cpu_temp="${true_celsius}°C"
+        fi
+    fi
+
+    echo "$cpu_temp"
+}
+
+# ==============================================================================
+# SUBROUTINE: HARDWARE HAL GPU TEMPERATURE TELEMETRY ENGINE
+# ==============================================================================
+get_gpu_temperature() {
+    local target_hwmon=""
+    local gpu_temp="N/A"
+
+    # 🔍 SYSTEM PATH PROBE: Dynamically locates the active AMDGPU telemetry node
+    for hwmon in /sys/class/hwmon/hwmon*; do
+        if [[ -f "${hwmon}/name" ]]; then
+            local chip_name; chip_name=$(cat "${hwmon}/name" 2>/dev/null | tr -d '[:space:]')
+            if [[ "$chip_name" == "amdgpu" ]]; then
+                target_hwmon="$hwmon"
+                break
+            fi
+        fi
+    done
+
+    # 📊 PARSE DATA TRACKS: Extracts the millidegrees integer string natively
+    if [[ -n "$target_hwmon" && -f "${target_hwmon}/temp1_input" ]]; then
+        local raw_millidegrees; raw_millidegrees=$(cat "${target_hwmon}/temp1_input" 2>/dev/null || echo "0")
+        if (( raw_millidegrees > 0 )); then
+            local base_celsius=$; base_celsius=$(( raw_millidegrees / 1000 ))
+            gpu_temp="${base_celsius}°C"
+        fi
+    fi
+
+    echo "$gpu_temp"
+}
+
+# ==============================================================================
+# SUBROUTINE: CLONE, COMPILE, AND LAYER NCT6687 OUT-OF-TREE DRIVER MODULE
 # ==============================================================================
 deploy_nct6687_source_layer() {
     clear
+    local base_dir; base_dir=$(dirname "$(readlink -f "$0")")
+    local dkms_lock="/run/bc250-control-center-fan.lock"
+    local nct_repo="https://github.com/Fred78290/nct6687d.git"
+    local nct_sandbox="/tmp/nct6687_build_sandbox"
+    local current_kernel; current_kernel=$(uname -r)
+    local target_mod_dir="/var/lib/bc250/modules/${current_kernel}"
+
     echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
-    echo -e "${DIM}│${RESET}               📟  AMD BC-250 NCT6687 DKMS Layer & Driver Deploy                    ${DIM}│${RESET}"
+    echo -e "${DIM}│${RESET}               📟  AMD BC-250 NCT6687 Out-of-Tree Driver Engine Deploy             ${DIM}│${RESET}"
     echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
     echo ""
-    echo -e "  ${BOLD}${YELLOW}⚠️  HARDWARE COMPILATION REQUISITE PASS:${RESET}"
-    echo -e "  This automation pulls the raw source code from Fred78290/nct6687d,"
-    echo -e "  compiles the module using DKMS to bypass atomic file system restrictions,"
-    echo -e "  blacklists the default read-only k10temp nct6683 driver, and regenerates"
-    echo -e "  your Bazzite (Fedora) Dracut initramfs image files securely."
+    echo -e "  ${BOLD}${YELLOW}⚠️  ATOMIC KERNEL ENVIRONMENT TRANSACTIONS:${RESET}"
+    echo -e "  This routine compiles the Nuvoton sensor interface directly from source,"
+    echo -e "  bypassing Bazzite read-only modules-layer flags by staging the compiled binary"
+    echo -e "  securely inside your write-accessible /var/ storage partition layers."
     echo ""
 
-    type_prompt "❓ Download and compile the NCT6687 hardware sensor driver via DKMS? (y/N): " 0.03
+    type_prompt "❓ Download, compile, and layer the NCT6687 driver module? (y/N): " 0.03
     local run_install; read -r run_install
     if [[ ! "$run_install" =~ ^[Yy]$ ]]; then
-        echo -e "\n${YELLOW}[-] Operation bypassed. Returning to main loop dashboard...${NC}"
+        echo -e "\n${YELLOW}[-] Setup bypassed. Returning to toolkit matrix loops...${NC}"
         sleep 1.2; return 0
     fi
 
-    # Clean out any old broken manual or temporary build sandboxes
-    sudo rm -rf /tmp/nct6687d
+    # 🧼 CLEANSE RESOURCE BLOCKADES: Safely clear out historical frozen cache environments
+    echo -e "\n${YELLOW}[⚙] Flushing stale repository transactions and database locks...${NC}"
+    sudo rm -rf "$nct_sandbox"
 
-    echo -e "\n${YELLOW}[⚙] Cloning repository source code from Fred78290/nct6687d...${NC}"
-    git clone https://github.com/Fred78290/nct6687d.git /tmp/nct6687d >> "$LOG_FILE" 2>&1
-    
-    if [ ! -d "/tmp/nct6687d" ]; then
-        echo -e "${BIRed}❌ ERROR: Network clone failed. GitHub repository is unreached.${NC}"
+    # 🛡️ SYSTEM LOCK BREAK: Safely suspend active monitoring threads to avoid collision crashes
+    if [[ -f "$dkms_lock" ]]; then
+        echo -e "${CYAN}[ℹ] Active hardware mutex lock caught. Suspending background monitor threads...${NC}"
+        sudo systemctl stop bc250-fan-control.service &>/dev/null || true
+    fi
+
+    # 📡 THE INTERNET LINK GATE: Forces the script to hold open until the network adapter is live!
+    echo -e "\n${YELLOW}[⚙] Verifying active network connection pipelines to GitHub servers...${NC}"
+    local connection_ready=false
+    for ((attempts=1; attempts<=15; attempts++)); do
+        if curl -s --connect-timeout 2 https://github.com >/dev/null; then
+            connection_ready=true
+            break
+        fi
+        echo -ne "\r  \033[0;33m[-] Waiting for system network adapters to initialize... (Attempt $attempts/15)${NC}"
+        sleep 1
+    done
+    echo -ne "\r                                                                         \r"
+
+    if [ "$connection_ready" = false ]; then
+        echo -e "${BIRed}❌ ERROR: Network timeout. GitHub is unreachable. Verify your internet connection.${NC}"
+        sudo systemctl start bc250-fan-control.service &>/dev/null || true
         read -p "Press Enter to return..." && return 1
     fi
 
-    cd /tmp/nct6687d || return 1
+    echo -e "${GREEN}[✓] Connection verified. Initializing repository deployment tracks...${NC}"
+    echo -e "${YELLOW}[⚙] Cloning repository source code from Fred78290/nct6687d...${NC}"
+    git clone "$nct_repo" "$nct_sandbox"
 
-    # Verify if DKMS packages are layered on the host before continuing
-    if ! command -v dkms &>/dev/null; then
-        echo -e "${YELLOW}[ℹ] DKMS tool arrays missing. Layering tracking package...${NC}"
-        sudo rpm-ostree install --idempotent --allow-inactive dkms >> "$LOG_FILE" 2>&1
-        if ! command -v dkms &>/dev/null; then
-            echo -e "${BIRed}❌ ERROR: System failed to layer DKMS component. Reboot required.${NC}"
-            read -p "Press Enter to return..." && return 1
-        fi
+    if [ ! -d "$nct_sandbox" ] || [ ! -f "$nct_sandbox/Makefile" ]; then
+        echo -e "\n${BIRed}❌ ERROR: Binary workspace extraction failed. Git tree could not be mapped.${NC}"
+        sudo systemctl start bc250-fan-control.service &>/dev/null || true
+        read -p "Press Enter to return..." && return 1
     fi
 
-    echo -e "${CYAN}[⚙] Handing module over to DKMS compilation pipelines...${NC}"
-    # 🎯 THE IMMUTABILITY FIX: Uses the repository's native DKMS framework to safely register the module
-    sudo make dkms/install >> "$LOG_FILE" 2>&1
+    chown -R "$REAL_USER":"$REAL_USER" "$nct_sandbox" 2>/dev/null || true
 
-    # 📝 SECTOR MODPROBE AND CONFIGURATION HOOKS
-    echo -e "${CYAN}[+] Blacklisting nct6683 and writing module options rules...${NC}"
-    sudo mkdir -p /etc/modprobe.d /etc/modules-load.d 2>/dev/null
-    echo "blacklist nct6683" | sudo tee /etc/modprobe.d/sensors.conf > /dev/null
-    echo "options nct6687 force=true" | sudo tee -a /etc/modprobe.d/sensors.conf > /dev/null
-    echo "nct6687" | sudo tee /etc/modules-load.d/99-sensors.conf > /dev/null
+    echo -e "${CYAN}[⚙] Executing native out-of-tree module compilation passes...${NC}"
+    (
+        cd "$nct_sandbox"
+        make clean >/dev/null 2>&1 || true
+        make >> "$LOG_FILE" 2>&1
+    )
+
+    local built_ko="${nct_sandbox}/nct6687.ko"
+    if [[ ! -f "$built_ko" ]]; then
+        echo -e "${BIRed}❌ ERROR: Built driver module compilation failed. Check your log file.${NC}"
+        sudo systemctl start bc250-fan-control.service &>/dev/null || true
+        read -p "Press Enter to return..." && return 1
+    fi
+
+    # 🚀 SECURE ASSET STAGING: Drops file into /var/ to circumvent atomic write-locks
+    echo -e "${CYAN}[+] Allocating custom module binaries into persistent storage nodes...${NC}"
+    sudo mkdir -p "$target_mod_dir"
+    sudo install -m 0644 "$built_ko" "${target_mod_dir}/nct6687.ko"
+    sudo chcon -t modules_object_t "${target_mod_dir}/nct6687.ko" 2>/dev/null || true
+
+    # 📝 NATIVE LOADER SCRIPT GENERATION
+    echo -e "${CYAN}[+] Injecting custom boot unbind configuration rules...${NC}"
+    sudo cat > /usr/local/sbin/bc250-load-nct6687 <<'EOF_NCT_LOADER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_NAME="nct6687"
+KERNEL="$(uname -r)"
+MODULE_PATH="/var/lib/bc250/modules/${KERNEL}/nct6687.ko"
+
+if [[ -w /sys/bus/platform/drivers/nct6683/unbind && -e /sys/devices/platform/nct6683.2592 ]]; then
+  echo nct6683.2592 > /sys/bus/platform/drivers/nct6683/unbind 2>/dev/null || true
+fi
+
+if lsmod | grep -q '^nct6683 '; then
+  /usr/sbin/modprobe -r nct6683 2>/dev/null || /usr/sbin/rmmod nct6683 2>/dev/null || true
+fi
+
+if lsmod | grep -q "^${MODULE_NAME} "; then
+  exit 0
+fi
+
+if [[ ! -f "$MODULE_PATH" ]]; then
+  echo "Module not found: $MODULE_PATH" >&2
+  exit 1
+fi
+
+/usr/sbin/insmod "$MODULE_PATH"
+EOF_NCT_LOADER
+    sudo chmod +x /usr/local/sbin/bc250-load-nct6687
+
+    # 📝 SYSTEMD PROFILE GENERATION
+    echo -e "${CYAN}[+] Compiling background unit manager service tracking maps...${NC}"
+    sudo cat > /etc/systemd/system/bc250-nct6687.service <<'EOF_NCT_SERVICE'
+[Unit]
+Description=Load NCT6687 hwmon module for BC250
+After=systemd-modules-load.service lm_sensors.service
+Before=coolercontrold.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/bc250-load-nct6687
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF_NCT_SERVICE
 
     # Enforce resource laxity so ACPI doesn't block out the driver queries on boot
     if ! rpm-ostree kargs | grep -q "acpi_enforce_resources=lax"; then
-        echo -e "${CYAN}[⚙] Injecting acpi_enforce_resources=lax into boot loader...${NC}"
+        echo -e "${CYAN}[⚙] Injecting acpi_enforce_resources=lax into boot entries...${NC}"
         sudo rpm-ostree kargs --append=acpi_enforce_resources=lax >> "$LOG_FILE" 2>&1
     fi
 
-    # 🚀 REBUILD INITRAMFS NATIVELY VIA BAZZITE REGENERATORS
-    echo -e "${YELLOW}[⚙] Regenerating all Dracut initramfs images... (This takes a moment)${NC}"
-    sudo dracut --regenerate-all --force >> "$LOG_FILE" 2>&1
-    local dracut_status=$?
+    echo -e "${YELLOW}[⚙] Activating hardware sensor synchronization pipelines...${NC}"
+    sudo systemctl daemon-reload
+    sudo systemctl reset-failed bc250-nct6687.service >/dev/null 2>&1 || true
+    sudo systemctl enable --now bc250-nct6687.service &>/dev/null || true
 
-    if [ "$dracut_status" -eq 0 ]; then
-        echo -e "\n${BIGreen}[✓] SUCCESS: NCT6687 driver compiled via DKMS and securely layered!${NC}"
-        play_success_chime
-        
-        type_prompt "\n❓ Execute a system reboot right now to activate the sensors? (y/N): " 0.03
-        local post_reboot; read -r post_reboot
-        if [[ "$post_reboot" =~ ^[Yy]$ ]]; then
-            echo -e "${YELLOW}[!] Syncing cached storage files... Rebooting platform...${NC}"
-            sync && sleep 1 && reboot
-        fi
-    else
-        echo -e "\n${BIRed}❌ ERROR: Dracut initramfs image rebuild failed. Review lines in log file.${NC}"
-        read -p "Press Enter to return..." && return 1
+    # Restore the background fan management services if they were stopped earlier
+    sudo systemctl start bc250-fan-control.service &>/dev/null || true
+    sudo rm -rf "$nct_sandbox"
+
+    echo -e "\n${BIGreen}[✓] SUCCESS: NCT6687 sensor driver compiled and securely mounted!${NC}"
+    echo -e "             A system restart is recommended to finalize the nct6683 -> nct6687 cleanup."
+    play_success_chime
+
+    type_prompt "\n❓ Execute a system reboot right now to activate the sensors? (y/N): " 0.03
+    local post_reboot; read -r post_reboot
+    if [[ "$post_reboot" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}[!] Sending reboot signal...${NC}"
+        sync && sleep 1 && reboot
     fi
 }
 
@@ -4272,6 +4434,11 @@ show_menu() {
     local RED="${RED:-}" GREEN="${GREEN:-}" YELLOW="${YELLOW:-}"
     local CYAN="${CYAN:-}" WHITE="${WHITE:-}" BLUE="${BLUE:-}" MAGENTA="${MAGENTA:-}"
     local ICON_WARN="${ICON_WARN:-⚠}"
+    local silicon_temp; silicon_temp=$(get_calibrated_cpu_temp)
+    local load_avg; load_avg=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
+    local cpu_temp; cpu_temp=$(get_calibrated_cpu_temp)
+    local gpu_temp; gpu_temp=$(get_gpu_temperature)
+    #local load_avg; load_avg=$(awk '{print $1" "$2" "$3}' /proc/loadavg)
 
     while true; do
         # ═] GLITCH MELT CLEAR ENGINE: Seamlessly dissolves old frames downwards on loop refresh
@@ -4289,19 +4456,20 @@ show_menu() {
 
         # Draw Symmetrical 24-Bit True Color Green Frame Heading Panel (Bypasses Konsole profile overrides)
         echo -e "${BOLD}\033[38;2;0;255;0m"
-        echo "  ╔════════════════════════════════════════════════════════════════════════════════════════╗"
-        echo "  ║                                                                                        ║"
-        echo -e "  ║         ${YELLOW}██████╗  █████╗ ███████╗███████╗██╗████████╗███████╗    ██████╗ ███████╗\033[38;2;0;255;0m       ║"
-        echo -e "  ║         ${YELLOW}██╔══██╗██╔══██╗╚══███╔╝╚══███╔╝██║╚══██╔══╝██╔════╝   ██╔═══██╗██╔════╝\033[38;2;0;255;0m       ║"
-        echo -e "  ║         ${YELLOW}██████╔╝███████║  ███╔╝   ███╔╝ ██║   ██║   █████╗  ██ ██║   ██║███████╗\033[38;2;0;255;0m       ║"
-        echo -e "  ║         ${YELLOW}██╔══██╗██╔══██║ ███╔╝   ███╔╝  ██║   ██║   ██╔══╝     ██║   ██║╚════██║\033[38;2;0;255;0m       ║"
-        echo -e "  ║         ${YELLOW}██████╔╝██║  ██║███████╗███████╗██║   ██║   ███████╗   ╚██████╔╝███████║\033[38;2;0;255;0m       ║"
-        echo -e "  ║         ${YELLOW}╚══════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝   ╚═╝   ╚══════╝    ╚═════╝ ╚══════╝\033[38;2;0;255;0m      ║"
-        echo "  ║                                                                                        ║"
-        echo -e "  ║    ${B_BLUE}[●] BLUE Pill\033[38;2;0;255;0m             📟  System Core Telemetry  📟             ${RED}RED Pill [●]\033[38;2;0;255;0m    ║"
-        echo "  ║                                                                                        ║"
-        echo -e "  ║        System Load: ${WHITE}${load_avg}\033[38;2;0;255;0m        │           Silicon Temp: ${YELLOW}${cpu_temp}\033[38;2;0;255;0m               ║"
-        echo "  ╚════════════════════════════════════════════════════════════════════════════════════════╝"
+        echo "  ╔═══════════════════════════════════════════════════════════════════════════════════════════════╗"
+        echo "  ║                                                                                               ║"
+        echo -e "  ║           ${YELLOW}██████╗  █████╗ ███████╗███████╗██╗████████╗███████╗    ██████╗ ███████╗\033[38;2;0;255;0m            ║"
+        echo -e "  ║           ${YELLOW}██╔══██╗██╔══██║╚══███╔╝╚══███╔╝██║╚══██╔══╝██╔════╝   ██╔═══██╗██╔════╝\033[38;2;0;255;0m            ║"
+        echo -e "  ║           ${YELLOW}██████╔╝███████║  ███╔╝   ███╔╝ ██║   ██║   █████╗  ██ ██║   ██║███████╗\033[38;2;0;255;0m            ║"
+        echo -e "  ║           ${YELLOW}██╔══██╗██╔══██║ ███╔╝   ███╔╝  ██║   ██║   ██╔══╝     ██║   ██║╚════██║\033[38;2;0;255;0m            ║"
+        echo -e "  ║           ${YELLOW}██████╔╝██║  ██║███████╗███████╗██║   ██║   ███████╗   ╚██████╔╝███████║\033[38;2;0;255;0m            ║"
+        echo -e "  ║           ${YELLOW}╚══════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝   ╚═╝   ╚══════╝    ╚═════╝ ╚══════╝\033[38;2;0;255;0m           ║"
+        echo "  ║                                                                                               ║"
+        echo -e "  ║     ${B_BLUE}[●] BLUE Pill\033[38;2;0;255;0m               📟  System Core Telemetry  📟               ${RED}RED Pill [●]\033[38;2;0;255;0m      ║"
+        echo "  ║                                                                                               ║"
+
+        echo -e "  ║             System Load: ${YELLOW}${load_avg}\033[38;2;0;255;0m  │  Silicon Temp: ${YELLOW}${silicon_temp:-N/A}\033[38;2;0;255;0m  │  GPU Temp: ${YELLOW}${gpu_temp:-N/A}\033[38;2;0;255;0m             ║"
+        echo "  ╚═══════════════════════════════════════════════════════════════════════════════════════════════╝"
         echo -e "${RESET}"
 
         # --- SECTION 1: STORAGE & INITIAL MEMORY CONFIG ---
@@ -4351,6 +4519,7 @@ show_menu() {
         echo -e "    ${CYAN}[05] CPU OC & CU Suite${RESET} ${DIM}(Live SMU)${RESET}      ${CYAN}[06] Wake-on-LAN${RESET}     ${DIM}(Port Selector)${RESET}"
         echo -e "    ${CYAN}[07] GFX1013 / FSR 4.1.1${RESET} ${DIM}(Smart Suite)${RESET} ${CYAN}[08] Memory Interleave Balancer${RESET} ${DIM}Distribute RAM channels evenly${RESET}"
         echo -e "    ${CYAN}[09] RAM/VRAM Split${RESET}  ${DIM}(Dynamic Split)${RESET}   ${CYAN}[10] Resolve Localized Paths${RESET}  ${DIM}Configure global XDG directory metrics${RESET}"
+        echo -e "    ${CYAN}[11] Deploy NCT6687 SRE${RESET} ${DIM}(Source Driver)${RESET}"
 
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
         # Column 1 (Letters M, P)                  │ Column 2 (Letters O, X)
@@ -4372,7 +4541,7 @@ show_menu() {
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
 
         # Safe Prompt Parser (Instant Typing Response Keystroke Engine)
-        type_prompt "  Select an option [00-08, A-I, M, O, P, R, S, X]: " 0.03
+        type_prompt "  Select an option [00-12, A-I, M, O, P, R, S, X]: " 0.03
 
         choice=""
         read -n 2 -s choice || true
@@ -4389,7 +4558,16 @@ show_menu() {
             08) apply_gpu_power_shield ;;
             09) toggle_ram_split ;;
             10) resolve_safe_system_paths ;;
-            11) deploy_nct6687_sensor_layer ;;
+            11) deploy_nct6687_source_layer ;;
+            12)
+            echo -e "\n${YELLOW}[⚙] Fetching dynamic calibrated hardware sensor readout...${NC}"
+            local test_temp; test_temp=$(get_calibrated_cpu_temp)
+            local test_temp; test2_temp=$(get_gpu_temperature)
+            echo -e "    ${BIGreen}✔ Current Calibrated CPU Temperature: ${test_temp}${NC}\n"
+            echo -e "    ${BIGreen}✔ Current Calibrated GPU Temperature: ${test2_temp}${NC}\n"
+            read -p "Press Enter to return to menu..."
+            ;;
+
 
             a|A)
                 echo -e "${GREEN}Executing Temporary Start...${NC}"
