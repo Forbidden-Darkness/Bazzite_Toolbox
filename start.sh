@@ -1561,6 +1561,98 @@ play_success_chime() {
     fi
 }
 
+deploy_shared_shader_cache() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local B_RED='\033[1;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    local cache_dir="/tmp/bc250_cache_staging"
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 DOWNLOADING & DEPLOYING SHARED SHADER CACHE UTILITY ARCHIVE   "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    echo -e "${CYAN}[➡] Enter the ABSOLUTE path directory to your target game folder:${RESET}"
+    echo -n "    Path: "
+    local game_path; read -r game_path
+    game_path="${game_path#\'}"; game_path="${game_path%\'}"; game_path="${game_path#\"}"; game_path="${game_path%\"}"
+    game_path=$(echo "$game_path" | sed -e 's/[[:space:]]*$//' -e 's|/*$||')
+
+    if [[ ! -d "$game_path" ]]; then
+        echo -e "${RED}❌ ERROR: Provided directory path track does not exist on disk.${RESET}"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    local ini_file="${game_path}/OptiScaler.ini"
+    if [[ ! -f "$ini_file" ]]; then
+        echo -e "${RED}❌ ERROR: OptiScaler.ini missing! This wrapper relies on an active framework.${RESET}"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    # 🧼 CLEAN SYSTEM SANDBOX STAGING
+    rm -rf "$cache_dir" && mkdir -p "$cache_dir"
+    local tools_dir="/home/bsystem/.local/share/bc250-fsr4-cache"
+    local dl_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/Shared-Cache.7z"
+
+    echo -e "${YELLOW}[⚙] Downloading Shared-Cache.7z from remote GitHub repository...${RESET}"
+    if curl -L -k -f -s -o "$cache_dir/Shared-Cache.7z" "${dl_url}"; then
+        echo -e "${GREEN}[✓] Download finished. Unpacking 7z package tree...${RESET}"
+        # 🧬 NATIVE 7Z UNPACK: Decompresses the archive right into the staging folder flatly
+        7z x -y -o"$cache_dir" "$cache_dir/Shared-Cache.7z" &>/dev/null
+    else
+        echo -e "${RED}❌ ERROR: Failed to fetch remote Shared-Cache.7z from GitHub server tracks.${RESET}"
+        rm -rf "$cache_dir"; read -rp "Press [Enter] to exit..." dummy; return 1
+    fi
+
+    echo -e "${YELLOW}[⚙] Registering immutable tool footprint inside unprivileged user home...${RESET}"
+    sudo -u bsystem mkdir -p "${tools_dir}/launcher-tools" 2>/dev/null
+
+    # Drops the newly extracted script assets straight into your local user share folder tracks
+    cp -f "${cache_dir}/shared-cache.py" "${tools_dir}/" 2>/dev/null
+    cp -f "${cache_dir}/shared-cache.sh" "${tools_dir}/" 2>/dev/null
+    chmod +x "${tools_dir}/shared-cache.sh" 2>/dev/null
+    chown -R bsystem:bsystem "$tools_dir" 2>/dev/null
+
+    echo -e "${GREEN}[✓] Tool utilities staged inside /home/bsystem/.local/share/bc250-fsr4-cache/${RESET}"
+    # 🧬 REPLICATION BACKUP PASSTHROUGH: Compiles the extracted assets into your local system backup paths
+    echo -e "${YELLOW}[⚙] Compressing pristine source assets for local replication...${RESET}"
+    local backup_archive="/home/bsystem/bc250_shader_cache_backup.tar.gz"
+
+    tar -czf "$backup_archive" -C "$cache_dir" "shared-cache.py" "shared-cache.sh" 2>/dev/null
+    chown bsystem:bsystem "$backup_archive" 2>/dev/null
+    echo -e "${GREEN}[✓] Backup archive compiled: ${backup_archive}${RESET}"
+
+    # 🧬 STEAM CONFIGURATION PASS: Intercept and append the cache wrapper to OptiScaler
+    local launcher_bin="${tools_dir}/bc250-fsr4-cache"
+    echo -e "${YELLOW}[⚙] Linking launcher hooks into your target game space...${RESET}"
+
+    if [[ -f "$ini_file" ]]; then
+        # 🧬 PRECISE REGEX MATRIX: Seamlessly hooks the 7z launcher path right into your config keys
+        sed -i "s|^\([[:space:]]*\)FfxDx12SRPath[[:space:]]*=[[:space:]]*\(.*\)|\1FfxDx12SRPath = env BC250_FSR4_CACHE_STATUS_FILE=/home/bsystem/.local/state/bc250-fsr4-cache/last-launch.json ${launcher_bin} -- \2|g" "$ini_file" 2>/dev/null
+
+        echo "OptiScaler.ini" >> "$cache_dir/manifest.tmp"
+        echo -e "${GREEN}[✓] Shared Shader Cache utility successfully integrated into OptiScaler.ini!${RESET}"
+    else
+        echo -e "${RED}❌ ERROR: OptiScaler.ini was modified or dropped mid-transaction. Deployment halted.${RESET}"
+        rm -rf "$cache_dir"; read -rp "Press [Enter] to exit..." dummy; return 1
+    fi
+
+    # Finalize tracking manifest logs natively
+    cat "$cache_dir/manifest.tmp" >> "$mf_path" 2>/dev/null
+    chmod 644 "$mf_path" 2>/dev/null
+    rm -rf "$cache_dir"
+    chown -R bsystem:bsystem "$game_path" 2>/dev/null
+
+    echo -e "\n${GREEN}====================================================================${RESET}"
+    echo -e "  🚀 SHARED SHADER CACHE UTILITY FULLY ACTIVE                       "
+    echo -e "====================================================================${RESET}"
+    echo -e "  📊 To run diagnostics or test write capabilities, run:"
+    echo -e "  ${CYAN}sudo -u bsystem ${launcher_bin} doctor${RESET}"
+    echo -e "${GREEN}====================================================================${RESET}"
+
+    set -e; (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
+}
+
 # ==============================================================================
 # 📂 GROUP 4: INTEGRATED UPSCALER & COMPRESSED PAYLOAD INJECTORS
 # ==============================================================================
@@ -1676,35 +1768,282 @@ deploy_gfx1013_fsr4_engine() {
     fi
 }
 
+deploy_helixsr_1_4_1_standalone() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local B_RED='\033[1;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    # 🧬 MATCHED DESIGN: Mapped to your exact native cache and manifest layout names
+    local cache_dir="/tmp/bc250_helixsr_staging"
+    local manifest_name=".bc250_helixsr_manifest.txt"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 DEPLOYING HELIXSR V1.2.0 AUTOMATED COMPILATION MATRIX         "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    echo -e "${CYAN}  Select Target HelixSR Staging Environment Framework Profile:${RESET}"
+    echo -e "      a) Direct Native Drop-in (No OptiScaler Integration Pass)"
+    echo -e "      b) OptiScaler Mod Routing Bridge (Custom Matrix Folder)"
+    echo -n "  Choose an environment option [a-b]: "
+    local helix_mode; read -r helix_mode
+    if [[ ! "$helix_mode" =~ ^[AaBb]$ ]]; then
+        echo -e "${RED}❌ ERROR: Invalid profile choice selection.${RESET}"; sleep 2; return 1
+    fi
+
+    echo -e "\n${CYAN}====================================================================${RESET}"
+    echo -e "${CYAN}[➡] Enter the ABSOLUTE path directory to your target game folder:${RESET}"
+    echo -n "    Path: "
+    local game_path; read -r game_path
+    game_path="${game_path#\'}"; game_path="${game_path%\'}"; game_path="${game_path#\"}"; game_path="${game_path%\"}"
+    game_path=$(echo "$game_path" | sed -e 's/[[:space:]]*$//' -e 's|/*$||')
+
+    if [[ ! -d "$game_path" ]]; then
+        echo -e "${RED}❌ ERROR: Provided directory path track does not exist on disk.${RESET}"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    # 🧬 FIXED VERIFICATION GUARD: Only prompt uninstall if the specific hidden manifest file exists
+    set +e
+    local mf_path="${game_path}/${manifest_name}"
+    if [[ -f "$mf_path" ]]; then
+        echo -e "\n${YELLOW}[ℹ] Existing HelixSR deployment manifest detected!${RESET}"
+        echo -n "👉 Remove the active upscaler mod and restore factory binaries? (y/N): "
+        local ans_un; read -r ans_un
+        if [[ "$ans_un" =~ ^[Yy]$ ]]; then
+            echo -e "\n${YELLOW}[ℹ] Purging deployed mod files and configurations...${RESET}"
+
+            # 🧬 MANIFEST TRACKER LOCKED: Reads your strict hidden line array and touches ONLY the mod files
+            echo -e "  ${DIM}➜ Executing manifest file footprint wipe...${RESET}"
+            while IFS= read -r file_to_delete || [[ -n "$file_to_delete" ]]; do
+                [[ -n "$file_to_delete" ]] && rm -f "${game_path}/${file_to_delete}" 2>/dev/null
+            done < "$mf_path"
+            rm -f "$mf_path" 2>/dev/null
+
+            # Remove custom subdirectories safely
+            rm -rf "${game_path}/plugins" "${game_path}/OptiScaler" "${game_path}/HelixSR_Matrix" 2>/dev/null
+
+            # Restore your original factory backups character-perfect
+            if [[ -f "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" ]]; then mv -f "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" "${game_path}/amd_fidelityfx_upscaler_dx12.dll" 2>/dev/null; fi
+            if [[ -f "${game_path}/amd_fidelityfx_dx12.original.dll" ]]; then mv "${game_path}/amd_fidelityfx_dx12.original.dll" "${game_path}/amd_fidelityfx_dx12.dll" 2>/dev/null; fi
+            if [[ -f "${game_path}/dxgi.dll.bak" ]]; then mv "${game_path}/dxgi.dll.bak" "${game_path}/dxgi.dll" 2>/dev/null; fi
+
+            chown -R bsystem:bsystem "$game_path" 2>/dev/null
+            echo -e "${GREEN}[✓] Existing environment successfully returned to factory defaults.${RESET}"
+            echo -e "${CYAN}====================================================================${RESET}"
+
+            echo -n "👉 Would you like to proceed with a fresh upscaler deployment layout now? (y/N): "
+            local ans_re; read -r ans_re
+            if [[ ! "$ans_re" =~ ^[Yy]$ ]]; then
+                read -rp "👍 Uninstallation complete. Press [Enter] to return to dashboard..." dummy; return 0
+            fi
+            echo -e "\n${GREEN}[+] Transitioning straight to clean deployment engine tracks...${RESET}"
+        else
+            # Clean Fall-through: If you say No, move straight to fresh install / overwrite
+            echo -e "\n${YELLOW}[ℹ] Skipping uninstallation. Proceeding to overwrite existing deployment files...${RESET}"
+        fi
+    fi
+
+    # Staging area definitions - UNTOUCHED
+    rm -rf "$cache_dir" && mkdir -p "$cache_dir"
+    local tmp_extract="${cache_dir}/extracted"
+    mkdir -p "$tmp_extract"
+    local exit_code_1=0
+
+    echo -e "\n${YELLOW}[ℹ] Initializing download chain for remote server files...${RESET}"
+    local dl_url="https://github.com/lonewolf0622/HelixSR/releases/download/v1.4.1/HelixSR-1.4.1.zip"
+
+    echo -e "${GREEN}[+] Fetching remote payload archive from GitHub server...${RESET}"
+    if curl -L -k -f -o "$cache_dir/helixsr_pack.tmp" "${dl_url}"; then
+        local archive_size=$(stat -c%s "$cache_dir/helixsr_pack.tmp" 2>/dev/null || echo "UNKNOWN")
+        echo -e "${GREEN}[✓ TRACE] Download finished. Payload Archive Size: ${archive_size} bytes.${RESET}"
+
+        echo -e "${YELLOW}[⚙ TRACE] Decompressing complete archive package tree...${RESET}"
+        unzip -q -o "$cache_dir/helixsr_pack.tmp" -d "$tmp_extract" &>/dev/null
+        exit_code_1=$?
+    else
+        exit_code_1=1
+    fi
+        if [ $exit_code_1 -eq 0 ]; then
+            echo -e "${YELLOW}[⚙ TRACE] Normalizing nested zip repository directories immediately...${RESET}"
+            local nested_sub; nested_sub=$(find "$tmp_extract" -mindepth 1 -maxdepth 1 -type d -name "HelixSR*" 2>/dev/null | head -n 1)
+            if [[ -n "$nested_sub" && -d "$nested_sub" ]]; then
+                echo -e "${GREEN}[✓ TRACE] Normalizing nested layout: $(basename "$nested_sub")${RESET}"
+                cp -rT "$nested_sub" "$tmp_extract" 2>/dev/null && rm -rf "$nested_sub" 2>/dev/null
+            fi
+
+            # 🧬 NATIVE COMPILER PHASE: Drops root permissions to run the shader translation pipeline securely - UNTOUCHED
+            if [[ -f "${tmp_extract}/helixsr-setup.sh" ]]; then
+                echo -e "${YELLOW}[⚙] Launching HelixSR compilation backend. This will take a few minutes...${RESET}"
+                local current_pwd; current_pwd=$(pwd)
+                cd "$tmp_extract" && chmod +x helixsr-setup.sh 2>/dev/null
+
+                # 🧬 THE PERMISSIONS FIX: Forces the script to run as 'bsystem' to align with Wine's ownership requirements - UNTOUCHED
+                sudo chmod -R 777 "$tmp_extract" 2>/dev/null
+                if sudo -u bsystem env HOME=/home/bsystem USER=bsystem ./helixsr-setup.sh --yes; then
+                    echo -e "${GREEN}[✓] Shaders compiled natively! Network weights successfully generated.${RESET}"
+                    cd "$current_pwd"
+                else
+                    echo -e "${RED}❌ ERROR: Network weights compilation failed or timed out.${RESET}"
+                    cd "$current_pwd"; read -rp "Press [Enter] to exit..." debug_dummy; return 1
+                fi
+            else
+                echo -e "${RED}❌ LOG ERROR: 'helixsr-setup.sh' is missing from root path! Layout breakdown.${RESET}"
+                read -rp "Press [Enter] to exit..." debug_dummy; return 1
+            fi
+
+            rm -f "$mf_path" 2>/dev/null && touch "$cache_dir/manifest.tmp"
+            if [[ "$helix_mode" =~ ^[Aa]$ ]]; then
+                # 📁 PROFILE A: DIRECT NATIVE DROP-IN (NO RENAME, NO UPSCALER JUNK)
+
+                # 🧬 ADDITIVE FIX: Renames native factory files to *.original.dll following developer guidelines
+                if [[ -f "${game_path}/amd_fidelityfx_dx12.dll" ]]; then
+                    if [[ ! -f "${game_path}/amd_fidelityfx_dx12.original.dll" ]]; then
+                        echo -e "${YELLOW}[⚙] Backing up factory binary: amd_fidelityfx_dx12.dll ➜ amd_fidelityfx_dx12.original.dll...${RESET}"
+                        mv "${game_path}/amd_fidelityfx_dx12.dll" "${game_path}/amd_fidelityfx_dx12.original.dll" 2>/dev/null
+                    else
+                        rm -f "${game_path}/amd_fidelityfx_dx12.dll" 2>/dev/null
+                    fi
+                elif [[ -f "${game_path}/amd_fidelityfx_upscaler_dx12.dll" ]]; then
+                    if [[ ! -f "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" ]]; then
+                        echo -e "${YELLOW}[⚙] Backing up factory binary: amd_fidelityfx_upscaler_dx12.dll ➜ amd_fidelityfx_upscaler_dx12.original.dll...${RESET}"
+                        mv "${game_path}/amd_fidelityfx_upscaler_dx12.dll" "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" 2>/dev/null
+                    else
+                        rm -f "${game_path}/amd_fidelityfx_upscaler_dx12.dll" 2>/dev/null
+                    fi
+                fi
+
+                # Auto-detect target naming scheme for copying and manifest registration
+                local active_dll_name="amd_fidelityfx_dx12.dll"
+                [[ -f "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" ]] && active_dll_name="amd_fidelityfx_upscaler_dx12.dll"
+
+                # Drops the raw native binaries and the compiled network layers directly into the root folder
+                cp -f "${tmp_extract}/amd_fidelityfx_dx12.dll" "${game_path}/${active_dll_name}" 2>/dev/null
+                cp -f "${tmp_extract}/helixsr_weights.bin" "${game_path}/" 2>/dev/null
+                cp -f "${tmp_extract}/helixsr_kernels.pak" "${game_path}/" 2>/dev/null
+                [[ -f "${tmp_extract}/helixsr_setup.json" ]] && cp -f "${tmp_extract}/helixsr_setup.json" "${game_path}/" 2>/dev/null
+
+                echo "${active_dll_name}" >> "$cache_dir/manifest.tmp"
+                echo "helixsr_weights.bin" >> "$cache_dir/manifest.tmp"
+                echo "helixsr_kernels.pak" >> "$cache_dir/manifest.tmp"
+                [[ -f "${tmp_extract}/helixsr_setup.json" ]] && echo "helixsr_setup.json" >> "$cache_dir/manifest.tmp"
+
+                # Copies the ini template right next to it, then runs your in-place sed rule
+                cp -f "${tmp_extract}/helixsr.ini" "${game_path}/helixsr.ini" 2>/dev/null
+                if [[ -f "${game_path}/helixsr.ini" ]]; then
+                    sed -i 's/^Network = auto/Network = nvidia/g' "${game_path}/helixsr.ini" 2>/dev/null
+                fi
+                echo "helixsr.ini" >> "$cache_dir/manifest.tmp"
+                echo -e "${GREEN}[✓] HelixSR v1.2.0 Native Drop-in deployed perfectly!${RESET}"
+
+            elif [[ "$helix_mode" =~ ^[Bb]$ ]]; then
+                # 📁 PROFILE B: OPTISCALER MOD ROUTING BRIDGE (CUSTOM FOLDER)
+
+                # 🧬 ADDITIVE FIX: Safely preserves your native factory system dxgi link as dxgi.dll.bak before copying
+                if [[ -f "${game_path}/dxgi.dll" && ! -f "${game_path}/dxgi.dll.bak" ]]; then
+                    echo -e "${YELLOW}[⚙] Backing up factory system link: dxgi.dll ➜ dxgi.dll.bak...${RESET}"
+                    mv "${game_path}/dxgi.dll" "${game_path}/dxgi.dll.bak" 2>/dev/null
+                fi
+
+                local matrix_dir="${game_path}/HelixSR_Matrix"
+                mkdir -p "$matrix_dir" 2>/dev/null
+                echo "HelixSR_Matrix" >> "$cache_dir/manifest.tmp"
+
+                # Copies the renamed upscaler binary, the compiled weight structures, and the ini file to the matrix folder
+                cp -f "${tmp_extract}/helixsr.ini" "${matrix_dir}/helixsr.ini" 2>/dev/null
+                cp -f "${tmp_extract}/amd_fidelityfx_dx12.dll" "${matrix_dir}/amd_fidelityfx_upscaler_dx12.dll" 2>/dev/null
+                cp -f "${tmp_extract}/helixsr_weights.bin" "${matrix_dir}/" 2>/dev/null
+                cp -f "${tmp_extract}/helixsr_kernels.pak" "${matrix_dir}/" 2>/dev/null
+                [[ -f "${tmp_extract}/helixsr_setup.json" ]] && cp -f "${tmp_extract}/helixsr_setup.json" "${matrix_dir}/" 2>/dev/null
+
+                echo "HelixSR_Matrix/amd_fidelityfx_upscaler_dx12.dll" >> "$cache_dir/manifest.tmp"
+                echo "HelixSR_Matrix/helixsr_weights.bin" >> "$cache_dir/manifest.tmp"
+                echo "HelixSR_Matrix/helixsr_kernels.pak" >> "$cache_dir/manifest.tmp"
+                [[ -f "${tmp_extract}/helixsr_setup.json" ]] && echo "HelixSR_Matrix/helixsr_setup.json" >> "$cache_dir/manifest.tmp"
+
+                # Surgical inline sed swap on the matrix configuration template file
+                if [[ -f "${matrix_dir}/helixsr.ini" ]]; then
+                    sed -i 's/^Network = auto/Network = nvidia/g' "${matrix_dir}/helixsr.ini" 2>/dev/null
+                fi
+                echo "HelixSR_Matrix/helixsr.ini" >> "$cache_dir/manifest.tmp"
+
+                # Your exact double-backslash expansion mask on OptiScaler.ini
+                local win_matrix_dir=$(echo "$matrix_dir" | sed 's|/|\\|g')
+                local ini_file="${game_path}/OptiScaler.ini"
+
+                if [[ -f "$ini_file" ]]; then
+                    sed -i 's/^Dx12Upscaler=auto/Dx12Upscaler = fsr31/g' "$ini_file" 2>/dev/null
+                    sed -i 's/^FfxDx12SRPath=auto/FfxDx12SRPath = Z:'"${win_matrix_dir//\\/\\\\}"'\\amd_fidelityfx_upscaler_dx12.dll/g' "$ini_file" 2>/dev/null
+                fi
+                echo -e "${GREEN}[✓] HelixSR OptiScaler Matrix Bridge deployed perfectly!${RESET}"
+            fi
+
+            # Manifest file finalization pass
+            mv -f "$cache_dir/manifest.tmp" "$mf_path" 2>/dev/null && chmod 644 "$mf_path" 2>/dev/null
+        else
+            echo -e "${RED}❌ ERROR: Download pass or local staging routine collapsed.${RESET}"
+        fi
+
+        chown -R bsystem:bsystem "$game_path" 2>/dev/null
+
+        echo -e "\n${B_RED}====================================================================${RESET}"
+        echo -e "  ⚠️ REQUIRED GAME LAUNCH OPTIONS INFRASTRUCTURE                      "
+        echo -e "====================================================================${RESET}"
+        echo -e "  🎮 FOR STEAM TITLES (Add directly to Launch Options):"
+        echo -e "  ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${YELLOW}%command%${RESET}"
+        echo -e "${B_RED}====================================================================${RESET}"
+
+        set -e; (play_success_chime &>/dev/null &)
+        read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
+    }
+
 toggle_gfx1013_fsr4_engine() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
     local RED='\033[0;31m' local B_RED='\033[1;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
 
     local cache_dir="/tmp/bc250_fsr4_staging"
-    local dll_name="amd_fidelityfx_upscaler_dx12.dll"
     local local_src="/home/bsystem/Downloads/bc250-fsr4-dll-4.0.0-rc11"
     local manifest_name=".bc250_fsr4_manifest.txt"
 
     clear
     echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "   🚀 GFX1013 FSR 4.1.1 MULTI-BRANCH SELECTOR CORE MATRIX IMAGE       "
+    echo -e "   🚀 GFX1013 HIGH-PERFORMANCE UPSCALER CORE SELECTION MATRIX       "
     echo -e "${CYAN}====================================================================${RESET}"
     echo -e "   Select the upscaler engine target architecture version deployment: "
     echo -e ""
-    echo -e "   1) Deploy v4.0.0-rc11 PROD  : Explicit UI Menu, High Stability (Single 7z)"
-    echo -e "   2) Deploy v10.0.0-pre1 ALPHA: Modular SDK, Advanced Buffering Clamps (Single 7z)"
-    echo -e "   3) Exit back to main dashboard menu"
+    echo -e "   1) Deploy v4.0.0-rc11 PROD  : Explicit UI Menu, High Stability"
+    echo -e "   2) Deploy v10.0.0-pre1 ALPHA: Modular SDK, Advanced Buffering Clamps"
     echo -e ""
-    echo -n "   Select target branch choice [1-3]: "
+    echo -e "   3) Deploy HelixSR v1.1.0    : Advanced DLSS Model E Neural Shaders"
+    echo -e "   4) Deploy HelixSR v1.4.1    : Automated Model E Compilation Engine"
+    echo -e ""
+    echo -n "   Select target branch choice [1-4]: "
     local branch_choice; read -r branch_choice
 
-    if [[ "$branch_choice" == "3" || -z "$branch_choice" ]]; then return 0; fi
+    #if [[ "$branch_choice" == "4" || -z "$branch_choice" ]]; then return 0; fi
 
-    local version_tag=""
-    if [[ "$branch_choice" == "1" ]]; then
-        version_tag="v4.0.0-rc11 PROD"
-    elif [[ "$branch_choice" == "2" ]]; then
-        version_tag="v10.0.0-pre1 ALPHA"
+    local version_tag="" local helix_mode=""
+    if [[ "$branch_choice" == "1" ]]; then version_tag="v4.0.0-rc11 PROD"
+    elif [[ "$branch_choice" == "2" ]]; then version_tag="v10.0.0-pre1 ALPHA"
+    elif [[ "$branch_choice" == "3" ]]; then
+        # 🎛️ HELIXSR TAILORED SUB-MENU MATRIX PASS
+        echo -e "\n${CYAN}  [⚙] Select Target HelixSR Staging Environment Framework Profile:${RESET}"
+        echo -e "      a) Direct Native Drop-in (No OptiScaler Integration Pass)"
+        echo -e "      b) OptiScaler Mod Routing Bridge (Custom Matrix Folder)"
+        echo -n "  Choose an environment option [a-b]: "
+        read -r helix_mode
+
+        if [[ "$helix_mode" =~ ^[Aa]$ ]]; then
+            version_tag="HelixSR v1.1.0 (Native Drop-in)"
+        elif [[ "$helix_mode" =~ ^[Bb]$ ]]; then
+            version_tag="HelixSR v1.1.0 (OptiScaler Routing)"
+        else
+            echo -e "${RED}❌ ERROR: Invalid sub-menu configuration selector index.${RESET}"
+            read -rp "Press [Enter] to return..." dummy; return 1
+        fi
+    elif [[ "$branch_choice" == "4" ]]; then
+        # 🧬 THE FIX: Instantly fire the new standalone compiler script right here and return cleanly!
+        deploy_helixsr_1_4_1_standalone
+        return $?
     else
         echo -e "${RED}❌ ERROR: Invalid matrix choice constraint selection.${RESET}"
         read -rp "Press [Enter] to return..." dummy; return 1
@@ -1712,7 +2051,7 @@ toggle_gfx1013_fsr4_engine() {
 
     clear
     echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "   🚀 TARGET: DEPLOYING FSR 4.1.1 ENGINES [ $version_tag ]            "
+    echo -e "   🚀 TARGET: DEPLOYING ENGINES [ $version_tag ]                     "
     echo -e "${CYAN}====================================================================${RESET}"
     echo -e "${CYAN}[➡] Enter the ABSOLUTE path directory to your target game folder:${RESET}"
     echo -n "    Path: "
@@ -1726,8 +2065,8 @@ toggle_gfx1013_fsr4_engine() {
     fi
     set +e
     local mf_path="${game_path}/${manifest_name}"
-    if [[ -f "$mf_path" || -f "${game_path}/dxgi.dll" || -f "${game_path}/OptiScaler.ini" ]]; then
-        echo -e "\n${YELLOW}[ℹ] Existing FSR Mod framework detected inside this directory!${RESET}"
+    if [[ -f "$mf_path" || -f "${game_path}/dxgi.dll" || -d "${game_path}/HelixSR_Matrix" || -f "${game_path}/OptiScaler.ini" ]]; then
+        echo -e "\n${YELLOW}[ℹ] Existing Mod framework or custom mapping folder detected!${RESET}"
         echo -n "👉 Remove the active upscaler mod and restore factory binaries? (y/N): "
         local ans_un; read -r ans_un
         if [[ "$ans_un" =~ ^[Yy]$ ]]; then
@@ -1740,14 +2079,15 @@ toggle_gfx1013_fsr4_engine() {
                 done < "$mf_path"
                 rm -f "$mf_path" 2>/dev/null
             else
-                # 🧬 NO HARCODED NAMES FALLBACK: Dynamically maps and wipes loose assets in root directory safely [0.14]
                 echo -e "  ${YELLOW}[ℹ] Legacy deployment detected. Initializing generic filesystem purge loop...${RESET}"
                 find "$game_path" -maxdepth 1 -type f \( -name "*.dll" -o -name "*.ini" -o -name "*.asi" \) ! -name "steam_api*" -exec rm -f {} \; 2>/dev/null
             fi
 
-            rm -rf "${game_path}/plugins" "${game_path}/OptiScaler"
+            # 🧼 UNINSTALLER RESET HOOKS: Reverts original backups and custom directory trees
+            rm -rf "${game_path}/plugins" "${game_path}/OptiScaler" "${game_path}/HelixSR_Matrix" 2>/dev/null
+            if [[ -f "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" ]]; then mv "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" "${game_path}/amd_fidelityfx_upscaler_dx12.dll" 2>/dev/null; fi
+            if [[ -f "${game_path}/amd_fidelityfx_dx12.original.dll" ]]; then mv "${game_path}/amd_fidelityfx_dx12.original.dll" "${game_path}/amd_fidelityfx_dx12.dll" 2>/dev/null; fi
             if [[ -f "${game_path}/dxgi.dll.bak" ]]; then mv "${game_path}/dxgi.dll.bak" "${game_path}/dxgi.dll" 2>/dev/null; fi
-            if [[ -f "${game_path}/${dll_name}.bak" ]]; then mv "${game_path}/${dll_name}.bak" "${game_path}/${dll_name}" 2>/dev/null; fi
 
             chown -R bsystem:bsystem "$game_path" 2>/dev/null
             echo -e "${GREEN}[✓] Existing environment successfully returned to factory defaults.${RESET}"
@@ -1759,29 +2099,10 @@ toggle_gfx1013_fsr4_engine() {
                 read -rp "👍 Uninstallation complete. Press [Enter] to return to dashboard..." dummy; return 0
             fi
             echo -e "\n${GREEN}[+] Transitioning straight to clean deployment engine tracks...${RESET}"
-        else
-            return 0
-        fi
-    else
-        echo -e "\n${GREEN}[+] No existing mod wrappers found. Initializing installer pass...${RESET}"
-        echo -n "👉 Inject custom upscaler binary payload and proxy hook? (y/N): "
-        local ans_in; read -r ans_in
-        if [[ ! "$ans_in" =~ ^[Yy]$ ]]; then return 0; fi
+        else return 0; fi
     fi
-    echo -e "\n${YELLOW}[ℹ] SELECT ENGINE-SPECIFIC PRESET OPTIMIZER:${RESET}"
-    echo -e "  1) Standard Profile : Baseline RDNA1 Setup (Spider-Man, Cyberpunk, General Titles)"
-    echo -e "  2) Capcom RE Engine : Fixes mesh stretching & broken graphics textures (RE4, Dead Rising)"
-    echo -e "  3) Anti-Flicker     : Forces Non-Linear Color Maps to block sky/menu flashing"
-    echo -n "  Select game profile target [1-3]: "
-    local engine_preset; read -r engine_preset
 
-    local destination_dir="${game_path}/OptiScaler"
-    local plugin_dir="${game_path}/plugins"
-    mkdir -p "$destination_dir" "$plugin_dir"
-
-    if [[ -f "${game_path}/dxgi.dll" && ! -f "${game_path}/dxgi.dll.bak" ]]; then cp "${game_path}/dxgi.dll" "${game_path}/dxgi.dll.bak" 2>/dev/null; fi
-    if [[ -f "${game_path}/${dll_name}" && ! -f "${game_path}/${dll_name}.bak" ]]; then cp "${game_path}/${dll_name}" "${game_path}/${dll_name}.bak" 2>/dev/null; fi
-
+    # 📡 THE NETWORK DOWN-STREAM GATE
     rm -rf "$cache_dir" && mkdir -p "$cache_dir"
     local tmp_extract="${cache_dir}/extracted"
     mkdir -p "$tmp_extract"
@@ -1797,11 +2118,18 @@ toggle_gfx1013_fsr4_engine() {
             dl_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/bc250-fsr4-dll-4.0.0-rc11.7z"
         elif [[ "$branch_choice" == "2" ]]; then
             dl_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/bc250-fsr4-dll-4.0.0-rc11.1.7z"
+        elif [[ "$branch_choice" == "3" ]]; then
+            # 🎯 FORCED REDIRECTION MATCH: Targets the newly launched v1.1.0 stable release package over network ports
+            dl_url="https://github.com/lonewolf0622/HelixSR/releases/download/v1.1.0/HelixSR-1.1.0.zip"
         fi
-
         echo -e "${GREEN}[+] Fetching remote payload archive...${RESET}"
-        if wget --no-check-certificate --timeout=15 -qO "$cache_dir/fsr4_pack.7z" "${dl_url}"; then
-            7z x -aoa "$cache_dir/fsr4_pack.7z" "-o$tmp_extract" &>/dev/null
+        # 🎯 FORCED REDIRECTION MATCH: Uses -L to chase down GitHub release redirects safely
+        if curl -L -k -f -s -o "$cache_dir/fsr4_pack.tmp" "${dl_url}"; then
+            if [[ "$dl_url" == *.zip ]]; then
+                unzip -q -o "$cache_dir/fsr4_pack.tmp" -d "$tmp_extract" &>/dev/null
+            else
+                7z x -aoa "$cache_dir/fsr4_pack.tmp" "-o$tmp_extract" &>/dev/null
+            fi
             exit_code_1=$?
         else
             exit_code_1=1
@@ -1809,97 +2137,142 @@ toggle_gfx1013_fsr4_engine() {
     fi
 
     if [ $exit_code_1 -eq 0 ]; then
-        local payload_files; payload_files=$(find "$tmp_extract" -type f \( -name "*.dll" -o -name "*.ini" -o -name "*.asi" \) 2>/dev/null)
-        rm -f "$mf_path" 2>/dev/null
-        touch "$cache_dir/manifest.tmp"
+        # Flatten structure if the zip bundle contains an inner parent wrapper folder
+        local nested_sub; nested_sub=$(find "$tmp_extract" -mindepth 1 -maxdepth 1 -type d -name "HelixSR*" 2>/dev/null | head -n 1)
+        if [[ -n "$nested_sub" && -d "$nested_sub" ]]; then
+            cp -rT "$nested_sub" "$tmp_extract" 2>/dev/null && rm -rf "$nested_sub" 2>/dev/null
+        fi
 
-        local file_item fn
-        for file_item in $payload_files; do
-            fn=$(basename "$file_item")
-            if [[ "$fn" == "amd_fidelityfx_upscaler_dx12.dll" ]]; then
-                cp -f "$file_item" "$destination_dir/" 2>/dev/null
-                echo "OptiScaler/$fn" >> "$cache_dir/manifest.tmp"
-            elif [[ "$fn" == "OptiPatcher.asi" ]]; then
-                cp -f "$file_item" "$plugin_dir/" 2>/dev/null
-                echo "plugins/$fn" >> "$cache_dir/manifest.tmp"
-            else
-                cp -f "$file_item" "${game_path}/" 2>/dev/null
-                echo "$fn" >> "$cache_dir/manifest.tmp"
+        rm -f "$mf_path" 2>/dev/null && touch "$cache_dir/manifest.tmp"
+
+        if [[ "$branch_choice" == "3" ]]; then
+            if [[ "$helix_mode" =~ ^[Aa]$ ]]; then
+                # 📁 PROFILE A: DIRECT NATIVE DROP-IN (NO OPTISCALER)
+                local target_orig_dll="amd_fidelityfx_dx12.dll"
+                if [[ -f "${game_path}/amd_fidelityfx_dx12.dll" ]]; then
+                    target_orig_dll="amd_fidelityfx_dx12.dll"
+                fi
+
+                # Rename the game's original file to .original.dll for backup
+                local backup_name="${target_orig_dll%.dll}.original.dll"
+                if [[ -f "${game_path}/${target_orig_dll}" && ! -f "${game_path}/${backup_name}" ]]; then
+                    echo -e "${YELLOW}[⚙] Creating HelixSR native original backup: ${backup_name}...${RESET}"
+                    mv -f "${game_path}/${target_orig_dll}" "${game_path}/${backup_name}" 2>/dev/null
+                fi
+
+                # 🧬 FIXED: Copy HelixSR's file under the game's original name ONLY (No renaming to upscaler)
+                cp -f "${tmp_extract}/amd_fidelityfx_dx12.dll" "${game_path}/${target_orig_dll}" 2>/dev/null
+                echo "$target_orig_dll" >> "$cache_dir/manifest.tmp"
+
+                # Deploy customized helixsr.ini directly next to it
+                sudo -u bsystem tee "${game_path}/helixsr.ini" >/dev/null <<EOF
+[Sharpening]
+Mode = off
+Sharpness = 0.3
+MotionAdaptive = true
+
+[ModelE]
+Network = nvidia
+MotionVectorFrontEnd = false
+InvertJitter = false
+InvertMotionVectors = false
+
+[Log]
+Enabled = true
+EOF
+                echo "helixsr.ini" >> "$cache_dir/manifest.tmp"
+                echo -e "${GREEN}[✓] HelixSR v1.1.0 Native Drop-in deployed perfectly!${RESET}"
+
+            elif [[ "$helix_mode" =~ ^[Bb]$ ]]; then
+                # 📁 PROFILE B: OPTISCALER MOD ROUTING BRIDGE (CUSTOM FOLDER)
+                local matrix_dir="${game_path}/HelixSR_Matrix"
+                mkdir -p "$matrix_dir" 2>/dev/null
+                echo "HelixSR_Matrix" >> "$cache_dir/manifest.tmp"
+
+                # 🧬 THE SURGICAL INLINE REPLACE: Changes 'auto' to 'nvidia' on the existing line instantly
+                cp -f "${tmp_extract}/helixsr.ini" "${matrix_dir}/helixsr.ini" 2>/dev/null
+                cp -f "${tmp_extract}/amd_fidelityfx_dx12.dll" "${matrix_dir}/amd_fidelityfx_upscaler_dx12.dll" 2>/dev/null
+                echo "HelixSR_Matrix/amd_fidelityfx_upscaler_dx12.dll" >> "$cache_dir/manifest.tmp"
+
+                # 🛡️ Uses sed to find the exact line and change it to nvidia in-place
+                if [[ -f "${matrix_dir}/helixsr.ini" ]]; then
+                    sudo sed -i 's/^Network = auto/Network = nvidia/g' "${matrix_dir}/helixsr.ini" 2>/dev/null
+                fi
+                echo "HelixSR_Matrix/helixsr.ini" >> "$cache_dir/manifest.tmp"
+
+                 # Generate the proton-aware translated Windows Z:\ drive paths for OptiScaler.ini
+                local win_matrix_dir=$(echo "$matrix_dir" | sed 's|/|\\|g')
+                local ini_file="${game_path}/OptiScaler.ini"
+
+                if [[ -f "$ini_file" ]]; then
+                    # 🧬 FIRST CHANGE: Your character-perfect forward-slash syntax
+                    sudo sed -i 's/^Dx12Upscaler=auto/Dx12Upscaler = fsr31/g' "$ini_file" 2>/dev/null
+
+                    # 🧬 SECOND CHANGE: Double-escapes the backslashes inside the variable to stop sed from corrupting your text lines
+                    sudo sed -i 's/^FfxDx12SRPath=auto/FfxDx12SRPath = Z:'"${win_matrix_dir//\\/\\\\}"'\\amd_fidelityfx_upscaler_dx12.dll/g' "$ini_file" 2>/dev/null
+                fi
+
+                echo -e "${GREEN}[✓] HelixSR v1.1.0 OptiScaler Matrix Bridge deployed perfectly!${RESET}"
             fi
-        done
-        mv -f "$cache_dir/manifest.tmp" "$mf_path" 2>/dev/null
-        chmod 644 "$mf_path" 2>/dev/null
+
+        else
+            # Standard legacy FSR 4.1.1 multi-part mappings
+            mkdir -p "${game_path}/OptiScaler" "${game_path}/plugins" 2>/dev/null
+            if [[ -f "${game_path}/dxgi.dll" && ! -f "${game_path}/dxgi.dll.bak" ]]; then
+                cp "${game_path}/dxgi.dll" "${game_path}/dxgi.dll.bak" 2>/dev/null
+            fi
+
+            local file_item fn; for file_item in $payload_files; do
+                fn=$(basename "$file_item")
+                if [[ "$fn" == "amd_fidelityfx_upscaler_dx12.dll" ]]; then
+                    cp -f "$file_item" "${game_path}/OptiScaler/" 2>/dev/null
+                    echo "OptiScaler/$fn" >> "$cache_dir/manifest.tmp"
+                elif [[ "$fn" == "OptiPatcher.asi" ]]; then
+                    cp -f "$file_item" "${game_path}/plugins/" 2>/dev/null
+                    echo "plugins/$fn" >> "$cache_dir/manifest.tmp"
+                else
+                    cp -f "$file_item" "${game_path}/" 2>/dev/null
+                    echo "$fn" >> "$cache_dir/manifest.tmp"
+                fi
+            done
+
+            local config_file="${game_path}/OptiScaler.ini"
+            rm -f "${game_path}/nvngx.ini"
+            {
+                echo "[Global]"
+                echo "LogLevel = info"
+                echo "LogToFile = false"
+                echo "LoadAsiPlugins = true"
+                echo "PreAllocateBuffers = true"
+                echo "UsePreExposure = true"
+                echo "[Upscalers]"
+                echo "Dx12Upscaler = fsr31"
+                echo "[FSR]"
+                [[ "$branch_choice" == "1" ]] && echo "Fsr4EnableWatermark = true" || echo "Fsr4EnableWatermark = false"
+                echo "Fsr4EnableInt8 = true"
+                echo "VelocityFactor = 1.0"
+                echo "[Hotfixes]"
+                echo "ResourceBarrierFix = true"
+            } > "$config_file"
+            echo "OptiScaler.ini" >> "$cache_dir/manifest.tmp"
+            echo -e "${GREEN}[✓] Full FSR 4.1.1 mod matrix deployed flat.${RESET}"
+        fi
+        mv -f "$cache_dir/manifest.tmp" "$mf_path" 2>/dev/null && chmod 644 "$mf_path" 2>/dev/null
+    else
+        echo -e "${RED}❌ ERROR: Download pass or local staging routine collapsed.${RESET}"
     fi
     rm -rf "$cache_dir"
-    rm -f "${game_path}/setup_windows.bat" "${game_path}/setup_linux.sh" 2>/dev/null
-    if [[ -f "${game_path}/OptiScaler.dll" && ! -f "${game_path}/dxgi.dll" ]]; then mv "${game_path}/OptiScaler.dll" "${game_path}/dxgi.dll"; fi
-    if [[ -f "${game_path}/Optiscaler.dll" && ! -f "${game_path}/dxgi.dll" ]]; then mv "${game_path}/Optiscaler.dll" "${game_path}/dxgi.dll"; fi
-
     chown -R bsystem:bsystem "$game_path" 2>/dev/null
-
-    local config_file="${game_path}/OptiScaler.ini"
-    rm -f "${game_path}/nvngx.ini"
-    echo -e "${GREEN}[+] Structuring tailored FSR configuration engine profiles...${RESET}"
-    {
-        echo "[Global]"
-        echo "LogLevel = info"
-        echo "LogToFile = false"
-        echo "LoadAsiPlugins = true"
-        echo "PreAllocateBuffers = true"
-        echo "UsePreExposure = true"
-        echo "[Upscalers]"
-        echo "Dx12Upscaler = fsr31"
-        echo "[FSR]"
-        if [[ "$branch_choice" == "1" ]]; then
-            echo "Fsr4EnableWatermark = true"
-        else
-            echo "Fsr4EnableWatermark = false"
-        fi
-        echo "Fsr4EnableInt8 = true"
-        echo "VelocityFactor = 1.0"
-        echo "[Hotfixes]"
-        echo "ResourceBarrierFix = true"
-
-        if [[ "$engine_preset" == "2" ]]; then
-            echo "[RootSignatures]"
-            echo "RestoreComputeRootSignature = true"
-        elif [[ "$engine_preset" == "3" ]]; then
-            echo "[Color]"
-            echo "ColorResourceBarrier = 4"
-            echo "NonLinearSRGBInput = true"
-        fi
-    } > "$config_file"
-    chown bsystem:bsystem "$config_file" 2>/dev/null
-
-    echo -e "${GREEN}[✓] Character-perfect injection loop complete! Full mod matrix deployed flat.${RESET}"
-
-    # 🧬 TARGETED PROMPT: Ask user if they want to use MangoHud telemetry layers
-    echo -ne "\n👉 Integrate MangoHud performance telemetry overlay layout parameters? (y/N): "
-    local use_hud; read -r use_hud
 
     echo -e "\n${B_RED}====================================================================${RESET}"
     echo -e "  ⚠️ REQUIRED GAME LAUNCH OPTIONS INFRASTRUCTURE                      "
     echo -e "====================================================================${RESET}"
     echo -e "  🎮 FOR STEAM TITLES (Add directly to Launch Options):"
-
-    if [[ "$use_hud" =~ ^[Yy]$ ]]; then
-        echo -e "  ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}=${GREEN}true${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${MAGENTA}mangohud${RESET} ${YELLOW}%command%${RESET}"
-        echo -e "                                                                    "
-        echo -e "  📦 FOR NON-STEAM TITLES (Lutris/Heroic Env Variables panel):"
-        echo -e "  Key: ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}   Value: ${GREEN}true${RESET}"
-        echo -e "  Key: ${CYAN}WINEDLLOVERRIDES${RESET}          Value: ${GREEN}dxgi=n,b${RESET}"
-        echo -e "  Key: ${MAGENTA}MANGOHUD${RESET}                 Value: ${GREEN}1${RESET}"
-    else
-        echo -e "  ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}=${GREEN}true${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${YELLOW}%command%${RESET}"
-        echo -e "                                                                    "
-        echo -e "  📦 FOR NON-STEAM TITLES (Lutris/Heroic Env Variables panel):"
-        echo -e "  Key: ${CYAN}FSR_Fsr4ForceEnableInt8${RESET}   Value: ${GREEN}true${RESET}"
-        echo -e "  Key: ${CYAN}WINEDLLOVERRIDES${RESET}          Value: ${GREEN}dxgi=n,b${RESET}"
-    fi
+    echo -e "  ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${YELLOW}%command%${RESET}"
     echo -e "${B_RED}====================================================================${RESET}"
 
-    (play_success_chime &>/dev/null &)
-    read -rp "Press [Enter] to return to menu dashboard..." dummy
+    set -e; (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
 }
 
 # ==============================================================================
@@ -2627,7 +3000,7 @@ toggle_compute_queue_fix() {
         echo -e "${YELLOW}====================================================================${RESET}"
         echo -e "  ${CYAN}1) Express Deploy Messa Drivers & Punktfunk Streaming Suite ${RESET}  ${DIM}Express Deploy Custom Mesa, Punktfunk Streaming Servers, and fixes${RESET}"
         echo ""
-        echo -e "  ${CYAN}2) FSR 4.1.1 Smart Suite    ${RESET}  ${DIM}Toggle GFX1013 FSR 4.1.1 Vector RC11 PROD Engine${RESET}"
+        echo -e "  ${CYAN}2) FSR4 / DLSS-E Smart Suite${RESET}  ${DIM}Toggle GFX1013 FSR 4.1.1 PROD or HelixSR DLSS Model E Shaders${RESET}"
         echo -e "  ${CYAN}3) Strip Legacy FSR4 payload files & purge configuration states${RESET}  ${DIM}Completely remove upscaler binaries and reset game directories to factory defaults${RESET}"
         echo ""
         echo -e "  ${CYAN}4) Install / Update Standalone Developer AppImages ${DIM}(OptiScaler / DS5 Bridge / Goverlay)${RESET}"
@@ -2812,6 +3185,7 @@ INNER_EOF'
                     e|E) manage_punktfunk_setup ;;
                     f|F) manage_punktfunk_uninstall ;;
                     g|G) run_punktfunk_troubleshooter ;;
+                    h|H) deploy_solarflare_compilation_engine ;;
                     *) echo -e "${RED}Invalid choice.${RESET}" ;;
                 esac
                 ;; # 🎯 Closes choice 1) Custom Route submenu securely
