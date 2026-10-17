@@ -2133,6 +2133,84 @@ EOF
     read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
 }
 
+# ====================================================================================
+# 🧬 FIXED: AUTOMATED PRE-BUILT ARCHIVE DEPLOYER FOR IMMUTABLE ENVIRONMENTS
+# ====================================================================================
+deploy_bc250_compiled_binaries() {
+    echo "=========================================================="
+    echo "📦      EXTRACTING PRE-BUILT AMD BC-250 DRIVER ENGINE     "
+    echo "=========================================================="
+
+    # 1. Pre-flight Environment Validation: Prevent extraction failures
+    if ! command -v unzstd >/dev/null 2>&1; then
+        echo -e "\033[1;31m❌ ERROR: System decompression utility 'zstd' is missing.\033[0m"
+        echo "Please execute: 'ujust ostree-install zstd' to populate the system layer."
+        return 1
+    fi
+
+    # 2. Path Isolation Gateway: Bypass Read-Only Sandbox Mountpoints
+    local host_workspace
+    if [[ -n "${APPIMAGE:-}" ]]; then
+        host_workspace=$(dirname "$(readlink -f "$APPIMAGE")")
+    else
+        host_workspace=$(dirname "$(readlink -f "${BASH_SOURCE:-$0}")")
+    fi
+
+    local staging_prefix="${host_workspace}/Driver_Extraction_Staging"
+    local native_login_user="${SUDO_USER:-$(logname 2>/dev/null || whoami)}"
+
+    # TARGET VERIFIED RELEASE: v0.2.4 Stable Tarball URL
+    local target_tarball_url="https://github.com/tri3gubki-ops/bc250-async-compute-bazzite/releases/download/v0.2.4/bc250-async-compute-0.2.4.tar.zst"
+    local archive_filename="bc250-async-compute-0.2.4.tar.zst"
+
+    echo -e "\033[0;36m[⚙️] Staging active host drive configuration trees...\033[0m"
+    mkdir -p "$staging_prefix"
+    chown -R "$native_login_user":"$native_login_user" "$staging_prefix"
+
+    # 3. Pull Package from Remote Upstream
+    echo -e "\033[0;36m[ℹ️] Pulling stable v0.2.4 binary package from GitHub via network layer...\033[0m"
+    if ! sudo -u "$native_login_user" curl -L -o "${staging_prefix}/${archive_filename}" "$target_tarball_url"; then
+        echo -e "\033[1;31m❌ ERROR: Failed to retrieve archive. Check target network socket visibility.\033[0m"
+        rm -rf "$staging_prefix"
+        return 1
+    fi
+
+    # 4. Decompress Tarball Layer Natively
+    echo -e "\033[0;36m[⚙️] Stripping ZSTD archive compression wrappers...\033[0m"
+    cd "$staging_prefix" || return 1
+    if ! sudo -u "$native_login_user" tar --use-compress-program=unzstd -xvf "$archive_filename"; then
+        echo -e "\033[1;31m❌ ERROR: Archive extraction loop crashed. Broken archive descriptor.\033[0m"
+        rm -rf "$staging_prefix"
+        return 1
+    fi
+
+    # 5. Execute Isolated System Deployment Handlers
+    # 🧬 FIX: Path updated to match the extracted folder layout exactly
+    local extracted_folder_path="${staging_prefix}/bc250-async-compute-0.2.4"
+    if [[ -d "$extracted_folder_path" ]]; then
+        cd "$extracted_folder_path" || return 1
+        echo -e "\033[0;36m[⚙️] Launching local path isolation driver script rules...\033[0m"
+
+        if ./install.sh; then
+            echo -e "\033[0;32m[✓] SUCCESS: Driver blobs mapped to /usr/local/lib/bc250-radv portably!\033[0m"
+
+            # 6. Lock Down System-Wide Session Overrides
+            echo -e "\033[0;36m[⚙️] Registering systemd user session global overrides...\033[0m"
+            sudo bc250-async-compute always enable
+            echo -e "\033[0;32m[✓] All pipeline optimization paths are now globally active.\033[0m"
+        else
+            echo -e "\033[1;31m❌ ERROR: Internal setup script was unable to map runtime libraries.\033[0m"
+        fi
+    else
+        echo -e "\033[1;31m❌ ERROR: Expected directory node was absent from unpacked file structure.\033[0m"
+    fi
+
+    # 🧼 Sterile Workspace Cleanup
+    echo -e "\033[0;36m[⚙️] Flushing volatile deployment staging caches from drive...\033[0m"
+    rm -rf "$staging_prefix"
+    return 0
+}
+
 deploy_helixsr_143_interactive() {
     # 🧬 HARD-CODED EXPLICIT ESCAPE SIGNATURES FOR COMPATIBLE COLOR PARSING
     local CYAN='\e[0;36m' local GREEN='\e[0;32m' local YELLOW='\e[1;33m'
@@ -3767,16 +3845,18 @@ toggle_compute_queue_fix() {
         case "$sub_opt" in
             1) # 🎯 FIX 1: Restored the completely missing Main Menu option selector branch
                 echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
-                echo -e "      a) ${DIM}Custom Route (Navi10): Download & Install Pre-Compiled Performance Driver${RESET}"
-                echo -e "      b) ${DIM}Custom Route (Navi14): Download & Install Pre-Compiled Performance Driver${RESET}"
-                echo -e "      c) ${GREEN}Compile DirectMesh (Mesa 26.2.1): Stable 4K APU Patch (lonewolf0622 Track)${RESET}"
-                echo -e "      d) ${YELLOW}Compile DirectMesh (Mesa 26.2.4): Rebased 4K APU Patch (MastaG Track)${RESET}"
-                echo -e "      e) ${RED}Restore Stock Driver:  Remove Custom Mesa Overrides & Restore Factory State${RESET}"
-                echo -e "      f) ${CYAN}Telemetry Check:       Check Driver Activation & Hardware Extension Status${RESET}"
+                echo -e "      a) ${DIM}Custom Route (Navi10 - 40 CU): Download & Install Pre-Compiled Performance Driver${RESET}"
+                echo -e "      b) ${DIM}Custom Route (Navi14 - 24 CU): Download & Install Pre-Compiled Performance Driver${RESET}"
                 echo ""
-                echo -e "      g) ${DIM}Punktfunk Setup:       Install / Reinstall Game Streaming Server${RESET}"
-                echo -e "      h) ${DIM}Punktfunk Remove:      Completely Uninstall & Purge Streaming Files${RESET}"
-                echo -e "      i) ${DIM}Punktfunk Fix:         Run Fail-Safe Troubleshooter (CPU Video Mode)${RESET}"
+                echo -e "      c) ${GREEN}Deploy Pre-built Driver: Run Async Compute v0.2.4 Tarball Installer${RESET}"
+                echo -e "      d) ${YELLOW}Compile DirectMesh (Mesa 26.2.4): Rebased 4K APU Patch (MastaG Track)${RESET}"
+                echo -e "      e) ${DIM}Compile DirectMesh (Mesa 26.2.1): Stable 4K APU Patch (lonewolf0622 Track)${RESET}"
+                echo -e "      f) ${RED}Restore Stock Driver:  Remove Custom Mesa Overrides & Restore Factory State${RESET}"
+                echo -e "      g) ${CYAN}Telemetry Check:       Check Driver Activation & Hardware Extension Status${RESET}"
+                echo ""
+                echo -e "      h) ${DIM}Punktfunk Setup:       Install / Reinstall Game Streaming Server${RESET}"
+                echo -e "      i) ${DIM}Punktfunk Remove:      Completely Uninstall & Purge Streaming Files${RESET}"
+                echo -e "      j) ${DIM}Punktfunk Fix:         Run Fail-Safe Troubleshooter (CPU Video Mode)${RESET}"
                 echo ""
                 local ACTION_CHOICE; read -rp "$(echo -e "  ${CYAN}Select an option [a-i]: ${RESET}")" ACTION_CHOICE
                 case "$ACTION_CHOICE" in
@@ -3868,13 +3948,22 @@ INNER_EOF'
                         fi
                         ;;
                     c|C)
-                        # 🧬 OPTION C ENGINES: Launches your standalone directmesh compilation function natively
-                        compile_bc250_mastag_2621_driver
+                        if ! deploy_bc250_compiled_binaries; then
+                            echo -e "\n\033[1;31m[-] Installation failed.\033[0m"
+                            read -p "👉 Press [ENTER] to return to the menu layout... " error_pause
+                        else
+                            echo -e "\n\033[1;32m[✓] Process completed cleanly.\033[0m"
+                            read -p "👉 Press [ENTER] to continue... " success_pause
+                        fi
                         ;;
                     d|D)
                         compile_bc250_mastag_2624_driver
                         ;;
                     e|E)
+                        # Option 'e' handles your Mesa 26.2.1 source compiler
+                        compile_bc250_mastag_2621_driver
+                        ;;
+                    f|F)
                         # Option 3 uninstaller sweeps the environment completely clean
                 local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                 local active_profile="Factory Stock Driver (No active overrides detected)"
@@ -3907,7 +3996,7 @@ INNER_EOF'
                 fi
                 ;;
 
-                    f|F)
+                    g|G)
                         echo -e "\n${CYAN}[ℹ] Verifying Active Hardware Pipeline Status Profiles...${RESET}"
                 local stock_ver; stock_ver=$(rpm -q mesa-dri-drivers --qf "%{VERSION}\n" 2>/dev/null | head -n1 || echo "Unknown")
                 echo -e "  Stock System Driver Version:  ${YELLOW}${stock_ver}${RESET}"
@@ -3947,9 +4036,9 @@ INNER_EOF'
                 read -rp "Press [Enter] to return back to sub-menu..." dummy
                 ;;
                 # 🚀 ROUTING ENGINE HOOK: Calls the standalone FSR4 installation engine pass
-                    g|G) manage_punktfunk_setup ;;
-                    h|H) manage_punktfunk_uninstall ;;
-                    i|I) run_punktfunk_troubleshooter ;;
+                    h|H) manage_punktfunk_setup ;;
+                    i|I) manage_punktfunk_uninstall ;;
+                    j|J) run_punktfunk_troubleshooter ;;
                     *) echo -e "${RED}Invalid choice.${RESET}" ;;
                 esac
                 ;; # 🎯 Closes choice 1) Custom Route submenu securely
