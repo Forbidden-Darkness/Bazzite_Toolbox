@@ -1,22 +1,5 @@
 #!/usr/bin/env bash
 
-# Main logic
-if [[ -z "$DETACHED_LAUNCH_PASS" ]]; then
-    export DETACHED_LAUNCH_PASS=1
-    sleep 0.5
-
-    # Launch in a new Konsole tab (change to your terminal if needed)
-    if command -v konsole >/dev/null; then
-        konsole --new-tab -e "$0" "$@" &>/dev/null &
-    else
-        echo "Error: konsole not found. Please install it or change the terminal command."
-        exit 1
-    fi
-
-    kill_parent_terminal
-    exit 0
-fi
-
 # ==============================================================================
 # 🏛️ GROUP 1: CORE SYSTEM ENVIRONMENT, ANCHOR VARIABLES & SETUP CONTEXTS
 # ==============================================================================
@@ -72,55 +55,45 @@ start_background_music() {
     AUDIO_FILE="${base_dir}/Red-Pill-Blue-Pill.wav"
     MUSIC_LOCK_FILE="/tmp/bc250_music.lock"
 
-    # 🎯 SELF-HEALING ASSET GATE: If the audio track is missing, pull it down cleanly
     if [[ ! -f "$AUDIO_FILE" ]]; then
         echo -e "${YELLOW}[⚙] Initializing audio ambiance tracks... Downloading wave properties...${NC}"
-
-        # Pulls the raw binary audio track cleanly from your repository branch paths
         sudo curl -sSL -o "$AUDIO_FILE" "https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Wake_on_LAN/Red-Pill-Blue-Pill.wav" >> "$LOG_FILE" 2>&1
-
-
         if [[ ! -f "$AUDIO_FILE" || ! -s "$AUDIO_FILE" ]]; then
-            echo -e "${BIRed}❌ WARNING: Audio download interface dropped. Running toolkit silently...${NC}"
-            sudo rm -f "$AUDIO_FILE" 2>/dev/null
-            return 1
+            echo -e "${BIRed}❌ WARNING: Audio interface dropped. Running toolkit silently...${NC}"
+            sudo rm -f "$AUDIO_FILE" 2>/dev/null; return 1
         fi
-
-        # Sync ownership properties back to the local user account layers
         sudo chown "$REAL_USER":"$REAL_USER" "$AUDIO_FILE" 2>/dev/null || true
-        echo -e "${BIGreen}[✓] Audio synchronization finalized.${NC}\n"
-        sleep 0.5
+        echo -e "${BIGreen}[✓] Audio synchronization finalized.${NC}\n"; sleep 0.5
     fi
 
     if [[ -f "$AUDIO_FILE" ]] && [[ ! -f "$MUSIC_LOCK_FILE" ]]; then
         local user_id; user_id=$(id -u "$REAL_USER" 2>/dev/null || echo "1000")
+        touch "$MUSIC_LOCK_FILE" || true
 
-        # 1. Start the infinite audio playback loop with verified session bus contexts
+        # 🧬 SAFE INTERNAL MONITOR: The loop checks for the lock file itself instead of waiting to be killed violently
         (
-            while true; do
-                # 🧬 AUDIO MATRIX SOCKET BRIDGE: Passes runtime links to bypass root privilege containment
+            while [[ -f "$MUSIC_LOCK_FILE" ]]; do
                 sudo -u "$REAL_USER" \
                      XDG_RUNTIME_DIR="/run/user/$user_id" \
                      PIPEWIRE_RUNTIME_DIR="/run/user/$user_id" \
                      DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$user_id/bus" \
-                     pw-play "$AUDIO_FILE" 2>/dev/null
+                     pw-play "$AUDIO_FILE" >> "$LOG_FILE" 2>&1 &
 
-                # Prevent rapid thread spinning loops if the file experiences an interface drop
+                local play_pid=$!
+                # Hold here while the track plays, checking if the script requests a stop
+                while kill -0 "$play_pid" 2>/dev/null; do
+                    if [[ ! -f "$MUSIC_LOCK_FILE" ]]; then
+                        kill "$play_pid" 2>/dev/null || true; break 2
+                    fi
+                    sleep 0.5
+                done
                 sleep 1
             done
         ) &>/dev/null &
-
-        local music_pid=$!
-        echo "$music_pid" > "$MUSIC_LOCK_FILE" || true
-
-        # Disowns the background process thread from the current terminal job table.
-        # This completely stops Bash from printing the "Killed" status log on exit!
-        disown "$music_pid" 2>/dev/null || true
-
-        # 2. Spawn a detached 71-second automated fade-out timer thread
+        disown -a 2>/dev/null
+        # Detached 71-second automated fade-out timer thread
         (
             sleep 71
-
             local nodes; nodes=$(sudo -u "$REAL_USER" XDG_RUNTIME_DIR="/run/user/$user_id" PIPEWIRE_RUNTIME_DIR="/run/user/$user_id" pw-cli list-objects Node 2>/dev/null | grep -B 2 "pw-play" | awk -F'= ' '/id/ {print $2}' | tr -d ',')
             if [[ -n "$nodes" ]]; then
                 for vol in 0.8 0.6 0.4 0.2 0.1 0.0; do
@@ -130,25 +103,18 @@ start_background_music() {
                     sleep 0.8
                 done
             fi
-            if [[ -f "$MUSIC_LOCK_FILE" ]]; then
-                local target_pid; target_pid=$(cat "$MUSIC_LOCK_FILE" 2>/dev/null || echo "")
-                [[ -n "$target_pid" ]] && kill -9 "$target_pid" 2>/dev/null || true
-                killall pw-play &>/dev/null || true
-                rm -f "$MUSIC_LOCK_FILE" 2>/dev/null || true
-            fi
+            stop_background_music
         ) &>/dev/null &
     fi
 }
 
 stop_background_music() {
+    local MUSIC_LOCK_FILE="/tmp/bc250_music.lock"
+    # 🧬 GENTLE BREAK: Removing the file allows the background subshell to exit cleanly on its own
     if [[ -f "$MUSIC_LOCK_FILE" ]]; then
-        local target_pid; target_pid=$(cat "$MUSIC_LOCK_FILE" 2>/dev/null || echo "")
-        [[ -n "$target_pid" ]] && kill -9 "$target_pid" 2>/dev/null || true
-
-        # Kill the player engine instances across both root and standard user parameters cleanly
-        sudo -u "$REAL_USER" killall pw-play &>/dev/null || true
-        killall pw-play &>/dev/null || true
         rm -f "$MUSIC_LOCK_FILE" 2>/dev/null || true
+        # Targets the audio player process gracefully without hitting the parent terminal pipeline boundaries
+        sudo -u "$REAL_USER" killall -s TERM pw-play &>/dev/null || true
     fi
 }
 
@@ -1023,7 +989,7 @@ migrate_legacy_install_path
 # =====================================================================
 # 2. AUTO-UPDATE MECHANISM (WITH SILENT OFFLINE FAIL)
 # =====================================================================
-local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
+#local_script_update_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/start.sh"
 # 🧬 MODDED 🧬
 if [ "$1" != "--no-update" ] && [ "$1" != "--updated" ]; then
     if curl -s -I -L --connect-timeout 2 "$local_script_update_url" > /dev/null; then
@@ -1771,7 +1737,7 @@ deploy_gfx1013_fsr4_engine() {
     fi
 }
 
-compile_bc250_directmesh_driver() {
+compile_bc250_mastag_2624_driver() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
     local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
 
@@ -1782,7 +1748,115 @@ compile_bc250_directmesh_driver() {
 
     clear
     echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "   🚀 COMPILING DIRECTMESH V1.3.1 VIA MATCHING MESA 26.2.1 TREE     "
+    echo -e "   🚀 COMPILING DIRECTMESH V1.3.1 NATIVELY VIA MESA 26.2.4 SNAPSHOT "
+    echo -e "====================================================================${RESET}"
+
+    local target_lib="${host_driver_dir}/lib64/libvulkan_radeon.so"
+    if [[ -f "$target_lib" ]]; then
+        if confirm "Safe-remove active driver layers before proceeding?"; then
+            sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json" 2>/dev/null || true
+            sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+            sudo rm -rf "$host_driver_dir" 2>/dev/null || true
+        fi
+    fi
+
+    if confirm "Proceed with Mesa 26.2.4 Custom DirectMesh native installation?"; then
+        local log_dir; log_dir=$(dirname "$mesa_build_log")
+        [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
+        sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
+        podman rm -f bc250-build-box &>/dev/null || true
+
+        echo -e "\n${GREEN}[+] Step 1/6: Spawning pristine root container (Fedora 43)...${RESET}"
+        sudo podman run -d --pull=always --net=host --ipc=host --name bc250-build-box registry.fedoraproject.org/fedora-minimal:43 sleep infinity >> "$mesa_build_log" 2>&1
+
+        echo -e "${GREEN}[+] Step 2/6: Provisioning robust compiler dependencies...${RESET}"
+        sudo podman exec bc250-build-box microdnf clean all >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box microdnf install -y meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget patch tar xz unzip >> "$mesa_build_log" 2>&1
+
+        echo -e "${GREEN}[+] Step 3/6: Fetching flat 26.2.4 source zip package from FreeDesktop GitLab...${RESET}"
+        local zip_url="https://gitlab.freedesktop.org/mesa/mesa/-/archive/mesa-26.2.4/mesa-mesa-26.2.4.zip"
+        sudo podman exec bc250-build-box wget -q --show-progress -O /root/mesa.zip "$zip_url" >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box sh -c "unzip -q -o /root/mesa.zip -d /root && mkdir -p /root/mesa && mv -f /root/mesa-mesa-26.2.4/* /root/mesa/ 2>/dev/null || true" >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box mkdir -p /root/patches
+
+        echo -e "${GREEN}[+] Step 4/6: Pulling rebased 26.2.4 patch layers from MastaG mirror...${RESET}"
+        # 🧬 RAW TEXT REDIRECT: Swapped /blob/ for /raw/ to force git to stream the clean patch rows instead of HTML garbage
+        local patch_url="https://raw.githubusercontent.com/MastaG/linux-cachyos-bc250/main/patches/mesa/0002-bc250-directmesh.patch"
+        sudo podman exec bc250-build-box wget -qO /root/patches/bc250-directmesh.patch "$patch_url" >> "$mesa_build_log" 2>&1
+
+        echo -e "${GREEN}[+] Step 5/6: Injecting hardware performance patches and compiling custom driver...${RESET}"
+        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/bc250-directmesh.patch" >> "$mesa_build_log" 2>&1
+
+        echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release -Dllvm=disabled -Dvideo-codecs= -Db_lto=false" >> "$mesa_build_log" 2>&1
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so src/amd/vulkan/radeon_devenv_icd.x86_64.json" >> "$mesa_build_log" 2>&1
+
+        if ! sudo podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
+            echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to return back to main menu dashboard..." dummy; return 1
+        fi
+
+        echo -e "${GREEN}[+] Step 6/6: Exporting custom library objects to host space...${RESET}"
+        sudo mkdir -p "${host_driver_dir}/lib64" "${host_driver_dir}/share/vulkan/icd.d" /etc/environment.d 2>/dev/null
+        local cache_dir="/tmp/bc250_directmesh_staging"; rm -rf "$cache_dir" && mkdir -p "$cache_dir"
+
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$cache_dir/" >> "$mesa_build_log" 2>&1
+        sudo mv -f "$cache_dir/libvulkan_radeon.so" "${host_driver_dir}/lib64/libvulkan_radeon.so" 2>/dev/null
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$cache_dir/" >> "$mesa_build_log" 2>&1
+        sudo sed -i 's|"library_path": ".*"|"library_path": "'"${host_driver_dir}/lib64/libvulkan_radeon.so"'"|g' "$cache_dir/radeon_devenv_icd.x86_64.json" 2>/dev/null
+        sudo mv -f "$cache_dir/radeon_devenv_icd.x86_64.json" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json" 2>/dev/null
+
+        mkdir -p "/var/home/${REAL_USER}/.local/share/vulkan/icd.d" 2>/dev/null
+        printf '{\n    "file_format_version": "1.0.0",\n    "ICD": {\n        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",\n        "api_version": "1.3.290"\n    }\n}\n' > "/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json"
+
+        chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
+        chmod 644 "/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json" 2>/dev/null
+
+        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v "${host_driver_dir}/lib64/libvulkan_radeon.so" &>/dev/null
+        sudo podman rm -f bc250-build-box --force &>/dev/null || true; rm -rf "$cache_dir"
+        if ! command -v numactl &>/dev/null; then sudo rpm-ostree install -y --allow-inactive numactl; fi
+
+        sudo bash -c "cat << 'EOF' > $perf_conf
+# 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+        sudo bash -c "cat << 'EOF' > $wrapper_bin
+#!/usr/bin/env bash
+if command -v numactl &>/dev/null; then exec numactl --interleave=all \"\$@\"; else exec \"\$@\"; fi
+EOF"
+        sudo chmod +x "$wrapper_bin"; sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf
+
+        echo -e "\n${GREEN}====================================================================${RESET}"
+        echo -e "  🎮 DIRECTMESH V1.3.1 INSTALLED NATIVELY (MESA 26.2.4 ZIP RAILS)    "
+        echo -e "  ⚡ 4K Out-Of-Memory GPU hangs are now completely patched!          "
+        echo -e "--------------------------------------------------------------------"
+        echo -e "  ⚠️  MANDATORY STEAM LAUNCH OPTIONS CONFIGURATION SPECIFICATION:    "
+        echo -e "  ${CYAN}VK_DRIVER_FILES${RESET}=${YELLOW}\"/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json\"${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${MAGENTA}%%command%%${RESET}"
+        echo -e "--------------------------------------------------------------------"
+        echo -e "  💡 UPSTREAM MODULATING PARAMETER SPECIFICATION INFO:               "
+        echo -e "  -> ${CYAN}VK_DRIVER_FILES${RESET}: Always required to force the custom hardware driver."
+        echo -e "  -> ${GREEN}WINEDLLOVERRIDES=\"dxgi=n,b\"${RESET}: Safe for vanilla, and required"
+        echo -e "     the exact second you install an upscaler mod (OptiScaler/HelixSR)."
+        echo -e "====================================================================${RESET}"
+    fi
+    set -e; (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
+}
+
+compile_bc250_mastag_2621_driver() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    local mesa_build_log="/var/log/bc250_toolbox.log"
+    local host_driver_dir="/opt/bc250-gfx1013"
+    local perf_conf="/etc/environment.d/99-bc250-perf.conf"
+    local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 COMPILING DIRECTMESH V1.3.1 NATIVELY VIA ROOT PRIVILEGES      "
     echo -e "${CYAN}====================================================================${RESET}"
 
     local target_lib="${host_driver_dir}/lib64/libvulkan_radeon.so"
@@ -1794,67 +1868,67 @@ compile_bc250_directmesh_driver() {
         fi
     fi
 
-    if confirm "Proceed with Custom BC-250 DirectMesh native GitLab installation?"; then
+    if confirm "Proceed with Custom BC-250 DirectMesh native installation?"; then
         local log_dir; log_dir=$(dirname "$mesa_build_log")
         [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
         sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
         podman rm -f bc250-build-box &>/dev/null || true
 
-        echo -e "\n${GREEN}[+] Step 1/6: Spawning clean virtual toolchain environment (Fedora 43)...${RESET}"
-        podman run -d --pull=always --name bc250-build-box registry.fedoraproject.org/fedora-minimal:43 sleep infinity >> "$mesa_build_log" 2>&1
+        echo -e "\n${GREEN}[+] Step 1/6: Spawning pristine root container (Fedora 43)...${RESET}"
+        # 🧬 ROOT POWER MATRIX: Spawns container cleanly to maximize transactional stability blocks
+        sudo podman run -d --pull=always --net=host --ipc=host --name bc250-build-box registry.fedoraproject.org/fedora-minimal:43 sleep infinity >> "$mesa_build_log" 2>&1
 
-        echo -e "${GREEN}[+] Step 2/6: Provisioning stable compiler dependencies inside sandbox...${RESET}"
-        podman exec bc250-build-box microdnf install -y meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget patch tar xz >> "$mesa_build_log" 2>&1
+        echo -e "${GREEN}[+] Step 2/6: Provisioning robust compiler dependencies...${RESET}"
+        sudo podman exec bc250-build-box microdnf clean all >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box microdnf install -y meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget patch tar xz unzip >> "$mesa_build_log" 2>&1
 
-        echo -e "${GREEN}[+] Step 3/6: Cloning pristine Mesa 26.2.1 tree directly from FreeDesktop GitLab...${RESET}"
-        # 🧬 TARGET MATCH: Clones the exact 26.2.1 branch tag from GitLab so lonewolf0622's patch lines up 100% perfectly
-        podman exec bc250-build-box git clone --depth 1 --branch mesa-26.2.1 https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa >> "$mesa_build_log" 2>&1
-        podman exec bc250-build-box mkdir -p /root/patches
+        echo -e "${GREEN}[+] Step 3/6: Fetching flat 26.2.1 source zip package from FreeDesktop GitLab...${RESET}"
+        local zip_url="https://gitlab.freedesktop.org/mesa/mesa/-/archive/mesa-26.2.1/mesa-mesa-26.2.1.zip"
+        sudo podman exec bc250-build-box wget -q --show-progress -O /root/mesa.zip "$zip_url" >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box sh -c "unzip -q -o /root/mesa.zip -d /root && mkdir -p /root/mesa && mv -f /root/mesa-mesa-26.2.1/* /root/mesa/ 2>/dev/null || true" >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box mkdir -p /root/patches
 
         echo -e "${GREEN}[+] Step 4/6: Pulling original DirectMesh v1.3.1 patch from lonewolf0622...${RESET}"
         local patch_url="https://github.com/lonewolf0622/bc250meshtaskwork/releases/download/directmesh-v1.3.1/bc250-directmesh-mesa-26.2.1.patch"
-        podman exec bc250-build-box wget -qO /root/patches/bc250-directmesh.patch "$patch_url" >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box wget -qO /root/patches/bc250-directmesh.patch "$patch_url" >> "$mesa_build_log" 2>&1
 
         echo -e "${GREEN}[+] Step 5/6: Injecting hardware performance patches and compiling custom driver...${RESET}"
-        podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/bc250-directmesh.patch" >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/bc250-directmesh.patch" >> "$mesa_build_log" 2>&1
 
         echo -e "    -> Mod files injected cleanly. Running compiler engine (Est: 3-5 mins)..."
-        # PYTHONDONTWRITEBYTECODE=1 cleanly forces Python to bypass marshal bytecode failures on host environments
-        podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release -Dllvm=disabled -Dvideo-codecs=" >> "$mesa_build_log" 2>&1
-        podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so src/amd/vulkan/radeon_devenv_icd.x86_64.json" >> "$mesa_build_log" 2>&1
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release -Dllvm=disabled -Dvideo-codecs= -Db_lto=false" >> "$mesa_build_log" 2>&1
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so src/amd/vulkan/radeon_devenv_icd.x86_64.json" >> "$mesa_build_log" 2>&1
 
-        if ! podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
+        if ! sudo podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
             echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
-            podman rm -f bc250-build-box --force &>/dev/null || true
-            read -rp "Press [Enter] to return back to main menu..." dummy; return 1
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            # 🧬 INTERACTIVE FAIL-SAFE RESTORED: Holds the screen wide awake so you can audit the log records!
+            read -rp "👉 Press [ENTER] to return back to main menu dashboard..." dummy; return 1
         fi
 
         echo -e "${GREEN}[+] Step 6/6: Exporting custom library objects to host space...${RESET}"
         sudo mkdir -p "${host_driver_dir}/lib64" "${host_driver_dir}/share/vulkan/icd.d" /etc/environment.d 2>/dev/null
+        local cache_dir="/tmp/bc250_directmesh_staging"; rm -rf "$cache_dir" && mkdir -p "$cache_dir"
 
-        local cache_dir="/tmp/bc250_directmesh_staging"
-        rm -rf "$cache_dir" && mkdir -p "$cache_dir"
-
-        podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$cache_dir/" >> "$mesa_build_log" 2>&1
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$cache_dir/" >> "$mesa_build_log" 2>&1
         sudo mv -f "$cache_dir/libvulkan_radeon.so" "${host_driver_dir}/lib64/libvulkan_radeon.so" 2>/dev/null
-
-        podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$cache_dir/" >> "$mesa_build_log" 2>&1
-        sed -i 's|"library_path": ".*"|"library_path": "'"${host_driver_dir}/lib64/libvulkan_radeon.so"'"|g' "$cache_dir/radeon_devenv_icd.x86_64.json" 2>/dev/null
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$cache_dir/" >> "$mesa_build_log" 2>&1
+        sudo sed -i 's|"library_path": ".*"|"library_path": "'"${host_driver_dir}/lib64/libvulkan_radeon.so"'"|g' "$cache_dir/radeon_devenv_icd.x86_64.json" 2>/dev/null
         sudo mv -f "$cache_dir/radeon_devenv_icd.x86_64.json" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json" 2>/dev/null
 
-        # 🧬 FLATPAK BRIDGE INTEGRATION: Writes the manifest straight into user home directory spaces
-        mkdir -p "/var/home/bsystem/.local/share/vulkan/icd.d" 2>/dev/null
-        sed 's|'${host_driver_dir}/lib64/libvulkan_radeon.so'|/var/home/bsystem/.local/share/vulkan/icd.d/../../../../opt/bc250-gfx1013/lib64/libvulkan_radeon.so|g' "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json" > "/var/home/bsystem/.local/share/vulkan/icd.d/bc250_directmesh.json" 2>/dev/null
-        chmod 644 "/var/home/bsystem/.local/share/vulkan/icd.d/bc250_directmesh.json" 2>/dev/null
+        # Spawns directory tree tracks under standard local user configurations natively
+        mkdir -p "/var/home/${REAL_USER}/.local/share/vulkan/icd.d" 2>/dev/null
+
+        # 🧬 QUOTATION ENFORCEMENT: Directly builds string-escaped valid JSON layout blocks
+        printf '{\n    "file_format_version": "1.0.0",\n    "ICD": {\n        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",\n        "api_version": "1.3.290"\n    }\n}\n' > "/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json"
+
+        # 🧬 AUTOMATED CONVERSION CURE: Forcibly chowns the manifest back to standard user permissions automatically!
+        chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
+        chmod 644 "/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json" 2>/dev/null
 
         [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v "${host_driver_dir}/lib64/libvulkan_radeon.so" &>/dev/null
-        podman rm -f bc250-build-box --force &>/dev/null || true
-        rm -rf "$cache_dir"
-
-        if ! command -v numactl &>/dev/null; then
-            echo -e "${YELLOW}[ℹ] Provisioning system memory allocator matrix via native host layering...${RESET}"
-            sudo rpm-ostree install -y --allow-inactive numactl
-        fi
+        sudo podman rm -f bc250-build-box --force &>/dev/null || true; rm -rf "$cache_dir"
+        if ! command -v numactl &>/dev/null; then sudo rpm-ostree install -y --allow-inactive numactl; fi
 
         sudo bash -c "cat << 'EOF' > $perf_conf
 # 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
@@ -1865,15 +1939,396 @@ EOF"
 #!/usr/bin/env bash
 if command -v numactl &>/dev/null; then exec numactl --interleave=all \"\$@\"; else exec \"\$@\"; fi
 EOF"
-        sudo chmod +x "$wrapper_bin"
-        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf
+        sudo chmod +x "$wrapper_bin"; sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf
 
         echo -e "\n${GREEN}====================================================================${RESET}"
-        echo -e "  🎮 DIRECTMESH V1.3.1 INSTALLED NATIVELY (MESA 26.2.1 PATH RAILS)   "
+        echo -e "  🎮 DIRECTMESH V1.3.1 INSTALLED NATIVELY (AUTOMATED USER MAPPING)   "
         echo -e "  ⚡ 4K Out-Of-Memory GPU hangs are now completely patched!          "
         echo -e "--------------------------------------------------------------------"
         echo -e "  ⚠️  MANDATORY STEAM LAUNCH OPTIONS CONFIGURATION SPECIFICATION:    "
-        echo -e "  ${CYAN}VK_DRIVER_FILES${RESET}=${YELLOW}\"/var/home/bsystem/.local/share/vulkan/icd.d/bc250_directmesh.json\"${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${MAGENTA}%command%${RESET}"
+        echo -e "  ${CYAN}VK_DRIVER_FILES${RESET}=${YELLOW}\"/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json\"${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${MAGENTA}%%command%%${RESET}"
+        echo -e "--------------------------------------------------------------------"
+        echo -e "  💡 UPSTREAM MODULATING PARAMETER SPECIFICATION INFO:               "
+        echo -e "  -> ${CYAN}VK_DRIVER_FILES${RESET}: Always required to force the custom hardware driver."
+        echo -e "  -> ${GREEN}WINEDLLOVERRIDES=\"dxgi=n,b\"${RESET}: Leave inside your launch options string! "
+        echo -e "     It intercepts the graphics pipe; safe for vanilla, and required"
+        echo -e "     the exact second you install an upscaler mod (OptiScaler/HelixSR)."
+        echo -e "====================================================================${RESET}"
+    fi
+    set -e; (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
+}
+
+deploy_helixsr_181_interactive() {
+    # 🧬 HARD-CODED EXPLICIT ESCAPE SIGNATURES FOR COMPATIBLE COLOR PARSING
+    local CYAN='\e[0;36m' local GREEN='\e[0;32m' local YELLOW='\e[1;33m'
+    local RED='\e[0;31m' local RESET='\e[0m'
+    local manifest_name=".bc250_helixsr_manifest.txt"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 NATIVE ENGINE HELIXSR V1.8.1 COMPLETE TRACKING INSTALLER      "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    echo -e -n "${YELLOW}Download and compile pristine HelixSR v1.8.1 layers? [y/N]: ${RESET}"
+    read -r response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        local log_dir="/var/log/bc250_helixsr.log"
+        local staging="/tmp/bc250_helixsr_staging"
+        local DATA="/var/home/${REAL_USER}/.local/share/HelixSR"
+
+        sudo rm -f "$log_dir" && sudo touch "$log_dir" && sudo chmod 666 "$log_dir" 2>/dev/null || true
+        sudo rm -rf "$staging" && mkdir -p "$staging"
+
+        echo -e "\n${GREEN}[+] Step 1/2: Pulling upstream v1.8.1 distribution payload...${RESET}"
+        local custom_7z_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/HelixSR-1.8.1.7z"
+
+        # Download and extract cleanly via 7z
+        wget -q --show-progress -O "$staging/helixsr.7z" "$custom_7z_url"
+        7z x -aoa "$staging/helixsr.7z" -o"$staging" &>/dev/null
+        rm -f "$staging/helixsr.7z"
+
+        # Safely moves the nested contents to the root staging level if compressed with a subfolder topology
+        local nested_folder; nested_folder=$(find "$staging" -mindepth 1 -maxdepth 1 -type d -name "HelixSR*" | head -n 1)
+        if [[ -n "$nested_folder" && -d "$nested_folder" ]]; then
+            cp -rT "$nested_folder" "$staging" 2>/dev/null
+            rm -rf "$nested_folder" 2>/dev/null
+        fi
+        # 🧬 CRITICAL WINDOWS-TO-LINUX FLATTEN EXTENSION FIX:
+        # Restores the executable bit to compiler binaries that lost attributes during Windows compression cycles
+        chmod +x "$staging/helixsr-setup.sh" 2>/dev/null || true
+        if [[ -d "$staging/setup/lib/model" ]]; then
+            chmod +x "$staging/setup/lib/model/launch_synth" 2>/dev/null || true
+        fi
+
+        echo -e "${GREEN}[+] Step 2/2: Mapping environment boundaries and building network...${RESET}"
+        local current_pwd; current_pwd=$(pwd); cd "$staging"
+
+        # Inject the --no-wave64 hardware instruction override directly into the native runner
+        sudo -u "${REAL_USER}" sed -i 's|"$PY" "$PKG/helixsr_setup.py" "$TARGET" --dxc "$DXC" "${PASS[@]}"|"$PY" "$PKG/helixsr_setup.py" "$TARGET" --dxc "$DXC" "${PASS[@]}" --no-wave64|g' ./helixsr-setup.sh 2>/dev/null || true
+
+        mkdir -p ./build 2>/dev/null
+        sudo chown -R "${REAL_USER}":"${REAL_USER}" ./build "$staging" "${DATA}" 2>/dev/null || true
+
+        # 🔍 SYSTEM STATE BASELINE: Snapshot filesystem parameters before deployment execution
+        local pre_install_snapshot="/tmp/helixsr_pre_install.txt"
+        local search_root="/run/media/bsystem/Steam-Gaming/SteamLibrary/steamapps/common"
+        if [[ -d "$search_root" ]]; then
+            find "$search_root" -mindepth 1 -printf '%p|%P\n' 2>/dev/null | sort > "$pre_install_snapshot"
+        else
+            touch "$pre_install_snapshot"
+        fi
+
+        # 🛡️ HARDWARE I/O COLLISION GUARD: Temporarily hide old/broken backup structures from the python parser loop
+        if [[ -d "${search_root}/backup" ]]; then
+            sudo mv "${search_root}/backup" "/tmp/hxsr_hidden_backup" 2>/dev/null || true
+        fi
+
+        # 🧬 DYNAMIC NAMED FIFO PIPE CONTROLLER:
+        # Automatically handles the license warning keypress, then instantly hands control to your terminal
+        # so you can interact with the original python game picker query menus without skipped steps.
+        local pipe="/tmp/hxsr_pipe"
+        rm -f "$pipe" && mkfifo "$pipe"
+
+        (
+            echo "y"
+            exec cat </dev/tty
+        ) > "$pipe" &
+        local pipe_pid=$!
+
+        if sudo -u "${REAL_USER}" env HOME="/var/home/${REAL_USER}" USER="${REAL_USER}" REAL_USER="${REAL_USER}" ./helixsr-setup.sh < "$pipe"; then
+            echo -e "\n${GREEN}[✓] Shader arrays successfully processed and compiled by background runtime.${RESET}"
+            kill $pipe_pid 2>/dev/null || true
+            rm -f "$pipe"
+
+            # Restore hidden backup structures safely if they were preserved
+            if [[ -d "/tmp/hxsr_hidden_backup" ]]; then
+                sudo mv "/tmp/hxsr_hidden_backup" "${search_root}/backup" 2>/dev/null || true
+            fi
+            cd "$current_pwd"
+        else
+            echo -e "${RED}❌ ERROR: Runtime engine failed execution step.${RESET}"
+            kill $pipe_pid 2>/dev/null || true
+            rm -f "$pipe"
+            rm -f "$pre_install_snapshot"
+            if [[ -d "/tmp/hxsr_hidden_backup" ]]; then
+                sudo mv "/tmp/hxsr_hidden_backup" "${search_root}/backup" 2>/dev/null || true
+            fi
+            cd "$current_pwd"; rm -rf "$staging"; read -rp "Press Enter..." dummy; return 1
+        fi
+        # 🛡️ LOCAL OVERRIDE PATCH SLOT:
+        # Intelligently updates the existing [Hotfix] block inside OptiScaler.ini without creating duplicate entries
+        if [[ -d "$search_root" ]]; then
+            find "$search_root" -mindepth 1 -maxdepth 2 -name "OptiScaler.ini" -type f 2>/dev/null | while read -r target_ini; do
+                if [[ -f "$target_ini" ]]; then
+                    echo -e "${YELLOW}[ℹ] Injecting AMD anti-flicker barriers into: ${target_ini}${RESET}"
+
+                    # Clean out any old stacked duplicate hotfix parameters if they exist
+                    sudo sed -i '/^ColorResourceBarrier/d' "$target_ini" 2>/dev/null || true
+                    sudo sed -i '/^MotionVectorResourceBarrier/d' "$target_ini" 2>/dev/null || true
+                    sudo sed -i '/^DepthResourceBarrier/d' "$target_ini" 2>/dev/null || true
+
+                    # 🧬 THE CLEAN INSERTION FIX:
+                    # Injects the key hotfix parameters directly beneath the pre-existing [Hotfix] header line
+                    sudo sed -i '/^\[Hotfix\]/a ColorResourceBarrier = 4\nMotionVectorResourceBarrier = 8\nDepthResourceBarrier = auto' "$target_ini" 2>/dev/null || true
+
+                    sudo chown "${REAL_USER}":"${REAL_USER}" "$target_ini" 2>/dev/null
+                fi
+            done
+        fi
+
+        # 🧬 AUTOMATED PROVISIONING FOR 'MY-FSR' OVERRIDE INFRASTRUCTURE
+        if [[ -d "$search_root" ]]; then
+            find "$search_root" -mindepth 2 -maxdepth 2 -name "HelixSR" -type d 2>/dev/null | while read -r helix_dir; do
+                local target_my_fsr="${helix_dir}/my-fsr"
+
+                if [[ ! -d "$target_my_fsr" ]]; then
+                    sudo mkdir -p "$target_my_fsr"
+                    sudo tee "$target_my_fsr/README.txt" << 'EOF' >/dev/null
+Place your FSR upscaler binary DLL here (e.g., FSR 4: amd_fidelityfx_upscaler_dx12.dll).
+Once launched, press [Insert] to open the overlay menu -> Upscaling -> Upscalers -> FFX Upscaler to swap profiles.
+To purge the override layer, simply delete the loose DLL asset from this folder.
+EOF
+                    sudo chmod 644 "$target_my_fsr/README.txt" 2>/dev/null
+                    sudo chown -R "${REAL_USER}":"${REAL_USER}" "$helix_dir" 2>/dev/null
+                fi
+            done
+        fi
+
+        # 🔍 POST-DEPLOYMENT COMPARISON DIFF LOOP
+        if [[ -d "$search_root" ]]; then
+            local post_install_snapshot="/tmp/helixsr_post_install.txt"
+            filename_manifest="$manifest_name"
+            find "$search_root" -mindepth 1 -printf '%p|%P\n' 2>/dev/null | sort > "$post_install_snapshot"
+
+            local changes_detected; changes_detected=$(comm -13 "$pre_install_snapshot" "$post_install_snapshot")
+
+            echo "$changes_detected" | while IFS='|' read -r full_path relative_path; do
+                if [[ -f "$full_path" || -d "$full_path" ]]; then
+                    local game_base; game_base=$(echo "$full_path" | grep -oP "^${search_root}/[^/]+")
+                    if [[ -n "$game_base" && -d "$game_base" ]]; then
+                        local local_manifest="${game_base}/${filename_manifest}"
+                        local entry_line; entry_line=$(echo "$full_path" | sed "s|${game_base}/||g")
+
+                        if [[ "$entry_line" != "$filename_manifest" && -n "$entry_line" ]]; then
+                            echo "$entry_line" | sudo tee -a "$local_manifest" >/dev/null
+                            sudo chmod 644 "$local_manifest" 2>/dev/null
+                            sudo chown "${REAL_USER}":"${REAL_USER}" "$local_manifest" 2>/dev/null
+                        fi
+                    fi
+                fi
+            done
+            rm -f "$pre_install_snapshot" "$post_install_snapshot" 2>/dev/null
+        fi
+
+        rm -rf "$staging"
+        echo -e "\n${GREEN}====================================================================${RESET}"
+        echo -e "  🎮 HELIXSR V1.4.3 GAME HOOK DEPLOYMENT PROCESS COMPLETED          "
+        echo -e "${GREEN}====================================================================${RESET}"
+        echo -e "${YELLOW}👉 Copy and paste the following into your Steam Launch Options:${RESET}"
+        echo -e "${CYAN}VK_DRIVER_FILES=\"/var/home/bsystem/.local/share/vulkan/icd.d/bc250_directmesh.json\" WINEDLLOVERRIDES=\"dxgi,nvngx=n,b\" %command%${RESET}"
+        echo -e "====================================================================${RESET}"
+    fi
+    set -e; (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
+}
+
+deploy_helixsr_143_interactive() {
+    # 🧬 HARD-CODED EXPLICIT ESCAPE SIGNATURES FOR COMPATIBLE COLOR PARSING
+    local CYAN='\e[0;36m' local GREEN='\e[0;32m' local YELLOW='\e[1;33m'
+    local RED='\e[0;31m' local RESET='\e[0m'
+    local manifest_name=".bc250_helixsr_manifest.txt"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 NATIVE ENGINE HELIXSR V1.4.3 COMPLETE TRACKING INSTALLER      "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    echo -e -n "${YELLOW}Download and compile pristine HelixSR v1.8.1 layers? [y/N]: ${RESET}"
+    read -r response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        local log_dir="/var/log/bc250_helixsr.log"
+        local staging="/tmp/bc250_helixsr_staging"
+        local DATA="/var/home/${REAL_USER}/.local/share/HelixSR"
+
+        sudo rm -f "$log_dir" && sudo touch "$log_dir" && sudo chmod 666 "$log_dir" 2>/dev/null || true
+        sudo rm -rf "$staging" && mkdir -p "$staging"
+
+        echo -e "\n${GREEN}[+] Step 1/2: Pulling upstream v1.4.3 distribution payload...${RESET}"
+        local custom_7z_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/HelixSR-1.4.3.7z"
+        local fallback_zip_url="https://github.com"
+        local dl_success=0
+
+        # 🚀 ADAPTIVE EXTRACTION ROUTING MATRIX
+        echo -e "${YELLOW}[ℹ] Attempting primary high-speed extraction mirror (7z)...${RESET}"
+        if wget -q --show-progress -O "$staging/helixsr.7z" "$custom_7z_url"; then
+            echo -e "${GREEN}[✓] Custom 7z mirror successfully acquired. Unpacking compilation layers...${RESET}"
+            7z x -aoa "$staging/helixsr.7z" -o"$staging" &>/dev/null
+            rm -f "$staging/helixsr.7z"
+            dl_success=1
+        else
+            echo -e "${YELLOW}[⚠️] Primary 7z link unreachable. Switching to global fail-safe master branch (zip)...${RESET}"
+            if wget -q --show-progress -O "$staging/helixsr.zip" "$fallback_zip_url"; then
+                echo -e "${GREEN}[✓] Global zip archive successfully acquired. Unpacking compilation layers...${RESET}"
+                unzip -q -o "$staging/helixsr.zip" -d "$staging"
+                rm -f "$staging/helixsr.zip"
+                dl_success=1
+            fi
+        fi
+
+        if [ $dl_success -eq 0 ]; then
+            echo -e "${RED}❌ ERROR: Both distribution tracks collapsed. Check network stack connectivity.${RESET}"
+            sudo rm -rf "$staging"
+            read -rp "Press Enter to return..." dummy; return 1
+        fi
+        local wrapper_node; wrapper_node=$(find "$staging" -mindepth 1 -maxdepth 1 -type d -name "HelixSR*" | head -n 1)
+        [[ -n "$wrapper_node" ]] && cp -rT "$wrapper_node" "$staging" && rm -rf "$wrapper_node"
+
+        # 🧬 CRITICAL WINDOWS-TO-LINUX FLATTEN EXTENSION FIX:
+        # Recursively grants execution privileges to internal compiled binaries that lost attributes during Windows compression cycles
+        chmod +x "$staging/helixsr-setup.sh" 2>/dev/null || true
+        if [[ -d "$staging/setup/lib/model" ]]; then
+            chmod +x "$staging/setup/lib/model/launch_synth" 2>/dev/null || true
+        fi
+
+        echo -e "${GREEN}[+] Step 2/2: Mapping environment boundaries and building network...${RESET}"
+        local current_pwd; current_pwd=$(pwd); cd "$staging"
+
+        # Inject the --no-wave64 hardware instruction override directly into the native runner
+        sudo -u "${REAL_USER}" sed -i 's|"$PY" "$PKG/helixsr_setup.py" "$TARGET" --dxc "$DXC" "${PASS[@]}"|"$PY" "$PKG/helixsr_setup.py" "$TARGET" --dxc "$DXC" "${PASS[@]}" --no-wave64|g' ./helixsr-setup.sh 2>/dev/null || true
+
+        mkdir -p ./build 2>/dev/null
+        sudo chown -R "${REAL_USER}":"${REAL_USER}" ./build "$staging" "${DATA}" 2>/dev/null || true
+
+        # 🔍 SYSTEM STATE BASELINE: Snapshot filesystem parameters before deployment execution
+        local pre_install_snapshot="/tmp/helixsr_pre_install.txt"
+        local search_root="/run/media/bsystem/Steam-Gaming/SteamLibrary/steamapps/common"
+        if [[ -d "$search_root" ]]; then
+            find "$search_root" -mindepth 1 -printf '%p|%P\n' 2>/dev/null | sort > "$pre_install_snapshot"
+        else
+            touch "$pre_install_snapshot"
+        fi
+
+        # 🛡️ HARDWARE I/O COLLISION GUARD: Temporarily hide old/broken backup structures from the python parser loop
+        if [[ -d "${search_root}/backup" ]]; then
+            sudo mv "${search_root}/backup" "/tmp/hxsr_hidden_backup" 2>/dev/null || true
+        fi
+
+        # 🧬 DYNAMIC NAMED FIFO PIPE CONTROLLER:
+        local pipe="/tmp/hxsr_pipe"
+        rm -f "$pipe" && mkfifo "$pipe"
+
+        (
+            echo "y"
+            exec cat </dev/tty
+        ) > "$pipe" &
+        local pipe_pid=$!
+
+        if sudo -u "${REAL_USER}" env HOME="/var/home/${REAL_USER}" USER="${REAL_USER}" REAL_USER="${REAL_USER}" ./helixsr-setup.sh < "$pipe"; then
+            echo -e "\n${GREEN}[✓] Shader arrays successfully processed and compiled by background runtime.${RESET}"
+            kill $pipe_pid 2>/dev/null || true
+            rm -f "$pipe"
+
+            if [[ -d "/tmp/hxsr_hidden_backup" ]]; then
+                sudo mv "/tmp/hxsr_hidden_backup" "${search_root}/backup" 2>/dev/null || true
+            fi
+            cd "$current_pwd"
+        else
+            echo -e "${RED}❌ ERROR: Runtime engine failed execution step.${RESET}"
+            kill $pipe_pid 2>/dev/null || true
+            rm -f "$pipe"
+            rm -f "$pre_install_snapshot"
+            if [[ -d "/tmp/hxsr_hidden_backup" ]]; then
+                sudo mv "/tmp/hxsr_hidden_backup" "${search_root}/backup" 2>/dev/null || true
+            fi
+
+            echo -e "\n${YELLOW}🔍 [DIAGNOSTIC] Current contents of $staging right now:${RESET}"
+            find "$staging" -maxdepth 3 2>/dev/null
+
+            cd "$current_pwd"; rm -rf "$staging"; read -rp "Press Enter..." dummy; return 1
+        fi
+        # 🛡️ LOCAL OVERRIDE PATCH SLOT:
+        if [[ -d "$search_root" ]]; then
+            find "$search_root" -mindepth 1 -maxdepth 2 -name "OptiScaler.ini" -type f 2>/dev/null | while read -r target_ini; do
+                if [[ -f "$target_ini" ]]; then
+                    echo -e "${YELLOW}[ℹ] Injecting AMD anti-flicker barriers into: ${target_ini}${RESET}"
+
+                    sudo sed -i 's|Dx12Upscaler.*=.*|Dx12Upscaler = auto|g' "$target_ini"
+
+                    sudo tee -a "$target_ini" << 'EOF' >/dev/null
+
+[Hotfix]
+ColorResourceBarrier = 4
+MotionVectorResourceBarrier = 8
+DepthResourceBarrier = auto
+EOF
+                    sudo chown "${REAL_USER}":"${REAL_USER}" "$target_ini" 2>/dev/null
+                fi
+            done
+        fi
+
+        # 🧬 AUTOMATED PROVISIONING FOR 'MY-FSR' OVERRIDE INFRASTRUCTURE
+        if [[ -d "$search_root" ]]; then
+            find "$search_root" -mindepth 2 -maxdepth 2 -name "HelixSR" -type d 2>/dev/null | while read -r helix_dir; do
+                local target_my_fsr="${helix_dir}/my-fsr"
+                local target_ini_dir; target_ini_dir=$(dirname "$helix_dir")
+                local target_hxsr_ini="${target_ini_dir}/helixsr.ini"
+
+                if [[ -f "$target_hxsr_ini" ]]; then
+                    echo -e "${YELLOW}[ℹ] Overriding RDNA1 driver restrictions inside: ${target_hxsr_ini}${RESET}"
+                    sudo tee -a "$target_hxsr_ini" << 'EOF' >/dev/null
+
+[Compatibility]
+ForceAsyncCompute = true
+ForceWaveSize = 32
+EOF
+                fi
+
+                if [[ ! -d "$target_my_fsr" ]]; then
+                    sudo mkdir -p "$target_my_fsr"
+                    sudo tee "$target_my_fsr/README.txt" << 'EOF' >/dev/null
+Place your FSR upscaler binary DLL here (e.g., FSR 4: amd_fidelityfx_upscaler_dx12.dll).
+Once launched, press [Insert] to open the overlay menu -> Upscaling -> Upscalers -> FFX Upscaler to swap profiles.
+To purge the override layer, simply delete the loose DLL asset from this folder.
+EOF
+                    sudo chmod 644 "$target_my_fsr/README.txt" 2>/dev/null
+                    sudo chown -R "${REAL_USER}":"${REAL_USER}" "$helix_dir" 2>/dev/null
+                fi
+            done
+        fi
+
+        # 🔍 POST-DEPLOYMENT COMPARISON DIFF LOOP
+        if [[ -d "$search_root" ]]; then
+            local post_install_snapshot="/tmp/helixsr_post_install.txt"
+            filename_manifest="$manifest_name"
+            find "$search_root" -mindepth 1 -printf '%p|%P\n' 2>/dev/null | sort > "$post_install_snapshot"
+
+            local changes_detected; changes_detected=$(comm -13 "$pre_install_snapshot" "$post_install_snapshot")
+
+            echo "$changes_detected" | while IFS='|' read -r full_path relative_path; do
+                if [[ -f "$full_path" || -d "$full_path" ]]; then
+                    local game_base; game_base=$(echo "$full_path" | grep -oP "^${search_root}/[^/]+")
+                    if [[ -n "$game_base" && -d "$game_base" ]]; then
+                        local local_manifest="${game_base}/${filename_manifest}"
+                        local entry_line; entry_line=$(echo "$full_path" | sed "s|${game_base}/||g")
+
+                        if [[ "$entry_line" != "$filename_manifest" && -n "$entry_line" ]]; then
+                            echo "$entry_line" | sudo tee -a "$local_manifest" >/dev/null
+                            sudo chmod 644 "$local_manifest" 2>/dev/null
+                            sudo chown "${REAL_USER}":"${REAL_USER}" "$local_manifest" 2>/dev/null
+                        fi
+                    fi
+                fi
+            done
+            rm -f "$pre_install_snapshot" "$post_install_snapshot" 2>/dev/null
+        fi
+
+        rm -rf "$staging"
+        echo -e "\n${GREEN}====================================================================${RESET}"
+        echo -e "  🎮 HELIXSR V1.4.3 GAME HOOK DEPLOYMENT PROCESS COMPLETED          "
+        echo -e "${GREEN}====================================================================${RESET}"
+        echo -e "${YELLOW}👉 Copy and paste the following into your Steam Launch Options:${RESET}"
+        echo -e "${CYAN}VK_DRIVER_FILES=\"/var/home/bsystem/.local/share/vulkan/icd.d/bc250_directmesh.json\" WINEDLLOVERRIDES=\"dxgi,nvngx=n,b\" %command%${RESET}"
         echo -e "====================================================================${RESET}"
     fi
     set -e; (play_success_chime &>/dev/null &)
@@ -1962,7 +2417,7 @@ deploy_helixsr_1_4_1_standalone() {
     local exit_code_1=0
 
     echo -e "\n${YELLOW}[ℹ] Initializing download chain for remote server files...${RESET}"
-    local dl_url="https://github.com/lonewolf0622/HelixSR/releases/download/v1.4.1/HelixSR-1.4.1.zip"
+    local dl_url="https://github.com/lonewolf0622/HelixSR/releases/download/v1.4.3/HelixSR-1.4.3.zip"
 
     echo -e "${GREEN}[+] Fetching remote payload archive from GitHub server...${RESET}"
     if curl -L -k -f -o "$cache_dir/helixsr_pack.tmp" "${dl_url}"; then
@@ -2106,7 +2561,287 @@ deploy_helixsr_1_4_1_standalone() {
 
         set -e; (play_success_chime &>/dev/null &)
         read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
-    }
+}
+
+deploy_helixsr_140_interactive() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local B_RED='\033[1;31m' local RESET='\033[0m'
+    local cache_dir="/tmp/bc250_fsr4_staging"
+    local manifest_name=".bc250_helixsr_manifest.txt"
+
+    # 🎛️ HELIXSR TAILORED SUB-MENU MATRIX PASS
+    echo -e "\n${CYAN}  [⚙] Select Target HelixSR Staging Environment Framework Profile:${RESET}"
+    echo -e "      a) Direct Native Drop-in (No OptiScaler Integration Pass)"
+    echo -e "      b) OptiScaler Mod Routing Bridge (Custom Matrix Folder)"
+    echo -n "  Choose an environment option [a-b]: "
+    local helix_mode; read -r helix_mode
+
+    local version_tag=""
+    if [[ "$helix_mode" =~ ^[Aa]$ ]]; then
+        version_tag="HelixSR v1.4.3 (Native Drop-in)"
+    elif [[ "$helix_mode" =~ ^[Bb]$ ]]; then
+        version_tag="HelixSR v1.4.3 (OptiScaler Routing)"
+    else
+        echo -e "${RED}❌ ERROR: Invalid sub-menu configuration selector index.${RESET}"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🚀 TARGET: COMPILING & DEPLOYING ENGINES [ $version_tag ]        "
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "${CYAN}[➡] Enter the ABSOLUTE path directory to your target game folder:${RESET}"
+    echo -n "    Path: "
+    local game_path; read -r game_path
+    game_path="${game_path#\'}"; game_path="${game_path%\'}"; game_path="${game_path#\"}"; game_path="${game_path%\"}"
+    game_path=$(echo "$game_path" | sed -e 's/[[:space:]]*$//' -e 's|/*$||')
+
+    if [[ ! -d "$game_path" ]]; then
+        echo -e "${RED}❌ ERROR: Provided directory path track does not exist on disk.${RESET}"
+        read -rp "Press [Enter] to return..." dummy; return 1
+    fi
+
+    set +e
+    local mf_path="${game_path}/${manifest_name}"
+    if [[ -f "$mf_path" || -f "${game_path}/dxgi.dll" || -d "${game_path}/HelixSR_Matrix" || -f "${game_path}/OptiScaler.ini" ]]; then
+        echo -e "\n${YELLOW}[ℹ] Existing Mod framework or custom mapping folder detected!${RESET}"
+        echo -n "👉 Remove the active upscaler mod and restore factory binaries? (y/N): "
+        local ans_un; read -r ans_un
+        if [[ "$ans_un" =~ ^[Yy]$ ]]; then
+            echo -e "\n${YELLOW}[ℹ] Purging deployed mod files and configurations...${RESET}"
+
+            if [[ -f "$mf_path" ]]; then
+                while IFS= read -r file_to_delete || [[ -n "$file_to_delete" ]]; do
+                    [[ -n "$file_to_delete" ]] && rm -f "${game_path}/${file_to_delete}" 2>/dev/null
+                done < "$mf_path"
+                rm -f "$mf_path" 2>/dev/null
+            else
+                find "$game_path" -maxdepth 1 -type f \( -name "*.dll" -o -name "*.ini" -o -name "*.asi" \) ! -name "steam_api*" -exec rm -f {} \; 2>/dev/null
+            fi
+
+            rm -rf "${game_path}/plugins" "${game_path}/OptiScaler" "${game_path}/HelixSR_Matrix" 2>/dev/null
+            if [[ -f "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" ]]; then mv "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" "${game_path}/amd_fidelityfx_upscaler_dx12.dll" 2>/dev/null; fi
+            if [[ -f "${game_path}/amd_fidelityfx_dx12.original.dll" ]]; then mv "${game_path}/amd_fidelityfx_dx12.original.dll" "${game_path}/amd_fidelityfx_dx12.dll" 2>/dev/null; fi
+            if [[ -f "${game_path}/dxgi.dll.bak" ]]; then mv "${game_path}/dxgi.dll.bak" "${game_path}/dxgi.dll" 2>/dev/null; fi
+
+            echo -e "${GREEN}[✓] Existing environment successfully returned to factory defaults.${RESET}"
+            echo -e "${CYAN}====================================================================${RESET}"
+
+            echo -n "👉 Would you like to proceed with a fresh upscaler deployment layout now? (y/N): "
+            local ans_re; read -r ans_re
+            if [[ ! "$ans_re" =~ ^[Yy]$ ]]; then
+                read -rp "👍 Uninstallation complete. Press [Enter] to return to dashboard..." dummy; return 0
+            fi
+        else return 0; fi
+    fi
+    # 🧬 Dynamic home directory staging paths isolation map
+    local base_data_dir="/var/home/bsystem/.local/share/HelixSR"
+    local cache_dir="${base_data_dir}/staging_v143"
+    local tmp_extract="${cache_dir}/extracted"
+    local compile_out="${cache_dir}/compiled_binaries"
+
+    rm -rf "$cache_dir" && mkdir -p "$tmp_extract" "$compile_out"
+    mkdir -p "${base_data_dir}" 2>/dev/null
+
+    echo -e "\n${YELLOW}[ℹ] Initializing download chain for remote server source files...${RESET}"
+    local dl_url="https://github.com/lonewolf0622/HelixSR/releases/download/v1.4.3/HelixSR-1.4.3.zip"
+
+    echo -e "${GREEN}[+] Fetching remote source payload archive...${RESET}"
+    if curl -L -k -f -s -o "$cache_dir/fsr4_pack.tmp" "${dl_url}"; then
+        unzip -q -o "$cache_dir/fsr4_pack.tmp" -d "$tmp_extract" &>/dev/null
+        local exit_code_1=$?
+    else
+        local exit_code_1=1
+    fi
+
+    if [ $exit_code_1 -eq 0 ]; then
+        local nested_sub; nested_sub=$(find "$tmp_extract" -mindepth 1 -maxdepth 1 -type d -name "HelixSR*" | head -n 1)
+        if [[ -n "$nested_sub" && -d "$nested_sub" ]]; then
+            cp -rT "$nested_sub" "$tmp_extract" 2>/dev/null && rm -rf "$nested_sub" 2>/dev/null
+        fi
+
+        if [[ -d "${game_path}/backup" ]]; then
+            mv "${game_path}/backup" "/tmp/hxsr_hidden_backup" 2>/dev/null || true
+        fi
+
+        echo -e "${GREEN}[+] Step 1/2: Finding local Proton/Wine paths and configuring shims...${RESET}"
+        local current_pwd; current_pwd=$(pwd)
+
+        local local_steam_root=""
+        for steam_path in "/var/home/bsystem/.local/share/Steam" \
+                           "/var/home/bsystem/.steam/steam" \
+                           "/var/home/bsystem/.var/app/com.valvesoftware.Steam/.local/share/Steam"; do
+            if [[ -d "${steam_path}/steamapps/common" ]]; then
+                local_steam_root="${steam_path}"
+                break
+            fi
+        done
+
+        local wine_binary=""
+        if [[ -n "$local_steam_root" ]]; then
+            wine_binary=$(find "${local_steam_root}/steamapps/common" -mindepth 3 -maxdepth 4 -type f -name "wine" -printf '%p\n' 2>/dev/null | head -n 1)
+        fi
+        [[ -z "$wine_binary" ]] && wine_binary=$(which wine 2>/dev/null || echo "")
+
+        if [[ -z "$wine_binary" ]]; then
+            echo -e "${RED}❌ ERROR: Unable to cleanly locate Proton or Wine binaries inside home steam profiles.${RESET}"
+            if [[ -d "/tmp/hxsr_hidden_backup" ]]; then mv "/tmp/hxsr_hidden_backup" "${game_path}/backup" 2>/dev/null; fi
+            rm -rf "$cache_dir"; read -rp "Press Enter..." dummy; return 1
+        fi
+
+        # 🧬 UPSTREAM TOOLCHAIN TARGET INJECTION: Pull down the exact 2026 September Release DXC Payload
+        local internal_dxc_workspace="${cache_dir}/dxc_build"
+        mkdir -p "${internal_dxc_workspace}/bin/x64" 2>/dev/null
+
+        echo -e "${YELLOW}[ℹ] Fetching Microsoft DXC v1.9.2609 toolchain binaries...${RESET}"
+        local dxc_dl_url="https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2609/dxc_2026_09_29.zip"
+        curl -L -k -f -s -o "${cache_dir}/dxc.zip" "$dxc_dl_url"
+
+        # Unpack the specific 64-bit windows dxc file using the python zip architecture module
+        python3 -c "import zipfile, os; z = zipfile.ZipFile('${cache_dir}/dxc.zip'); [open(os.path.join('${internal_dxc_workspace}', f.replace('\\\\','/')), 'wb').write(z.read(f)) for f in z.namelist() if f.replace('\\\\','/').startswith('bin/x64/')]" 2>/dev/null
+
+        # Create a clean, localized translation path shim to map files safely inside your user environment
+        local dxc_translation_wrapper="${cache_dir}/dxc-translator.sh"
+        cat > "$dxc_translation_wrapper" << EOF
+#!/usr/bin/env bash
+args=()
+for arg in "\$@"; do
+    case "\$arg" in
+        /*) args+=("Z:\$(printf '%s' "\$arg" | tr / '\\\\')") ;;
+        *) args+=("\$arg") ;;
+    esac
+done
+WINEPREFIX="${cache_dir}/hxsr_prefix" WINEDEBUG=-all exec "${wine_binary}" "${internal_dxc_workspace}/bin/x64/dxc.exe" "\${args[@]}"
+EOF
+        chmod +x "$dxc_translation_wrapper"
+
+        # Downstream the offline DLSS payload layer
+        local dlss_dll_url="https://raw.githubusercontent.com/NVIDIA/DLSS/v310.7.0/lib/Windows_x86_64/rel/nvngx_dlss.dll"
+        local target_dlss_path="${cache_dir}/nvngx_dlss.dll"
+        echo -e "${YELLOW}[ℹ] Downstreaming NVIDIA DLSS verification layout matrix...${RESET}"
+        wget -q --show-progress -O "$target_dlss_path" "$dlss_dll_url"
+
+        # 🚀 THE OFFLINE COMPILER PASS: Forces execution via Python's native module arrays.
+        echo -e "${GREEN}[+] Running neural weight extraction and shader compilation loop...${RESET}"
+        cd "${tmp_extract}"
+
+        local sandboxed_python="/var/home/bsystem/.local/share/HelixSR/python/bin/python3"
+        if [ ! -x "$sandboxed_python" ]; then
+            sandboxed_python="python3"
+            echo -e "${YELLOW}[ℹ] Internal sandbox environment missing. Falling back to system python binary...${RESET}"
+        fi
+
+        if env PYTHONPATH="${tmp_extract}:${tmp_extract}/setup" "$sandboxed_python" -c "import sys; sys.argv=['helixsr_setup.py', '${compile_out}', '--dlss', '${target_dlss_path}', '--dxc', '${dxc_translation_wrapper}', '--yes', '--no-wave64']; import setup.helixsr_setup; setup.helixsr_setup.main()"; then
+            echo -e "\n${GREEN}[✓] Shader arrays successfully processed and compiled by background runtime.${RESET}"
+            rm -f "$target_dlss_path" "${cache_dir}/dxc.zip" 2>/dev/null || true
+        else
+            echo -e "${RED}❌ ERROR: Local python graphics compiler script crashed execution loop parameters.${RESET}"
+            rm -f "$target_dlss_path" "${cache_dir}/dxc.zip" 2>/dev/null || true
+            if [[ -d "/tmp/hxsr_hidden_backup" ]]; then
+                mv "/tmp/hxsr_hidden_backup" "${game_path}/backup" 2>/dev/null || true
+            fi
+            cd "$current_pwd"; rm -rf "$cache_dir"; read -rp "Press Enter..." dummy; return 1
+        fi
+
+        if [[ -d "/tmp/hxsr_hidden_backup" ]]; then
+            mv "/tmp/hxsr_hidden_backup" "${game_path}/backup" 2>/dev/null || true
+        fi
+        cd "$current_pwd"
+        echo -e "${GREEN}[+] Step 2/2: Deploying custom compiled nodes to profile tracks...${RESET}"
+        rm -f "$mf_path" 2>/dev/null && touch "$cache_dir/manifest.tmp"
+
+        if [[ "$helix_mode" =~ ^[Aa]$ ]]; then
+            local target_orig_dll="amd_fidelityfx_dx12.dll"
+            if [[ -f "${game_path}/amd_fidelityfx_dx12.dll" ]]; then
+                target_orig_dll="amd_fidelityfx_dx12.dll"
+            fi
+
+            local backup_name="${target_orig_dll%.dll}.original.dll"
+            if [[ -f "${game_path}/${target_orig_dll}" && ! -f "${game_path}/${backup_name}" ]]; then
+                echo -e "${YELLOW}[⚙] Creating HelixSR native original backup: ${backup_name}...${RESET}"
+                mv -f "${game_path}/${target_orig_dll}" "${game_path}/${backup_name}" 2>/dev/null
+            fi
+
+            cp -f "${tmp_extract}/amd_fidelityfx_dx12.dll" "${game_path}/${target_orig_dll}" 2>/dev/null
+            cp -f "${compile_out}/helixsr_weights.bin" "${game_path}/" 2>/dev/null
+            cp -f "${compile_out}/helixsr_kernels.pak" "${game_path}/" 2>/dev/null
+
+            echo "$target_orig_dll" >> "$cache_dir/manifest.tmp"
+            echo "helixsr_weights.bin" >> "$cache_dir/manifest.tmp"
+            echo "helixsr_kernels.pak" >> "$cache_dir/manifest.tmp"
+
+            tee "${game_path}/helixsr.ini" >/dev/null <<EOF
+[Sharpening]
+Mode = off
+Sharpness = 0.3
+MotionAdaptive = true
+
+[ModelE]
+Network = nvidia
+MotionVectorFrontEnd = false
+InvertJitter = false
+InvertMotionVectors = false
+
+[Log]
+Enabled = true
+EOF
+            echo "helixsr.ini" >> "$cache_dir/manifest.tmp"
+            echo -e "${GREEN}[✓] HelixSR v1.4.3 Native Compiled Drop-in deployed perfectly!${RESET}"
+
+        elif [[ "$helix_mode" =~ ^[Bb]$ ]]; then
+            local matrix_dir="${game_path}/HelixSR_Matrix"
+
+            # 🛡️ THE OWNERSHIP FIX: Ensure folder initialization belongs entirely to bsystem
+            mkdir -p "$matrix_dir" 2>/dev/null
+            echo "HelixSR_Matrix" >> "$cache_dir/manifest.tmp"
+
+            cp -f "${tmp_extract}/amd_fidelityfx_dx12.dll" "${matrix_dir}/amd_fidelityfx_upscaler_dx12.dll" 2>/dev/null
+            cp -f "${compile_out}/helixsr_weights.bin" "${matrix_dir}/helixsr_weights.bin" 2>/dev/null
+            cp -f "${compile_out}/helixsr_kernels.pak" "${matrix_dir}/helixsr_kernels.pak" 2>/dev/null
+            cp -f "${tmp_extract}/helixsr.ini" "${matrix_dir}/helixsr.ini" 2>/dev/null
+
+            echo "HelixSR_Matrix/amd_fidelityfx_upscaler_dx12.dll" >> "$cache_dir/manifest.tmp"
+            echo "HelixSR_Matrix/helixsr_weights.bin" >> "$cache_dir/manifest.tmp"
+            echo "HelixSR_Matrix/helixsr_kernels.pak" >> "$cache_dir/manifest.tmp"
+            echo "HelixSR_Matrix/helixsr.ini" >> "$cache_dir/manifest.tmp"
+
+            if [[ -f "${matrix_dir}/helixsr.ini" ]]; then
+                sed -i 's/^Network = auto/Network = nvidia/g' "${matrix_dir}/helixsr.ini" 2>/dev/null
+            fi
+
+            local win_matrix_dir=$(echo "$matrix_dir" | sed 's|/|\\|g')
+            local ini_file="${game_path}/OptiScaler.ini"
+
+            if [[ -f "$ini_file" ]]; then
+                sed -i 's/^Dx12Upscaler=auto/Dx12Upscaler = fsr31/g' "$ini_file" 2>/dev/null
+
+                # 🛡️ SYSTEM BOUNDARY BYPASS: Use standard user parsing tool mechanisms
+                sudo sed -i 's|^FfxDx12SRPath=.*|FfxDx12SRPath = Z:'"${win_matrix_dir//\\/\\\\}"'\\\\amd_fidelityfx_upscaler_dx12.dll|g' "$ini_file" 2>/dev/null
+            fi
+
+            echo -e "${GREEN}[✓] HelixSR v1.4.3 OptiScaler Compiled Matrix Bridge deployed perfectly!${RESET}"
+        fi
+        mv -f "$cache_dir/manifest.tmp" "$mf_path" 2>/dev/null && chmod 644 "$mf_path" 2>/dev/null
+    else
+        echo -e "${RED}❌ ERROR: Download pass or local source staging routine collapsed.${RESET}"
+    fi
+
+    rm -rf "$cache_dir"
+
+    # 🛡️ THE OWNERSHIP SWEEP: Recursively scrub root flags out of newly touched components
+    sudo chown -R bsystem:bsystem "$game_path" 2>/dev/null || true
+    sudo chmod -R 755 "$game_path" 2>/dev/null || true
+
+    echo -e "\n${B_RED}====================================================================${RESET}"
+    echo -e "  ⚠️ REQUIRED GAME LAUNCH OPTIONS INFRASTRUCTURE                      "
+    echo -e "====================================================================${RESET}"
+    echo -e "  🎮 FOR STEAM TITLES (Add directly to Launch Options):"
+    echo -e "  ${CYAN}VK_DRIVER_FILES=\"/var/home/bsystem/.local/share/vulkan/icd.d/bc250_directmesh.json\" WINEDLLOVERRIDES=\"dxgi,nvngx=n,b\" %command%${RESET}"
+    echo -e "${B_RED}====================================================================${RESET}"
+
+    set -e; (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
+}
 
 toggle_gfx1013_fsr4_engine() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
@@ -2125,36 +2860,23 @@ toggle_gfx1013_fsr4_engine() {
     echo -e "   1) Deploy v4.0.0-rc11 PROD  : Explicit UI Menu, High Stability"
     echo -e "   2) Deploy v10.0.0-pre1 ALPHA: Modular SDK, Advanced Buffering Clamps"
     echo -e ""
-    echo -e "   3) Deploy HelixSR v1.1.0    : Advanced DLSS Model E Neural Shaders"
-    echo -e "   4) Deploy HelixSR v1.4.1    : Automated Model E Compilation Engine"
+    echo -e "   3) Deploy HelixSR v1.4.3    : Advanced DLSS Model E Neural Shaders"
+    echo -e "   4) Deploy HelixSR v1.8.1    : Automated Model E Compilation Engine"
     echo -e ""
     echo -n "   Select target branch choice [1-4]: "
     local branch_choice; read -r branch_choice
 
-    #if [[ "$branch_choice" == "4" || -z "$branch_choice" ]]; then return 0; fi
-
-    local version_tag="" local helix_mode=""
-    if [[ "$branch_choice" == "1" ]]; then version_tag="v4.0.0-rc11 PROD"
-    elif [[ "$branch_choice" == "2" ]]; then version_tag="v10.0.0-pre1 ALPHA"
+    local version_tag=""
+    if [[ "$branch_choice" == "1" ]]; then
+        version_tag="v4.0.0-rc11 PROD"
+    elif [[ "$branch_choice" == "2" ]]; then
+        version_tag="v10.0.0-pre1 ALPHA"
     elif [[ "$branch_choice" == "3" ]]; then
-        # 🎛️ HELIXSR TAILORED SUB-MENU MATRIX PASS
-        echo -e "\n${CYAN}  [⚙] Select Target HelixSR Staging Environment Framework Profile:${RESET}"
-        echo -e "      a) Direct Native Drop-in (No OptiScaler Integration Pass)"
-        echo -e "      b) OptiScaler Mod Routing Bridge (Custom Matrix Folder)"
-        echo -n "  Choose an environment option [a-b]: "
-        read -r helix_mode
-
-        if [[ "$helix_mode" =~ ^[Aa]$ ]]; then
-            version_tag="HelixSR v1.1.0 (Native Drop-in)"
-        elif [[ "$helix_mode" =~ ^[Bb]$ ]]; then
-            version_tag="HelixSR v1.1.0 (OptiScaler Routing)"
-        else
-            echo -e "${RED}❌ ERROR: Invalid sub-menu configuration selector index.${RESET}"
-            read -rp "Press [Enter] to return..." dummy; return 1
-        fi
+        # 🧬 THE EXTRACTION FIX: Route immediately into the standalone function and clean return
+        deploy_helixsr_143_interactive
+        return $?
     elif [[ "$branch_choice" == "4" ]]; then
-        # 🧬 THE FIX: Instantly fire the new standalone compiler script right here and return cleanly!
-        deploy_helixsr_1_4_1_standalone
+        deploy_helixsr_181_interactive
         return $?
     else
         echo -e "${RED}❌ ERROR: Invalid matrix choice constraint selection.${RESET}"
@@ -2195,7 +2917,6 @@ toggle_gfx1013_fsr4_engine() {
                 find "$game_path" -maxdepth 1 -type f \( -name "*.dll" -o -name "*.ini" -o -name "*.asi" \) ! -name "steam_api*" -exec rm -f {} \; 2>/dev/null
             fi
 
-            # 🧼 UNINSTALLER RESET HOOKS: Reverts original backups and custom directory trees
             rm -rf "${game_path}/plugins" "${game_path}/OptiScaler" "${game_path}/HelixSR_Matrix" 2>/dev/null
             if [[ -f "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" ]]; then mv "${game_path}/amd_fidelityfx_upscaler_dx12.original.dll" "${game_path}/amd_fidelityfx_upscaler_dx12.dll" 2>/dev/null; fi
             if [[ -f "${game_path}/amd_fidelityfx_dx12.original.dll" ]]; then mv "${game_path}/amd_fidelityfx_dx12.original.dll" "${game_path}/amd_fidelityfx_dx12.dll" 2>/dev/null; fi
@@ -2214,7 +2935,6 @@ toggle_gfx1013_fsr4_engine() {
         else return 0; fi
     fi
 
-    # 📡 THE NETWORK DOWN-STREAM GATE
     rm -rf "$cache_dir" && mkdir -p "$cache_dir"
     local tmp_extract="${cache_dir}/extracted"
     mkdir -p "$tmp_extract"
@@ -2230,18 +2950,10 @@ toggle_gfx1013_fsr4_engine() {
             dl_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/bc250-fsr4-dll-4.0.0-rc11.7z"
         elif [[ "$branch_choice" == "2" ]]; then
             dl_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/bc250-fsr4-dll-4.0.0-rc11.1.7z"
-        elif [[ "$branch_choice" == "3" ]]; then
-            # 🎯 FORCED REDIRECTION MATCH: Targets the newly launched v1.1.0 stable release package over network ports
-            dl_url="https://github.com/lonewolf0622/HelixSR/releases/download/v1.1.0/HelixSR-1.1.0.zip"
         fi
         echo -e "${GREEN}[+] Fetching remote payload archive...${RESET}"
-        # 🎯 FORCED REDIRECTION MATCH: Uses -L to chase down GitHub release redirects safely
         if curl -L -k -f -s -o "$cache_dir/fsr4_pack.tmp" "${dl_url}"; then
-            if [[ "$dl_url" == *.zip ]]; then
-                unzip -q -o "$cache_dir/fsr4_pack.tmp" -d "$tmp_extract" &>/dev/null
-            else
-                7z x -aoa "$cache_dir/fsr4_pack.tmp" "-o$tmp_extract" &>/dev/null
-            fi
+            7z x -aoa "$cache_dir/fsr4_pack.tmp" "-o$tmp_extract" &>/dev/null
             exit_code_1=$?
         else
             exit_code_1=1
@@ -2249,126 +2961,49 @@ toggle_gfx1013_fsr4_engine() {
     fi
 
     if [ $exit_code_1 -eq 0 ]; then
-        # Flatten structure if the zip bundle contains an inner parent wrapper folder
-        local nested_sub; nested_sub=$(find "$tmp_extract" -mindepth 1 -maxdepth 1 -type d -name "HelixSR*" 2>/dev/null | head -n 1)
-        if [[ -n "$nested_sub" && -d "$nested_sub" ]]; then
-            cp -rT "$nested_sub" "$tmp_extract" 2>/dev/null && rm -rf "$nested_sub" 2>/dev/null
-        fi
-
         rm -f "$mf_path" 2>/dev/null && touch "$cache_dir/manifest.tmp"
 
-        if [[ "$branch_choice" == "3" ]]; then
-            if [[ "$helix_mode" =~ ^[Aa]$ ]]; then
-                # 📁 PROFILE A: DIRECT NATIVE DROP-IN (NO OPTISCALER)
-                local target_orig_dll="amd_fidelityfx_dx12.dll"
-                if [[ -f "${game_path}/amd_fidelityfx_dx12.dll" ]]; then
-                    target_orig_dll="amd_fidelityfx_dx12.dll"
-                fi
-
-                # Rename the game's original file to .original.dll for backup
-                local backup_name="${target_orig_dll%.dll}.original.dll"
-                if [[ -f "${game_path}/${target_orig_dll}" && ! -f "${game_path}/${backup_name}" ]]; then
-                    echo -e "${YELLOW}[⚙] Creating HelixSR native original backup: ${backup_name}...${RESET}"
-                    mv -f "${game_path}/${target_orig_dll}" "${game_path}/${backup_name}" 2>/dev/null
-                fi
-
-                # 🧬 FIXED: Copy HelixSR's file under the game's original name ONLY (No renaming to upscaler)
-                cp -f "${tmp_extract}/amd_fidelityfx_dx12.dll" "${game_path}/${target_orig_dll}" 2>/dev/null
-                echo "$target_orig_dll" >> "$cache_dir/manifest.tmp"
-
-                # Deploy customized helixsr.ini directly next to it
-                sudo -u bsystem tee "${game_path}/helixsr.ini" >/dev/null <<EOF
-[Sharpening]
-Mode = off
-Sharpness = 0.3
-MotionAdaptive = true
-
-[ModelE]
-Network = nvidia
-MotionVectorFrontEnd = false
-InvertJitter = false
-InvertMotionVectors = false
-
-[Log]
-Enabled = true
-EOF
-                echo "helixsr.ini" >> "$cache_dir/manifest.tmp"
-                echo -e "${GREEN}[✓] HelixSR v1.1.0 Native Drop-in deployed perfectly!${RESET}"
-
-            elif [[ "$helix_mode" =~ ^[Bb]$ ]]; then
-                # 📁 PROFILE B: OPTISCALER MOD ROUTING BRIDGE (CUSTOM FOLDER)
-                local matrix_dir="${game_path}/HelixSR_Matrix"
-                mkdir -p "$matrix_dir" 2>/dev/null
-                echo "HelixSR_Matrix" >> "$cache_dir/manifest.tmp"
-
-                # 🧬 THE SURGICAL INLINE REPLACE: Changes 'auto' to 'nvidia' on the existing line instantly
-                cp -f "${tmp_extract}/helixsr.ini" "${matrix_dir}/helixsr.ini" 2>/dev/null
-                cp -f "${tmp_extract}/amd_fidelityfx_dx12.dll" "${matrix_dir}/amd_fidelityfx_upscaler_dx12.dll" 2>/dev/null
-                echo "HelixSR_Matrix/amd_fidelityfx_upscaler_dx12.dll" >> "$cache_dir/manifest.tmp"
-
-                # 🛡️ Uses sed to find the exact line and change it to nvidia in-place
-                if [[ -f "${matrix_dir}/helixsr.ini" ]]; then
-                    sudo sed -i 's/^Network = auto/Network = nvidia/g' "${matrix_dir}/helixsr.ini" 2>/dev/null
-                fi
-                echo "HelixSR_Matrix/helixsr.ini" >> "$cache_dir/manifest.tmp"
-
-                 # Generate the proton-aware translated Windows Z:\ drive paths for OptiScaler.ini
-                local win_matrix_dir=$(echo "$matrix_dir" | sed 's|/|\\|g')
-                local ini_file="${game_path}/OptiScaler.ini"
-
-                if [[ -f "$ini_file" ]]; then
-                    # 🧬 FIRST CHANGE: Your character-perfect forward-slash syntax
-                    sudo sed -i 's/^Dx12Upscaler=auto/Dx12Upscaler = fsr31/g' "$ini_file" 2>/dev/null
-
-                    # 🧬 SECOND CHANGE: Double-escapes the backslashes inside the variable to stop sed from corrupting your text lines
-                    sudo sed -i 's/^FfxDx12SRPath=auto/FfxDx12SRPath = Z:'"${win_matrix_dir//\\/\\\\}"'\\amd_fidelityfx_upscaler_dx12.dll/g' "$ini_file" 2>/dev/null
-                fi
-
-                echo -e "${GREEN}[✓] HelixSR v1.1.0 OptiScaler Matrix Bridge deployed perfectly!${RESET}"
-            fi
-
-        else
-            # Standard legacy FSR 4.1.1 multi-part mappings
-            mkdir -p "${game_path}/OptiScaler" "${game_path}/plugins" 2>/dev/null
-            if [[ -f "${game_path}/dxgi.dll" && ! -f "${game_path}/dxgi.dll.bak" ]]; then
-                cp "${game_path}/dxgi.dll" "${game_path}/dxgi.dll.bak" 2>/dev/null
-            fi
-
-            local file_item fn; for file_item in $payload_files; do
-                fn=$(basename "$file_item")
-                if [[ "$fn" == "amd_fidelityfx_upscaler_dx12.dll" ]]; then
-                    cp -f "$file_item" "${game_path}/OptiScaler/" 2>/dev/null
-                    echo "OptiScaler/$fn" >> "$cache_dir/manifest.tmp"
-                elif [[ "$fn" == "OptiPatcher.asi" ]]; then
-                    cp -f "$file_item" "${game_path}/plugins/" 2>/dev/null
-                    echo "plugins/$fn" >> "$cache_dir/manifest.tmp"
-                else
-                    cp -f "$file_item" "${game_path}/" 2>/dev/null
-                    echo "$fn" >> "$cache_dir/manifest.tmp"
-                fi
-            done
-
-            local config_file="${game_path}/OptiScaler.ini"
-            rm -f "${game_path}/nvngx.ini"
-            {
-                echo "[Global]"
-                echo "LogLevel = info"
-                echo "LogToFile = false"
-                echo "LoadAsiPlugins = true"
-                echo "PreAllocateBuffers = true"
-                echo "UsePreExposure = true"
-                echo "[Upscalers]"
-                echo "Dx12Upscaler = fsr31"
-                echo "[FSR]"
-                [[ "$branch_choice" == "1" ]] && echo "Fsr4EnableWatermark = true" || echo "Fsr4EnableWatermark = false"
-                echo "Fsr4EnableInt8 = true"
-                echo "VelocityFactor = 1.0"
-                echo "[Hotfixes]"
-                echo "ResourceBarrierFix = true"
-            } > "$config_file"
-            echo "OptiScaler.ini" >> "$cache_dir/manifest.tmp"
-            echo -e "${GREEN}[✓] Full FSR 4.1.1 mod matrix deployed flat.${RESET}"
+        # Standard legacy FSR 4.1.1 multi-part mappings
+        mkdir -p "${game_path}/OptiScaler" "${game_path}/plugins" 2>/dev/null
+        if [[ -f "${game_path}/dxgi.dll" && ! -f "${game_path}/dxgi.dll.bak" ]]; then
+            cp "${game_path}/dxgi.dll" "${game_path}/dxgi.dll.bak" 2>/dev/null
         fi
+
+        local file_item fn; for file_item in $payload_files; do
+            fn=$(basename "$file_item")
+            if [[ "$fn" == "amd_fidelityfx_upscaler_dx12.dll" ]]; then
+                cp -f "$file_item" "${game_path}/OptiScaler/" 2>/dev/null
+                echo "OptiScaler/$fn" >> "$cache_dir/manifest.tmp"
+            elif [[ "$fn" == "OptiPatcher.asi" ]]; then
+                cp -f "$file_item" "${game_path}/plugins/" 2>/dev/null
+                echo "plugins/$fn" >> "$cache_dir/manifest.tmp"
+            else
+                cp -f "$file_item" "${game_path}/" 2>/dev/null
+                echo "$fn" >> "$cache_dir/manifest.tmp"
+            fi
+        done
+
+        local config_file="${game_path}/OptiScaler.ini"
+        rm -f "${game_path}/nvngx.ini"
+        {
+            echo "[Global]"
+            echo "LogLevel = info"
+            echo "LogToFile = false"
+            echo "LoadAsiPlugins = true"
+            echo "PreAllocateBuffers = true"
+            echo "UsePreExposure = true"
+            echo "[Upscalers]"
+            echo "Dx12Upscaler = fsr31"
+            echo "[FSR]"
+            [[ "$branch_choice" == "1" ]] && echo "Fsr4EnableWatermark = true" || echo "Fsr4EnableWatermark = false"
+            echo "Fsr4EnableInt8 = true"
+            echo "VelocityFactor = 1.0"
+            echo "[Hotfixes]"
+            echo "ResourceBarrierFix = true"
+        } > "$config_file"
+        echo "OptiScaler.ini" >> "$cache_dir/manifest.tmp"
+        echo -e "${GREEN}[✓] Full FSR 4.1.1 mod matrix deployed flat.${RESET}"
+
         mv -f "$cache_dir/manifest.tmp" "$mf_path" 2>/dev/null && chmod 644 "$mf_path" 2>/dev/null
     else
         echo -e "${RED}❌ ERROR: Download pass or local staging routine collapsed.${RESET}"
@@ -2647,6 +3282,7 @@ EOF
     (play_success_chime &>/dev/null &)
     cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || return 3
 }
+
 # ==============================================================================
 # 📂 GROUP 4 (CONT.): PORTAL BREAKOUT DASHBOARDS, APPIMAGES & OVERLAYS
 # ==============================================================================
@@ -2662,17 +3298,19 @@ launch_bc250_appimage_manager() {
     echo -e "  ⚙️ SELECT APPIMAGE TARGET SYSTEM COMPONENT TO DEPLOY:"
     echo -e "    1) OptiScaler Interactive UI Standalone Client\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/Optiscaler-Client/Optiscaler-Client\033\\\\${CYAN}🌐 Repo: https://github.com/Optiscaler-Client/Optiscaler-Client${RESET}\033]8;;\033\\\\"
     echo -e "    2) Sony DualSense DS5 Bridge Companion Utility\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/djanice1980/DS5_Bridge\033\\\\${CYAN}🌐 Repo: https://github.com/djanice1980/DS5_Bridge${RESET}\033]8;;\033\\\\"
-    echo -e "    3) Goverlay Performance & HUD Tweak Interface\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/benjamimgois/goverlay\033\\\\${CYAN}🌐 Repo: https://github.com/benjamimgois/goverlay${RESET}\033]8;;\033\\\\\n"
-    echo -n "👉 Select target application package slot [1-3]: "; read -r app_slot
+    echo -e "    3) Goverlay Performance & HUD Tweak Interface\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/benjamimgois/goverlay\033\\\\${CYAN}🌐 Repo: https://github.com/benjamimgois/goverlay${RESET}\033]8;;\033\\\\"
+    echo -e "    4) HelixSR Neural Upscaler Configuration Desktop\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/lonewolf0622/HelixSR\033\\\\${CYAN}🌐 Repo: https://github.com/lonewolf0622/HelixSR{RESET}\033]8;;\033\\\\\n"
+    echo -n "👉 Select target application package slot [1-4]: "; read -r app_slot
 
     local app_name="OptiScaler AppImage" local folder_name="OptiscalerClient_AppImage" local comment_str="Modern UI Manager for OptiScaler Mod" local icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/OptiscalerClient_256x255_32bit.ico" local base_repo="Optiscaler-Client/Optiscaler-Client" local local_exe="OptiscalerClient.AppImage" force_install_flow="false"
     [[ "$app_slot" == "2" ]] && app_name="DS5 Bridge Companion" && folder_name="DS5BridgeCompanion_AppImage" && comment_str="Advanced Sony DualSense Profile Bridge System" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/ds5-bridge_mark.ico" && base_repo="djanice1980/DS5_Bridge" && local_exe="DS5BridgeCompanion.AppImage"
-    # 🧬 ATOMIC SYNCHRONIZATION FIXED: Swapped the icon asset reference to match your official community goverlay.ico link exactly
     [[ "$app_slot" == "3" ]] && app_name="Goverlay HUD Interface" && folder_name="Goverlay_AppImage" && comment_str="Graphical UI Configuration Tool for MangoHud & vkBasalt" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/goverlay.ico" && base_repo="benjamimgois/goverlay" && local_exe="Goverlay.AppImage"
+
+    # 🧬 HELIXSR DEPLOYMENT NODE INTEGRATION
+    [[ "$app_slot" == "4" ]] && app_name="HelixSR Neural Desktop" && folder_name="HelixSR_AppImage" && comment_str="NVIDIA DLSS Model E Neural Network execution wrapper for AMD GPUs" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/HelixSR.ico" && base_repo="lonewolf0622/HelixSR" && local_exe="HelixSR_Desktop.AppImage"
 
     local target_client_dir="/var/home/bsystem/Applications/${folder_name}"
     local active_bin="${target_client_dir}/${local_exe}"
-
     # 🧬 UNINSTALLER BLOCK: Clears out legacy installation tracks cleanly when requested
     if [[ -f "$active_bin" ]]; then
         echo -e "${GREEN}[✓] Active version of [ $app_name ] detected on disk.${RESET}"
@@ -2696,10 +3334,12 @@ launch_bc250_appimage_manager() {
         echo -e "${CYAN}====================================================================${RESET}"
         read -rp "👉 Paste direct archive download URL link or Release webpage URL: " dl_url
         [[ -z "$dl_url" ]] && { echo -e "${RED}❌ ERROR: URL parameter field cannot be empty.${RESET}"; sleep 2; return 1; }
+
         if [[ "$dl_url" == */releases/tag/* ]]; then
             local tag_version; tag_version=$(echo "$dl_url" | sed 's|.*/releases/tag/||' | cut -d'/' -f1 | cut -d'?' -f1)
             if [[ "$app_slot" == "1" ]]; then dl_url="https://github.com{base_repo}/releases/download/${tag_version}/${tag_version}-x86_64.AppImage"
             elif [[ "$app_slot" == "3" ]]; then dl_url="https://github.com{base_repo}/releases/download/${tag_version}/goverlay-${tag_version}-x86_64.AppImage"
+            elif [[ "$app_slot" == "4" ]]; then dl_url="https://github.com{base_repo}/releases/download/${tag_version}/HelixSR_Desktop-${tag_version}-x86_64.AppImage"
             else dl_url="https://github.com{base_repo}/releases/download/${tag_version}/DS5-Bridge-Companion-${tag_version#v}-linux-x86_64.AppImage"; fi
         fi
 
@@ -2717,7 +3357,6 @@ launch_bc250_appimage_manager() {
         chmod 755 "$active_bin" 2>/dev/null; local custom_icon_path="${target_client_dir}/app_icon.ico"
         sudo -u bsystem curl -L -s --insecure -o "$custom_icon_path" "${icon_url}" 2>/dev/null
         [[ ! -f "$custom_icon_path" ]] && custom_icon_path="preferences-desktop-gaming"
-
         echo -e "\n${YELLOW}[ℹ] CONFIGURE APPLICATION INTERFACE SHORTCUTS:${RESET}"
         echo -e "  1) Create Desktop Shortcut Only\n  2) Create Start Menu Shortcut Only (Applications ➜ Games folder)\n  3) Create Both Desktop and Start Menu Shortcuts\n  4) Skip Shortcut Creation and continue to launch"
         echo -n "👉 Select shortcut target option [1-4]: "; read -r sc_choice
@@ -3127,18 +3766,21 @@ toggle_compute_queue_fix() {
         local sub_opt; read -r sub_opt
         case "$sub_opt" in
             1) # 🎯 FIX 1: Restored the completely missing Main Menu option selector branch
-                                echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
-                echo -e "      a) Custom Route (Navi10): Download & Install Pre-Compiled Performance Driver (High-Tier)"
-                echo -e "      b) Custom Route (Navi14): Download & Install Pre-Compiled Performance Driver (Low-Tier)"
-                echo -e "      c) Custom Route: Compile DirectMesh v1.3.1 Natively (Patched for 4K APU)"
-                echo -e "      d) Restore Stock Driver:  Remove Custom Mesa Overrides & Restore Factory State"
-                echo -e "      e) Telemetry Check:       Check Driver Activation & Hardware Extension Status"
+                echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
+                echo -e "      a) ${DIM}Custom Route (Navi10): Download & Install Pre-Compiled Performance Driver${RESET}"
+                echo -e "      b) ${DIM}Custom Route (Navi14): Download & Install Pre-Compiled Performance Driver${RESET}"
+                echo -e "      c) ${GREEN}Compile DirectMesh (Mesa 26.2.1): Stable 4K APU Patch (lonewolf0622 Track)${RESET}"
+                echo -e "      d) ${YELLOW}Compile DirectMesh (Mesa 26.2.4): Rebased 4K APU Patch (MastaG Track)${RESET}"
+                echo -e "      e) ${RED}Restore Stock Driver:  Remove Custom Mesa Overrides & Restore Factory State${RESET}"
+                echo -e "      f) ${CYAN}Telemetry Check:       Check Driver Activation & Hardware Extension Status${RESET}"
                 echo ""
-                echo -e "      f) Punktfunk Setup:       Install / Reinstall Game Streaming Server"
-                echo -e "      g) Punktfunk Remove:      Completely Uninstall & Purge Streaming Files"
-                echo -e "      h) Punktfunk Fix:         Run Fail-Safe Troubleshooter (CPU Video Mode)"
-                local ACTION_CHOICE; read -rp "$(echo -e "  ${CYAN}Select an option [a-g]: ${RESET}")" ACTION_CHOICE
+                echo -e "      g) ${DIM}Punktfunk Setup:       Install / Reinstall Game Streaming Server${RESET}"
+                echo -e "      h) ${DIM}Punktfunk Remove:      Completely Uninstall & Purge Streaming Files${RESET}"
+                echo -e "      i) ${DIM}Punktfunk Fix:         Run Fail-Safe Troubleshooter (CPU Video Mode)${RESET}"
+                echo ""
+                local ACTION_CHOICE; read -rp "$(echo -e "  ${CYAN}Select an option [a-i]: ${RESET}")" ACTION_CHOICE
                 case "$ACTION_CHOICE" in
+
                     a|A)
                         sudo rpm-ostree cleanup -m || true
                         sudo rpm-ostree cleanup -p || true
@@ -3227,10 +3869,12 @@ INNER_EOF'
                         ;;
                     c|C)
                         # 🧬 OPTION C ENGINES: Launches your standalone directmesh compilation function natively
-                        compile_bc250_directmesh_driver
+                        compile_bc250_mastag_2621_driver
                         ;;
-
                     d|D)
+                        compile_bc250_mastag_2624_driver
+                        ;;
+                    e|E)
                         # Option 3 uninstaller sweeps the environment completely clean
                 local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
                 local active_profile="Factory Stock Driver (No active overrides detected)"
@@ -3263,7 +3907,7 @@ INNER_EOF'
                 fi
                 ;;
 
-                    e|E)
+                    f|F)
                         echo -e "\n${CYAN}[ℹ] Verifying Active Hardware Pipeline Status Profiles...${RESET}"
                 local stock_ver; stock_ver=$(rpm -q mesa-dri-drivers --qf "%{VERSION}\n" 2>/dev/null | head -n1 || echo "Unknown")
                 echo -e "  Stock System Driver Version:  ${YELLOW}${stock_ver}${RESET}"
@@ -3303,10 +3947,9 @@ INNER_EOF'
                 read -rp "Press [Enter] to return back to sub-menu..." dummy
                 ;;
                 # 🚀 ROUTING ENGINE HOOK: Calls the standalone FSR4 installation engine pass
-                    f|F) manage_punktfunk_setup ;;
-                    g|G) manage_punktfunk_uninstall ;;
-                    h|H) run_punktfunk_troubleshooter ;;
-                    i|I) compile_bc250_directmesh_driver ;;
+                    g|G) manage_punktfunk_setup ;;
+                    h|H) manage_punktfunk_uninstall ;;
+                    i|I) run_punktfunk_troubleshooter ;;
                     *) echo -e "${RED}Invalid choice.${RESET}" ;;
                 esac
                 ;; # 🎯 Closes choice 1) Custom Route submenu securely
@@ -5035,12 +5678,10 @@ show_menu() {
         echo -e "              ${RED}PROCEED ENTIRELY AT YOUR OWN RISK AND VERIFY SYSTEM COOLING.${NC}"
         echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
 
-        # Safe Prompt Parser (Instant Typing Response Keystroke Engine)
-        type_prompt "  Select an option [00-12, A-I, M, O, P, R, S, X]: " 0.03
+        echo -ne "  Select an option [00-12, A-I, M, O, P, R, S, X]: "
 
-        choice=""
-        read -n 2 -s choice || true
-        echo ""
+        local choice
+        read -r choice   # 🧬 THE CURE: Reads the full clean string entry and clears the buffer safely!
 
         case "$choice" in
             01) install_blue_pill ;;
@@ -5131,7 +5772,7 @@ show_menu() {
                 ;;
             t|T) toggle_ds5_bridge_fix ;;
             x|X) toggle_xbox_adapter ;;
-            "") stop_background_music ;;
+            "") stop_background_music ; continue ;;
             00)
                 secure_system_exit
                 ;;
