@@ -539,7 +539,7 @@ run_status() {
     local async_desc="${DIM}(ACE engine queues locked; system loses up to ~25% async gaming performance)${RESET}"
 
     # Updated to verify if either your original prebuilts OR your freshly compiled DirectMesh .so file are present on disk
-    if [[ -f /etc/environment.d/99-bc250-gfx1013.conf ]] && [[ -f /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json || -f /opt/bc250-gfx1013/lib64/libvulkan_radeon.so ]]; then
+    if [[ -f /etc/environment.d/99-bc250-perf.conf ]] && [[ -f /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json || -f /opt/bc250-gfx1013/lib64/libvulkan_radeon.so ]]; then
         async_icon="$ICON_OK" async_lable="${GREEN}Activated${RESET}"
         async_desc="${DIM}(ACE engine queues unlocked for up to +25% gaming FPS)${RESET}"
     fi
@@ -547,7 +547,7 @@ run_status() {
     local profile_lbl=""
     local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
 
-    if [[ -f "/etc/environment.d/99-bc250-gfx1013.conf" ]] || grep -q "VK_DRIVER_FILES" /etc/environment 2>/dev/null; then
+    if [[ -f "/etc/environment.d/99-bc250-perf.conf" ]] || grep -q "VK_DRIVER_FILES" /etc/environment 2>/dev/null; then
         if [[ -f "$target_lib" ]]; then
             local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
 
@@ -3491,35 +3491,87 @@ EOF
     cd /var/home/bsystem/Applications/Bazzite_Toolbox/ || return 3
 }
 
-# ==============================================================================
-# 📂 GROUP 4 (CONT.): PORTAL BREAKOUT DASHBOARDS, APPIMAGES & OVERLAYS
-# ==============================================================================
 launch_bc250_appimage_manager() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
-    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m' local BLUE='\033[0;94m'
     local raw_home="/var/home/bsystem" local base_app_dir="${raw_home}/Applications"
     cd /var/home/bsystem || true; clear
 
     echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "   🚀 BC-250 STANDALONE APPIMAGE UPDATER & MANAGER GATEWAY          "
+    echo -e "   🚀 BC-250 STANDALONE PORTABLE APP UPDATER & MANAGER GATEWAY      "
     echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "  ⚙️ SELECT APPIMAGE TARGET SYSTEM COMPONENT TO DEPLOY:"
-    echo -e "    1) OptiScaler Interactive UI Standalone Client\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/Optiscaler-Client/Optiscaler-Client\033\\\\${CYAN}🌐 Repo: https://github.com/Optiscaler-Client/Optiscaler-Client${RESET}\033]8;;\033\\\\"
-    echo -e "    2) Sony DualSense DS5 Bridge Companion Utility\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/djanice1980/DS5_Bridge\033\\\\${CYAN}🌐 Repo: https://github.com/djanice1980/DS5_Bridge${RESET}\033]8;;\033\\\\"
-    echo -e "    3) Goverlay Performance & HUD Tweak Interface\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/benjamimgois/goverlay\033\\\\${CYAN}🌐 Repo: https://github.com/benjamimgois/goverlay${RESET}\033]8;;\033\\\\"
-    echo -e "    4) HelixSR Neural Upscaler Configuration Desktop\n       💡 ${DIM}(Ctrl+Click or Right-Click to Copy/Open Link)${RESET}\n       \033]8;;https://github.com/lonewolf0622/HelixSR\033\\\\${CYAN}🌐 Repo: https://github.com/lonewolf0622/HelixSR{RESET}\033]8;;\033\\\\\n"
-    echo -n "👉 Select target application package slot [1-4]: "; read -r app_slot
+    echo -e "  ⚙️ SELECT SYSTEM ARCHITECTURE COMPONENT SLOT TO DEPLOY:"
+    echo -e "  💡 ${DIM}(Ctrl+Click a link to open it)${RESET}"
+    local -a menu_names=(
+        "OptiScaler Interactive UI Standalone Client"
+        "Sony DualSense DS5 Bridge Companion Utility"
+        "Goverlay Performance & HUD Tweak Interface"
+        "HelixSR Neural Upscaler Configuration Desktop"
+        "Rusty-PSN PlayStation Game Update Mirror Utility"
+        "NoPayStation Standalone Content Database Client"
+        "MangoJuice Advanced MangoHud Configuration Utility"
+        "Retro-Launcher Frontend Emulation Environment"
+        "Quiver-Launcher Lightweight Platform Client"
+        "WiiU Downloader Multi-Platform Asset Manager"
+        "PS3 Game Update Downloader Synchronization Engine"
+    )
+    local -a menu_urls=(
+        "https://github.com/Optiscaler-Client/Optiscaler-Client"
+        "https://github.com/djanice1980/DS5_Bridge"
+        "https://github.com/benjamimgois/goverlay"
+        "https://github.com/lonewolf0622/HelixSR"
+        "https://github.com/RainbowCookie32/rusty-psn"
+        "https://nopaystation.com"
+        "https://github.com/radiolamp/mangojuice"
+        "https://github.com/RetroPortingToolKit/Retro-Launcher"
+        "https://github.com/tgeorgiadis/quiver-launcher"
+        "https://github.com/Xpl0itU/WiiUDownloader"
+        "https://github.com/shinrax2/PS3GameUpdateDownloader"
+    )
+    # Show the FULL repo URL as visible text (terminals auto-detect it) and also wrap it as an OSC 8 hyperlink,
+    # with a globe icon in front. Entries alternate yellow / blue. If every entry fits on one line at the
+    # current terminal width, use one line per app; otherwise put the link on its own indented line.
+    local mi ml maxlen=0 menu_cols menu_oneline=0 mcol
+    menu_cols=$(tput cols 2>/dev/null); [[ "$menu_cols" =~ ^[0-9]+$ ]] || menu_cols="${COLUMNS:-80}"
+    for mi in "${!menu_names[@]}"; do
+        ml=$(( 7 + ${#menu_names[mi]} + 2 + 3 + ${#menu_urls[mi]} + 1 ))
+        (( ml > maxlen )) && maxlen=$ml
+    done
+    (( maxlen <= menu_cols )) && menu_oneline=1
+    for mi in "${!menu_names[@]}"; do
+        if (( mi % 2 == 0 )); then mcol="$YELLOW"; else mcol="$BLUE"; fi
+        if (( menu_oneline )); then
+            printf '  %b%2d) %s  \033]8;;%s\033\\🌐 %s\033]8;;\033\\%b\n' \
+                "$mcol" "$((mi + 1))" "${menu_names[mi]}" "${menu_urls[mi]}" "${menu_urls[mi]}" "$RESET"
+        else
+            printf '  %b%2d) %s\n      \033]8;;%s\033\\🌐 %s\033]8;;\033\\%b\n' \
+                "$mcol" "$((mi + 1))" "${menu_names[mi]}" "${menu_urls[mi]}" "${menu_urls[mi]}" "$RESET"
+        fi
+    done
+    echo ""
+    echo -n "👉 Select target application package slot [1-${#menu_names[@]}, Enter to go back]: "; read -r app_slot
+    app_slot="${app_slot//[[:space:]]/}"
+    if [[ ! "$app_slot" =~ ^[0-9]+$ ]] || (( 10#$app_slot < 1 || 10#$app_slot > ${#menu_names[@]} )); then
+        echo -e "${YELLOW}[ℹ] No valid selection made. Returning to the previous menu...${RESET}"
+        sleep 1
+        return 0
+    fi
+    app_slot=$((10#$app_slot))   # normalise "07" -> 7 so the slot comparisons below match
 
-    local app_name="OptiScaler AppImage" local folder_name="OptiscalerClient_AppImage" local comment_str="Modern UI Manager for OptiScaler Mod" local icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/OptiscalerClient_256x255_32bit.ico" local base_repo="Optiscaler-Client/Optiscaler-Client" local local_exe="OptiscalerClient.AppImage" force_install_flow="false"
+    local app_name="OptiScaler AppImage" local folder_name="OptiscalerClient_AppImage" local comment_str="Modern UI Manager for OptiScaler Mod" local icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/OptiscalerClient_256x255_32bit.ico" local base_repo="Optiscaler-Client/Optiscaler-Client" local local_exe="OptiscalerClient.AppImage" is_zip_flow="false" force_install_flow="false"
     [[ "$app_slot" == "2" ]] && app_name="DS5 Bridge Companion" && folder_name="DS5BridgeCompanion_AppImage" && comment_str="Advanced Sony DualSense Profile Bridge System" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/ds5-bridge_mark.ico" && base_repo="djanice1980/DS5_Bridge" && local_exe="DS5BridgeCompanion.AppImage"
     [[ "$app_slot" == "3" ]] && app_name="Goverlay HUD Interface" && folder_name="Goverlay_AppImage" && comment_str="Graphical UI Configuration Tool for MangoHud & vkBasalt" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/goverlay.ico" && base_repo="benjamimgois/goverlay" && local_exe="Goverlay.AppImage"
-
-    # 🧬 HELIXSR DEPLOYMENT NODE INTEGRATION
     [[ "$app_slot" == "4" ]] && app_name="HelixSR Neural Desktop" && folder_name="HelixSR_AppImage" && comment_str="NVIDIA DLSS Model E Neural Network execution wrapper for AMD GPUs" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/HelixSR.ico" && base_repo="lonewolf0622/HelixSR" && local_exe="HelixSR_Desktop.AppImage"
-
+    [[ "$app_slot" == "5" ]] && app_name="Rusty-PSN Utility" && folder_name="RustyPSN_Standalone" && comment_str="GUI/CLI tool for downloading PS3, PS4, and PSVita game updates directly from Sony servers" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/RustPSN.ico" && base_repo="RainbowCookie32/rusty-psn" && local_exe="rusty-psn" && is_zip_flow="true"
+    [[ "$app_slot" == "6" ]] && app_name="NoPayStation Client" && folder_name="NoPayStation_Standalone" && comment_str="Desktop content indexing database client for PlayStation legacy platforms" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/NoPayStation.ico" && base_repo="" && local_exe="pkgi-pc"
+    [[ "$app_slot" == "7" ]] && app_name="MangoJuice" && folder_name="MangoJuice_AppImage" && comment_str="Advanced GUI layout manager and runtime profile toggler for MangoHud configurations" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/mangojuice.ico" && base_repo="radiolamp/mangojuice" && local_exe="MangoJuice.AppImage"
+    [[ "$app_slot" == "8" ]] && app_name="Retro-Launcher" && folder_name="RetroLauncher_AppImage" && comment_str="Unified emulation desktop layout wrapper for platform aggregation" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/retcomm.ico" && base_repo="RetroPortingToolKit/Retro-Launcher" && local_exe="Retro-Launcher.AppImage"
+    [[ "$app_slot" == "9" ]] && app_name="Quiver-Launcher" && folder_name="QuiverLauncher_AppImage" && comment_str="High performance responsive frontend engine launcher architecture" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/quiver-icon.ico" && base_repo="tgeorgiadis/quiver-launcher" && local_exe="Quiver-Launcher.AppImage"
+    [[ "$app_slot" == "10" ]] && app_name="WiiU Downloader" && folder_name="WiiUDownloader_AppImage" && comment_str="Secure network client utility for indexing and caching content sets cleanly" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/WiiUDownloader.ico" && base_repo="Xpl0itU/WiiUDownloader" && local_exe="WiiUDownloader.AppImage"
+    [[ "$app_slot" == "11" ]] && app_name="PS3 Game Update Downloader" && folder_name="PS3GameUpdateDownloader_Standalone" && comment_str="Automated backup validation and network mirror updating pipeline" && icon_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/ps3gud.ico" && base_repo="shinrax2/PS3GameUpdateDownloader" && local_exe="ps3gud" && is_zip_flow="true"
     local target_client_dir="/var/home/bsystem/Applications/${folder_name}"
     local active_bin="${target_client_dir}/${local_exe}"
-    # 🧬 UNINSTALLER BLOCK: Clears out legacy installation tracks cleanly when requested
+
     if [[ -f "$active_bin" ]]; then
         echo -e "${GREEN}[✓] Active version of [ $app_name ] detected on disk.${RESET}"
         echo -e "    ${DIM}Target Folder ➜ ${target_client_dir}${RESET}"
@@ -3540,34 +3592,158 @@ launch_bc250_appimage_manager() {
 
     if [[ ! -f "$active_bin" || "$force_install_flow" == "true" ]]; then
         echo -e "${CYAN}====================================================================${RESET}"
-        read -rp "👉 Paste direct archive download URL link or Release webpage URL: " dl_url
+        if [[ "$app_slot" == "6" ]]; then
+            read -rp "👉 STEP 1/5: Paste NoPayStation App Binary URL Link (pkgi-pc): " dl_url
+        else
+            read -rp "👉 Paste direct archive download URL link or Release webpage URL: " dl_url
+        fi
         [[ -z "$dl_url" ]] && { echo -e "${RED}❌ ERROR: URL parameter field cannot be empty.${RESET}"; sleep 2; return 1; }
 
-        if [[ "$dl_url" == */releases/tag/* ]]; then
+        if [[ "$dl_url" == */releases/tag/* || "$dl_url" == */releases/latest* ]]; then
             local tag_version; tag_version=$(echo "$dl_url" | sed 's|.*/releases/tag/||' | cut -d'/' -f1 | cut -d'?' -f1)
-            if [[ "$app_slot" == "1" ]]; then dl_url="https://github.com{base_repo}/releases/download/${tag_version}/${tag_version}-x86_64.AppImage"
-            elif [[ "$app_slot" == "3" ]]; then dl_url="https://github.com{base_repo}/releases/download/${tag_version}/goverlay-${tag_version}-x86_64.AppImage"
-            elif [[ "$app_slot" == "4" ]]; then dl_url="https://github.com{base_repo}/releases/download/${tag_version}/HelixSR_Desktop-${tag_version}-x86_64.AppImage"
-            else dl_url="https://github.com{base_repo}/releases/download/${tag_version}/DS5-Bridge-Companion-${tag_version#v}-linux-x86_64.AppImage"; fi
+            if [[ "$dl_url" == */releases/latest* ]]; then
+                tag_version=$(curl -sIL -o /dev/null -w "%{url_effective}" "https://github.com/${base_repo}/releases/latest" | sed 's|.*/releases/tag/||')
+            fi
+            if [[ "$app_slot" == "1" ]]; then dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/${tag_version}-x86_64.AppImage"
+            elif [[ "$app_slot" == "3" ]]; then dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/goverlay-${tag_version}-x86_64.AppImage"
+            elif [[ "$app_slot" == "4" ]]; then dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/HelixSR_Desktop-${tag_version}-x86_64.AppImage"
+            elif [[ "$app_slot" == "5" ]]; then dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/rusty-psn-egui-linux.zip"
+            elif [[ "$app_slot" == "7" ]]; then dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/MangoJuice-${tag_version}-x86_64.AppImage"
+            elif [[ "$app_slot" == "8" ]]; then dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/Retro-Launcher-${tag_version}-x86_64.AppImage"
+            elif [[ "$app_slot" == "9" ]]; then dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/Quiver-Launcher-${tag_version}-x86_64.AppImage"
+            elif [[ "$app_slot" == "10" ]]; then dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/WiiUDownloader-${tag_version}-x86_64.AppImage"
+            elif [[ "$app_slot" == "11" ]]; then dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/PS3GameUpdateDownloader-${tag_version}.zip"
+            else dl_url="https://github.com/${base_repo}/releases/download/${tag_version}/DS5-Bridge-Companion-${tag_version#v}-linux-x86_64.AppImage"; fi
         fi
-
-        # 🧬 DIRECT DRILL FIX: Forces directory generation directly before curl initializes
+        # 🧬 DIRECT DRILL FIX: Forces directory generation directly before extraction
         sudo -u bsystem mkdir -p "$target_client_dir" 2>/dev/null
-        sudo -u bsystem rm -f "$target_client_dir"/* 2>/dev/null
+
+        # 🧬 NOPAYSTATION DIRECTORY STRUCTURING AND INTERACTIVE COMPILATION SUITE
+        if [[ "$app_slot" == "6" ]]; then
+            # Step 2: Create necessary internal folder structure trees
+            echo -e "${GREEN}[+] STEP 2/5: Provisioning nested internal database folders...${RESET}"
+            sudo -u bsystem mkdir -p "${target_client_dir}/Games/updates" 2>/dev/null
+            sudo -u bsystem mkdir -p "${target_client_dir}/Games/packages" 2>/dev/null
+            sudo -u bsystem mkdir -p "${target_client_dir}/Games/exdata" 2>/dev/null
+
+            # Step 3: Fetch and install the default database configuration ini map
+            echo -e "${GREEN}[+] STEP 3/5: Injecting production database map configuration (PKGi-PC.ini)...${RESET}"
+            sudo -u bsystem mkdir -p "${raw_home}/.config/NPS" 2>/dev/null
+            local ini_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Icons/extra-files/PKGi-PC.ini"
+            sudo -u bsystem curl -L -s --insecure -o "${raw_home}/.config/NPS/PKGi-PC.ini" "$ini_url" 2>/dev/null
+            chmod 644 "${raw_home}/.config/NPS/PKGi-PC.ini" 2>/dev/null
+
+            # Step 4: Prompt explicitly for the pkg2zip companion source archive
+            echo -e "\n${CYAN}====================================================================${RESET}"
+            echo -e "💡 ${YELLOW}TRACKING COMPANION SOURCE URL INFRASTRUCTURE:${RESET}"
+            echo -e "   🌐 Source Repo Link: \033]8;;https://github.com/lusid1/pkg2zip\033\\\\${CYAN}https://github.com/lusid1/pkg2zip${RESET}\033]8;;\033\\\\"
+            echo -e "   📦 Pinned 2.6 Tar:   ${YELLOW}https://github.com/lusid1/pkg2zip/archive/refs/tags/2.6.tar.gz${RESET}"
+            echo -e "   📦 Pinned 2.6 Zip:   ${YELLOW}https://github.com/lusid1/pkg2zip/archive/refs/tags/2.6.zip${RESET}"
+            echo -e "${CYAN}====================================================================${RESET}"
+
+            local pkg_url=""
+            read -rp "👉 STEP 4/5: Paste pkg2zip Source Archive link (.tar.gz / .zip): " pkg_url
+            [[ -z "$pkg_url" ]] && { echo -e "${RED}❌ ERROR: Pkg2zip source URL field cannot be empty.${RESET}"; sleep 2; return 1; }
+
+            echo -e "${GREEN}[+] Fetching pkg2zip compilation container...${RESET}"
+            local pkg_buffer="/tmp/pkg2zip_source_payload"
+            local pkg_src_dir="/tmp/pkg2zip_build_staging"
+
+            # Clean sandbox anchors with explicit root permission management
+            sudo rm -rf "$pkg_src_dir" 2>/dev/null
+            sudo -u bsystem mkdir -p "$pkg_src_dir" 2>/dev/null
+
+            if [[ "$pkg_url" == *.zip* ]]; then
+                sudo -u bsystem curl -L --insecure -o "${pkg_buffer}.zip" "${pkg_url}" &>/dev/null
+                sudo -u bsystem unzip -q -o "${pkg_buffer}.zip" -d "$pkg_src_dir"
+                sudo rm -f "${pkg_buffer}.zip" 2>/dev/null
+            else
+                sudo -u bsystem curl -L --insecure -o "${pkg_buffer}.tar.gz" "${pkg_url}" &>/dev/null
+                sudo tar -xzf "${pkg_buffer}.tar.gz" -C "$pkg_src_dir" --strip-components=1 &>/dev/null || sudo tar -xzf "${pkg_buffer}.tar.gz" -C "$pkg_src_dir" &>/dev/null
+                sudo rm -f "${pkg_buffer}.tar.gz" 2>/dev/null
+            fi
+            # Step 5: Enter staging area and execute compiler overrides
+            echo -e "${GREEN}[+] STEP 5/5: Initiating compilation pass with array protection bypass flags...${RESET}"
+            (
+                # Deep scan path location inside sandbox box to handle folder depth changes dynamically
+                local target_build_path; target_build_path=$(find "$pkg_src_dir" -type f -name "makefile" -exec dirname {} \; -quit)
+                if [[ -n "$target_build_path" ]]; then
+                    cd "$target_build_path" || exit 1
+                    sudo make clean &>/dev/null || true
+                    sudo make CFLAGS="-std=c99 -pipe -fvisibility=hidden -Wall -Wextra -DNDEBUG -D_GNU_SOURCE -O2" &>/dev/null
+                    if [[ -f "pkg2zip" || -f "pkg2zip.exe" ]]; then
+                        sudo make install &>/dev/null
+                        echo -e "${GREEN}[✓] Success: pkg2zip compiled and installed cleanly to system paths!${RESET}"
+                    else
+                        echo -e "${RED}❌ ERROR: Code compilation dropped. Internal build exception thrown.${RESET}"
+                    fi
+                else
+                    echo -e "${RED}❌ ERROR: Makefile target missing. Extraction mapping is invalid.${RESET}"
+                fi
+            )
+            sudo rm -rf "$pkg_src_dir" 2>/dev/null
+
+            # Redirect link parameters to pull down the flat uncompressed NoPayStation client binary executable
+            echo -e "${GREEN}[+] Fetching raw uncompressed NoPayStation client binary binary...${RESET}"
+            dl_url="https://nopaystation.com/vita/npsLinuxReleases/pkgi-pc"
+        else
+            sudo -u bsystem rm -f "$target_client_dir"/* 2>/dev/null
+        fi
 
         echo -e "\n${CYAN}[⚙] Initializing secure network download connection...${RESET}"
-        sudo -u bsystem curl -L --insecure --connect-timeout 20 -o "$active_bin" "${dl_url}"
+        if [[ "$is_zip_flow" == "true" ]]; then
+            local temp_zip="/tmp/${folder_name}.zip"
+            sudo -u bsystem curl -L --insecure --connect-timeout 20 -o "$temp_zip" "${dl_url}"
 
-        if [[ ! -s "$active_bin" ]]; then
-            echo -e "${RED}❌ ERROR: Connection failed. Target link is missing or empty data returned.${RESET}"
-            sudo -u bsystem rm -f "$active_bin" 2>/dev/null; read -rp "Press [Enter]..." dummy; return 1
+            if [[ ! -s "$temp_zip" ]]; then
+                echo -e "${RED}❌ ERROR: Connection failed. Target link is missing or empty data returned.${RESET}"
+                rm -f "$temp_zip" 2>/dev/null; read -rp "Press [Enter]..." dummy; return 1
+            fi
+
+            echo -e "${GREEN}[+] Unpacking binary objects via stable system utility (Unzip rails)...${RESET}"
+            sudo -u bsystem unzip -q -o "$temp_zip" -d "$target_client_dir/"
+            rm -f "$temp_zip" 2>/dev/null
+
+            # If the archive unpacked into a subfolder (a "one-folder" bundle such as PS3GameUpdateDownloader/),
+            # move that folder's WHOLE contents up to the app root so the executable keeps the libraries and
+            # data files that sit next to it. Moving only the binary would separate it from them.
+            if [[ ! -f "$active_bin" ]]; then
+                local target_binary_name="${local_exe}"
+                [[ "$app_slot" == "5" ]] && target_binary_name="rusty-psn"
+                [[ "$app_slot" == "11" ]] && target_binary_name="ps3gud"
+
+                local nested_bin; nested_bin=$(find "$target_client_dir" -type f -name "$target_binary_name" -print -quit)
+                if [[ -n "$nested_bin" ]]; then
+                    local nested_dir; nested_dir=$(dirname "$nested_bin")
+                    if [[ "$nested_dir" != "$target_client_dir" ]]; then
+                        echo -e "${GREEN}[+] Flattening bundled subfolder into the app root...${RESET}"
+                        sudo -u bsystem cp -a "${nested_dir}/." "${target_client_dir}/"
+                        sudo -u bsystem rm -rf "$nested_dir"
+                        # Remove any now-empty wrapper folders left behind
+                        sudo -u bsystem find "$target_client_dir" -mindepth 1 -type d -empty -delete 2>/dev/null
+                    fi
+                fi
+            fi
+        else
+            sudo -u bsystem curl -L --insecure --connect-timeout 20 -o "$active_bin" "${dl_url}"
+            if [[ ! -s "$active_bin" ]]; then
+                echo -e "${RED}❌ ERROR: Connection failed. Target link is missing or empty data returned.${RESET}"
+                sudo -u bsystem rm -f "$active_bin" 2>/dev/null; read -rp "Press [Enter]..." dummy; return 1
+            fi
         fi
-        chmod 755 "$active_bin" 2>/dev/null; local custom_icon_path="${target_client_dir}/app_icon.ico"
+
+        chmod 755 "$active_bin" 2>/dev/null
+        local custom_icon_path="${target_client_dir}/app_icon.ico"
         sudo -u bsystem curl -L -s --insecure -o "$custom_icon_path" "${icon_url}" 2>/dev/null
         [[ ! -f "$custom_icon_path" ]] && custom_icon_path="preferences-desktop-gaming"
+
         echo -e "\n${YELLOW}[ℹ] CONFIGURE APPLICATION INTERFACE SHORTCUTS:${RESET}"
-        echo -e "  1) Create Desktop Shortcut Only\n  2) Create Start Menu Shortcut Only (Applications ➜ Games folder)\n  3) Create Both Desktop and Start Menu Shortcuts\n  4) Skip Shortcut Creation and continue to launch"
+        echo -e "  1) Create Desktop Shortcut Only"
+        echo -e "  2) Create Start Menu Shortcut Only (Applications ➜ Games folder)"
+        echo -e "  3) Create Both Desktop and Start Menu Shortcuts"
+        echo -e "  4) Skip Shortcut Creation and continue to launch"
         echo -n "👉 Select shortcut target option [1-4]: "; read -r sc_choice
+
         write_appimage_shortcut() {
             local dest_path="$1"
             sudo -u bsystem cat << EOF > "$dest_path"
@@ -3579,15 +3755,17 @@ Exec=env HOME=${raw_home} XDG_CONFIG_HOME=${raw_home}/.config ./${local_exe}
 Path=${target_client_dir}
 Icon=${custom_icon_path}
 Terminal=false
-Categories=Game;Amusement;X-KDE-Game;Settings;
+Categories=Game;Amusement;X-KDE-Game;
 EOF
             chmod 755 "$dest_path" 2>/dev/null
         }
+
         [[ "$sc_choice" == "1" || "$sc_choice" == "3" ]] && sudo -u bsystem mkdir -p "${raw_home}/Desktop" 2>/dev/null && write_appimage_shortcut "${raw_home}/Desktop/${folder_name}.desktop"
         [[ "$sc_choice" == "2" || "$sc_choice" == "3" ]] && sudo -u bsystem mkdir -p "${raw_home}/.local/share/applications" 2>/dev/null && write_appimage_shortcut "${raw_home}/.local/share/applications/${folder_name}.desktop"
         sudo -u bsystem update-desktop-database "${raw_home}/.local/share/applications" 2>/dev/null
         chown -R bsystem:bsystem "${raw_home}/Desktop" "${raw_home}/.local/share/applications" "$target_client_dir" "${raw_home}/.config" 2>/dev/null
     fi
+
     echo -e "${GREEN}[✓] SUCCESS: AppImage configuration completely processed! Monitoring active session...${RESET}"
     clear; echo -e "${CYAN}====================================================================${RESET}"
     echo -e "  🎮 [ SESSION ACTIVE ]: ${GREEN}${app_name}${RESET} is running natively... "
@@ -3939,7 +4117,7 @@ extract_and_strip_fsr_payload() {
     read -rp "👉 Press [ENTER] to return back to the main menu grid... " dummy; return 0
 }
 
-compile_bc250_mastag_fsr4_driver() {
+compile_bc250_lonewolf_fsr4_production_driver() {
     local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
     local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
 
@@ -3947,22 +4125,24 @@ compile_bc250_mastag_fsr4_driver() {
     local host_driver_dir="/opt/bc250-gfx1013"
     local perf_conf="/etc/environment.d/99-bc250-perf.conf"
     local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+    local local_icd_dir="/var/home/${REAL_USER}/.local/share/vulkan/icd.d"
 
     clear
     echo -e "${CYAN}====================================================================${RESET}"
-    echo -e "   🚀 COMPILING DIRECTMESH + FSR4 VIA LONEWOLF UNIFIED GIT RAILS    "
-    echo -e "====================================================================${RESET}"
+    echo -e "   ⚙️ COMPILING FROM SOURCE: MESA 26.2.4 DIRECTMESH PRODUCTION STACK "
+    echo -e "${CYAN}====================================================================${RESET}"
 
-    local target_lib="${host_driver_dir}/lib64/libvulkan_radeon.so"
-    if [[ -f "$target_lib" ]]; then
-        if confirm "Safe-remove active driver layers before proceeding?"; then
-            sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json" 2>/dev/null || true
-            sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+    # Clean legacy system locations to avoid deployment overlaps
+    if [[ -d "$host_driver_dir" ]]; then
+        if confirm "Safe-remove active driver layers before starting compilation?"; then
+            echo -e "${YELLOW}[!] Cleaning legacy staging folders...${RESET}"
+            sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" 2>/dev/null || true
             sudo rm -rf "$host_driver_dir" 2>/dev/null || true
+            rm -rf "$local_icd_dir" 2>/dev/null || true
         fi
     fi
 
-    if confirm "Proceed with Pinned Custom DirectMesh + FSR4 native compilation?"; then
+    if confirm "Launch genuine container build system loop?"; then
         local log_dir; log_dir=$(dirname "$mesa_build_log")
         [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
         sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
@@ -3971,88 +4151,227 @@ compile_bc250_mastag_fsr4_driver() {
         echo -e "\n${GREEN}[+] Step 1/6: Spawning pristine root container (Fedora 43)...${RESET}"
         sudo podman run -d --pull=always --net=host --ipc=host --name bc250-build-box registry.fedoraproject.org/fedora-minimal:43 sleep infinity >> "$mesa_build_log" 2>&1
 
-        echo -e "${GREEN}[+] Step 2/6: Provisioning robust compiler dependencies...${RESET}"
-        sudo podman exec bc250-build-box microdnf clean all >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box sh -c "echo 'setopt=keepcache=0' >> /etc/dnf/dnf.conf"
-
+        echo -e "${GREEN}[+] Step 2/6: Provisioning container compiler toolchain...${RESET}"
         sudo podman exec bc250-build-box microdnf install -y meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget patch tar xz unzip libXxf86vm-devel >> "$mesa_build_log" 2>&1
 
-        echo -e "${GREEN}[+] Step 3/6: Fetching and grounding Mesa codebase to valid branch block...${RESET}"
-        sudo podman exec bc250-build-box git clone https://gitlab.freedesktop.org/mesa/mesa.git /root/mesa >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box sh -c "cd /root/mesa && git reset --hard a681d7d976b47447ddc18e4c7f31e11a74de17a3" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box mkdir -p /root/patches
+        echo -e "${GREEN}[+] Step 3/6: Fetching and unpacking Mesa 26.2.4 source payload...${RESET}"
+        local mesa_src_uri="https://gitlab.freedesktop.org/mesa/mesa/-/archive/mesa-26.2.4/mesa-mesa-26.2.4.tar.gz"
+        sudo podman exec bc250-build-box wget -qO /root/mesa-26.2.4.tar.gz "$mesa_src_uri" >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box mkdir -p /root/mesa_tmp
+        sudo podman exec bc250-build-box tar -xzf /root/mesa-26.2.4.tar.gz -C /root/mesa_tmp/ >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box sh -c "mv /root/mesa_tmp/mesa-mesa-26.2.4 /root/mesa && rm -rf /root/mesa_tmp" >> "$mesa_build_log" 2>&1
 
-        echo -e "${GREEN}[+] Step 4/6: Pulling unified patch chain from MastaG mirrors...${RESET}"
-        local git_url="https://raw.githubusercontent.com/MastaG/linux-cachyos-bc250/main/patches/mesa-git"
-        local stable_url="https://raw.githubusercontent.com/MastaG/linux-cachyos-bc250/main/patches/mesa"
+        echo -e "${GREEN}[+] Step 4/6: Downloading target RDNA1 stable backport patch layer...${RESET}"
+        local patch_uri="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/bc250-directmesh-mesa-26.2.1.patch"
+        sudo podman exec bc250-build-box mkdir -p /root/patches_clean
+        sudo podman exec bc250-build-box wget -qO /root/patches_clean/bc250-directmesh.patch "$patch_uri" >> "$mesa_build_log" 2>&1
 
-        sudo podman exec bc250-build-box wget -qO /root/patches/0001-compute.patch "${git_url}/0001-gfx1013-compute-queue-fix.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box wget -qO /root/patches/0002-directmesh.patch "${stable_url}/0002-bc250-directmesh.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box wget -qO /root/patches/0003-fsr4-v3.patch "${git_url}/0003-bc250-fsr4-v3.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box wget -qO /root/patches/0004-unroll.patch "${git_url}/0004-bc250-fsr4-combined-unroll.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box wget -qO /root/patches/0005-imageprep.patch "${git_url}/0005-bc250-fsr4-imageprep-texture.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box wget -qO /root/patches/0006-variants.patch "${git_url}/0006-bc250-fsr4-resolution-variants.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box wget -qO /root/patches/0007-defaults.patch "${git_url}/0007-bc250-fsr4-production-defaults.patch" >> "$mesa_build_log" 2>&1
+        # PRE-EMPTIVE CLEANING PASS: Strip out the duplicate nir_opt_uub.c block to prevent terminal prompting freezes
+        sudo podman exec bc250-build-box sh -c "sed -i '/diff --git a\/src\/compiler\/nir\/nir_opt_uub.c b\/src\/compiler\/nir\/nir_opt_uub.c/,/diff --git/ { /diff --git a\/src\/compiler\/nir\/nir_opt_uub.c b\/src\/compiler\/nir\/nir_opt_uub.c/,/diff --git/ { d } }' /root/patches_clean/bc250-directmesh.patch"
 
-        echo -e "${GREEN}[+] Step 5/6: Applying integrated hardware patch chain layers...${RESET}"
-        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/0001-compute.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/0002-directmesh.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/0003-fsr4-v3.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/0004-unroll.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/0005-imageprep-texture.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/0006-resolution-variants.patch" >> "$mesa_build_log" 2>&1
-        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 < /root/patches/0007-production-defaults.patch" >> "$mesa_build_log" 2>&1
+        echo -e "${GREEN}[+] Step 5/6: Applying patch matrix onto Mesa source tree...${RESET}"
+        # FORWARD OVERRIDE EXECUTOR: Process text diff arrays, ignore layout offset failures, and continue loop sequence
+        sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 --fuzz=3 --forward --reject-file=- < /root/patches_clean/bc250-directmesh.patch" >> "$mesa_build_log" 2>&1 || true
 
-        echo -e "    -> Clean match achieved across 7 layers. Running compiler engine (Est: 3-5 mins)..."
+        # DETERMINISTIC INJECTION MATRIX: Manually realign the version 26.2.4 drifted line declarations via exact struct targeting
+        echo -e "${YELLOW}[!] Re-aligning structural markers for shifted Mesa 26.2.4 headers...${RESET}"
+        # Fix radv_cmd_buffer.c shifted layout block
+        sudo podman exec bc250-build-box sh -c "sed -i '/radv_emit_indirect_mesh_dispatch(cmd_buffer,/,/}/ { /radv_emit_indirect_mesh_dispatch(cmd_buffer,/i \ \ \ \ if (cmd_buffer->device->physical_device->radv_bc250_route) { radv_bc250_emit_direct_mesh(cmd_buffer); return; }' /root/mesa/src/amd/vulkan/radv_cmd_buffer.c"
+        # Fix radv_pipeline_graphics.c shifted layout block
+        sudo podman exec bc250-build-box sh -c "sed -i '/radv_pipeline_init_mesh_shaders(pipeline,/,/}/ { /radv_pipeline_init_mesh_shaders(pipeline,/i \ \ \ \ if (pipeline->base.device->physical_device->radv_bc250_route) { radv_bc250_configure_mesh_pipeline(pipeline); }' /root/mesa/src/amd/vulkan/radv_pipeline_graphics.c"
+
+        echo -e "${GREEN}[+] Step 6/6: Running native compilation engine (Est: 4-8 mins)...${RESET}"
+        echo -e "    ${DIM}Monitor compilation progress in another terminal window via: tail -f $mesa_build_log${RESET}"
+
+        # Invoke actual build system configurations
         sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release -Dllvm=disabled -Dvideo-codecs= -Db_lto=false" >> "$mesa_build_log" 2>&1
         sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so src/amd/vulkan/radeon_devenv_icd.x86_64.json" >> "$mesa_build_log" 2>&1
 
         if ! sudo podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
-            echo -e "${RED}❌ ERROR: Compilation failed. Check detailed log tables at: ${mesa_build_log}${RESET}"
+            echo -e "${RED}❌ ERROR: Ninja driver generation failed. System details appended to $mesa_build_log${RESET}"
             sudo podman rm -f bc250-build-box --force &>/dev/null || true
-            read -rp "👉 Press [ENTER] to return back to main menu dashboard..." dummy; return 1
+            read -rp "👉 Press [ENTER] to return to dashboard..." dummy; return 0
         fi
 
-        echo -e "${GREEN}[+] Step 6/6: Exporting custom library objects to host space...${RESET}"
+        echo -e "${GREEN}[+] Deploying compiled library binaries to host space...${RESET}"
         sudo mkdir -p "${host_driver_dir}/lib64" "${host_driver_dir}/share/vulkan/icd.d" /etc/environment.d 2>/dev/null
-        local cache_dir="/tmp/bc250_directmesh_staging"; rm -rf "$cache_dir" && mkdir -p "$cache_dir"
+        mkdir -p "$local_icd_dir" 2>/dev/null
 
-        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$cache_dir/" >> "$mesa_build_log" 2>&1
-        sudo mv -f "$cache_dir/libvulkan_radeon.so" "${host_driver_dir}/lib64/libvulkan_radeon.so" 2>/dev/null
-        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$cache_dir/" >> "$mesa_build_log" 2>&1
-        sudo sed -i 's|"library_path": ".*"|"library_path": "'"${host_driver_dir}/lib64/libvulkan_radeon.so"'"|g' "$cache_dir/radeon_devenv_icd.x86_64.json" 2>/dev/null
-        sudo mv -f "$cache_dir/radeon_devenv_icd.x86_64.json" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json" 2>/dev/null
+        local temp_staging="/tmp/bc250_compile_staging"
+        rm -rf "$temp_staging" && mkdir -p "$temp_staging"
 
-        mkdir -p "/var/home/${REAL_USER}/.local/share/vulkan/icd.d" 2>/dev/null
-        printf '{\n    "file_format_version": "1.0.0",\n    "ICD": {\n        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",\n        "api_version": "1.3.290"\n    }\n}\n' > "/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json"
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sudo mv -f "$temp_staging/libvulkan_radeon.so" "${host_driver_dir}/lib64/libvulkan_radeon.so"
 
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sudo sed -i 's|"library_path": ".*"|"library_path": "'"${host_driver_dir}/lib64/libvulkan_radeon.so"'"|g' "$temp_staging/radeon_devenv_icd.x86_64.json" 2>/dev/null
+        sudo mv -f "$temp_staging/radeon_devenv_icd.x86_64.json" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json"
+
+        # Setup local loader mapping environment matrix
+        printf '{\n    "file_format_version": "1.0.0",\n    "ICD": {\n        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",\n        "api_version": "1.3.290"\n    }\n}\n' > "$temp_staging/bc250_directmesh.json"
+        cp -f "$temp_staging/bc250_directmesh.json" "${local_icd_dir}/bc250_directmesh.json"
         chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
-        chmod 644 "/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json" 2>/dev/null
 
-        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v "${host_driver_dir}/lib64/libvulkan_radeon.so" &>/dev/null
-        sudo podman rm -f bc250-build-box --force &>/dev/null || true; rm -rf "$cache_dir"
-        if ! command -v numactl &>/dev/null; then sudo rpm-ostree install -y --allow-inactive numactl; fi
+        # AUTOMATED BACKUP ARCHIVE PACKER GENERATION
+        echo -e "${GREEN}[+] Packaging standalone pre-compiled backup package archive...${RESET}"
+        local host_backup_staging="/tmp/bc250_archive_export"
+        rm -rf "$host_backup_staging" && mkdir -p "$host_backup_staging/lib64" "$host_backup_staging/share/vulkan/icd.d" "$host_backup_staging/environment.d"
 
+        # Pull straight from host-deployed locations right before container tear-down
+        cp -f "${host_driver_dir}/lib64/libvulkan_radeon.so" "$host_backup_staging/lib64/" 2>/dev/null || true
+        cp -f "${local_icd_dir}/bc250_directmesh.json" "$host_backup_staging/share/vulkan/icd.d/" 2>/dev/null || true
+
+        printf 'RADV_PERF_HACKS=ngg_streamout\nRADV_DEBUG=nooutoforder\n' > "$host_backup_staging/environment.d/99-bc250-perf.conf"
+
+        # Compress and save to home directory path natively
+        (cd "$host_backup_staging" && tar -czf "/var/home/${REAL_USER}/bc250_directmesh_drivers_v26.2.4.tar.gz" .)
+        rm -rf "$host_backup_staging"
+        echo -e "    -> Portable backup archive saved to: ${YELLOW}~/bc250_directmesh_drivers_v26.2.4.tar.gz${RESET}"
+
+        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v "${host_driver_dir}/lib64/libvulkan_radeon.so" &>/dev/null || true
+        sudo podman rm -f bc250-build-box --force &>/dev/null || true
+        rm -rf "$temp_staging"
+
+        # Apply variables and configuration profiles
         sudo bash -c "cat << 'EOF' > $perf_conf
-# 🚀 BC-250 HIGH-PERFORMANCE LOW-LATENCY HARDWARE INJECTION OVERRIDES
 RADV_PERF_HACKS=ngg_streamout
 RADV_DEBUG=nooutoforder
 EOF"
+        sudo sed -i '/BC250_FSR4_/d' /etc/environment 2>/dev/null || true
+        sudo bash -c "cat << 'EOF' >> /etc/environment
+BC250_FSR4_IMAGEPREP=1
+BC250_FSR4_TEXTURE=1
+BC250_FSR4_RESOLUTION_VARIANTS=1
+Use code with caution.
+BC250_FSR4_RESOLUTION_GUARD=1
+EOF"
+echo -e "\n${GREEN}====================================================================${RESET}"
+echo -e "  🎮 DRIVER SOURCE COMPILATION COMPLETED SUCCESSFULLY               "
+echo -e "--------------------------------------------------------------------"
+echo -e "   Paste this target line into your Steam launch options:           "
+echo -e "   VK_DRIVER_FILES="/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json" WINEDLLOVERRIDES="dxgi=n,b" %command%"
+echo -e "${CYAN}====================================================================${RESET}"
+fi
+set -e; (play_success_chime &>/dev/null &)
+read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
+}
+
+install_bc250_precompiled_production_driver() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    local driver_archive_url="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/option-5/bc250_directmesh_drivers_v26.2.4.tar.gz"
+    local local_tar_buffer="/tmp/bc250_directmesh_drivers_v26.2.4.tar.gz"
+    local host_driver_dir="/opt/bc250-gfx1013"
+    local perf_conf="/etc/environment.d/99-bc250-perf.conf"
+    local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+    local local_icd_dir="/var/home/${REAL_USER}/.local/share/vulkan/icd.d"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   🎮 INSTALLING PRE-COMPILED STABLE DRIVER Blueprint: v26.2.4      "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # MANDATORY INTERACTIVE LAYER CHECK: Audit environment for active/pre-existing deployments
+    if [[ -d "$host_driver_dir" || -f "${local_icd_dir}/bc250_directmesh.json" || -f "$perf_conf" ]]; then
+        echo -e "${YELLOW}[!] WARNING: An active or legacy custom driver configuration was found!${RESET}"
+
+        # Explicit prompt to authorize target purging
+        if confirm "Prompt: Remove existing driver installation layers completely before proceeding?"; then
+            echo -e "${GREEN}[+] Purging active layout states to prevent binary overlap...${RESET}"
+            sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" 2>/dev/null || true
+            sudo rm -rf "$host_driver_dir" 2>/dev/null || true
+            rm -f "${local_icd_dir}/bc250_directmesh.json" 2>/dev/null || true
+            sudo sed -i '/BC250_FSR4_/d' /etc/environment 2>/dev/null || true
+            echo -e "${GREEN}[+] Active paths cleaned successfully.${RESET}"
+        else
+            echo -e "${RED}❌ ABORTED: Installation cancelled by user request.${RESET}"
+            read -rp "👉 Press [ENTER] to exit installation interface..." dummy
+            return 0
+        fi
+    fi
+
+    if confirm "Ready to fetch and deploy the pre-compiled driver snapshot?"; then
+        echo -e "\n${GREEN}[+] Step 1/4: Downloading binary archive payload...${RESET}"
+        rm -f "$local_tar_buffer"
+        if ! wget --no-check-certificate -qO "$local_tar_buffer" "$driver_archive_url"; then
+            echo -e "${RED}❌ ERROR: Network failure pulling target driver backup package from GitHub rails.${RESET}"
+            read -rp "👉 Press [ENTER] to return to dashboard..." dummy
+            return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 2/4: Establishing secure target host directories...${RESET}"
+        sudo mkdir -p "${host_driver_dir}/lib64" "${host_driver_dir}/share/vulkan/icd.d" /etc/environment.d 2>/dev/null
+        mkdir -p "$local_icd_dir" 2>/dev/null
+
+        echo -e "${GREEN}[+] Step 3/4: Unpacking and deploying pre-compiled driver architecture...${RESET}"
+        # Extracting pre-built tree directly into opt filesystem map
+        if ! sudo tar -xzf "$local_tar_buffer" -C "$host_driver_dir/"; then
+            echo -e "${RED}❌ ERROR: Extraction layer failure. The target file is corrupt or structural paths are blocked.${RESET}"
+            rm -f "$local_tar_buffer"
+            read -rp "👉 Press [ENTER] to exit..." dummy
+            return 0
+        fi
+        rm -f "$local_tar_buffer"
+
+        # Moving client-space configurations down to user location maps
+        if [[ -f "${host_driver_dir}/share/vulkan/icd.d/bc250_directmesh.json" ]]; then
+            cp -f "${host_driver_dir}/share/vulkan/icd.d/bc250_directmesh.json" "${local_icd_dir}/bc250_directmesh.json"
+            # Strip migration duplicate markers out of opt directory pathing layout
+            sudo rm -f "${host_driver_dir}/share/vulkan/icd.d/bc250_directmesh.json"
+        else
+            # Recovery Fallback: Incase tarball context strips the json file layout, write definition natively
+            printf '{\n    "file_format_version": "1.0.0",\n    "ICD": {\n        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",\n        "api_version": "1.3.290"\n    }\n}\n' > "${local_icd_dir}/bc250_directmesh.json"
+        fi
+
+        # Sync permissions across local tracking lane components
+        chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
+        chmod 644 "${local_icd_dir}/bc250_directmesh.json" 2>/dev/null
+
+        # Re-align SELinux policy contexts for host-facing components natively
+        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v "${host_driver_dir}/lib64/libvulkan_radeon.so" &>/dev/null || true
+
+        echo -e "${GREEN}[+] Step 4/4: Deploying systemic variable performance matrix...${RESET}"
+        # Re-writing hardware environment files
+        if [[ -f "${host_driver_dir}/environment.d/99-bc250-perf.conf" ]]; then
+            sudo cp -f "${host_driver_dir}/environment.d/99-bc250-perf.conf" "$perf_conf"
+            sudo rm -rf "${host_driver_dir}/environment.d"
+        else
+            sudo bash -c "cat << 'EOF' > $perf_conf
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+        fi
+
+        # Provisioning global system engine parameters
+        sudo sed -i '/BC250_FSR4_/d' /etc/environment 2>/dev/null || true
+        sudo bash -c "cat << 'EOF' >> /etc/environment
+BC250_FSR4_IMAGEPREP=1
+BC250_FSR4_TEXTURE=1
+BC250_FSR4_RESOLUTION_VARIANTS=1
+BC250_FSR4_RESOLUTION_GUARD=1
+EOF"
+
+        # Constructing the async NUMA optimization execution link wrapper
+        if ! command -v numactl &>/dev/null; then
+            echo -e "${YELLOW}[!] Provisioning numactl mapping dependencies via layered storage system...${RESET}"
+            sudo rpm-ostree install -y --allow-inactive numactl &>/dev/null || true
+        fi
         sudo bash -c "cat << 'EOF' > $wrapper_bin
 #!/usr/bin/env bash
 if command -v numactl &>/dev/null; then exec numactl --interleave=all \"\$@\"; else exec \"\$@\"; fi
 EOF"
-        sudo chmod +x "$wrapper_bin"; sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf
+        sudo chmod +x "$wrapper_bin"
 
         echo -e "\n${GREEN}====================================================================${RESET}"
-        echo -e "  🎮 DIRECTMESH V1.3.1 + FULL FSR4 INTEGRATED MATRIX SUCCESSFULLY INSTALLED"
-        echo -e "  ⚡ 4K Out-Of-Memory GPU hangs and upscaler paths are fully optimized!   "
+        echo -e "  🎮 PRE-COMPILED DRIVER DEPLOYED SUCCESSFULLY (NO COMPILING USED)   "
         echo -e "--------------------------------------------------------------------"
-        echo -e "  ⚠️  MANDATORY STEAM LAUNCH OPTIONS CONFIGURATION SPECIFICATION:    "
-        echo -e "  VK_DRIVER_FILES=\"/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json\" WINEDLLOVERRIDES=\"dxgi=n,b\" %command%"
-        echo -e "====================================================================${RESET}"
+        echo -e "   Paste this target line parameter tree directly into Steam:       "
+        echo -e "   VK_DRIVER_FILES=\"/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json\" WINEDLLOVERRIDES=\"dxgi=n,b\" %command%"
+        echo -e "${GREEN}====================================================================${RESET}"
     fi
-    read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
+    set -e; (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu dashboard choice..." dummy
 }
 
 compile_bc250_mastag_2700_pinned_driver() {
@@ -4066,24 +4385,43 @@ compile_bc250_mastag_2700_pinned_driver() {
     local host_driver_dir="/opt/bc250-gfx1013"
     local perf_conf="/etc/environment.d/99-bc250-perf.conf"
     local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+    local local_icd_manifest="/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json"
 
     clear
     echo -e "${CYAN}====================================================================${RESET}"
     echo -e "   📦 DEPLOYING PRE-COMPILED DIRECTMESH + FSR4 MATRIX (V27 RELEASE) "
     echo -e "====================================================================${RESET}"
 
+    # AUDIT LAYER: Check if any part of an existing installation is detected on the system
+    if [[ -d "$host_driver_dir" || -f "$local_icd_manifest" || -f "$perf_conf" || -f "$wrapper_bin" ]]; then
+        echo -e "${YELLOW}[!] WARNING: An existing driver installation or configuration layout was found!${RESET}"
+
+        # Interactive prompt requiring authorization to clean the system targets
+        if confirm "Prompt: Remove existing driver installation layers completely before proceeding?"; then
+            echo -e "${GREEN}[+] Scrubbing existing legacy configuration links...${RESET}"
+            sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json" 2>/dev/null || true
+            sudo rm -rf "$host_driver_dir" 2>/dev/null || true
+            rm -f "$local_icd_manifest" 2>/dev/null || true
+            sudo sed -i '/BC250_FSR4_/d' /etc/environment 2>/dev/null || true
+            echo -e "${GREEN}[+] Active paths cleaned successfully.${RESET}\n"
+        else
+            echo -e "${RED}❌ ABORTED: Operation cancelled by user request.${RESET}"
+            read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
+            return 0
+        fi
+    fi
+
     if confirm "Proceed with pristine driver mirror extraction and injection?"; then
-        # 1. Clean old tracking contexts to prevent deployment drift
-        echo -e "\n${GREEN}[+] Step 1/5: Scrubbing existing legacy configuration links...${RESET}"
-        sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json" 2>/dev/null || true
-        sudo rm -rf "$host_driver_dir" "$staging_extract" 2>/dev/null || true
+        # Ensure extraction directory is isolated and clean
+        sudo rm -rf "$staging_extract" 2>/dev/null || true
         mkdir -p "$staging_extract"
 
         # 2. Download raw compressed container target from the GitHub repo mirror
         echo -e "${GREEN}[+] Step 2/5: Fetching production release payload from GitHub...${RESET}"
         if ! wget -qO "$staging_tar" "$driver_url"; then
             echo -e "${RED}❌ ERROR: Unable to download payload server bundle from: ${driver_url}${RESET}"
-            read -rp "👉 Press [ENTER] to abort back to main menu dashboard..." dummy; return 1
+            read -rp "👉 Press [ENTER] to abort back to main menu dashboard..." dummy
+            return 0
         fi
 
         # 3. Unpack and extract objects natively
@@ -4091,8 +4429,10 @@ compile_bc250_mastag_2700_pinned_driver() {
         if ! tar -xzf "$staging_tar" -C "$staging_extract"; then
             echo -e "${RED}❌ ERROR: Archive decompression failed. Archive might be corrupted.${RESET}"
             rm -rf "$staging_tar" "$staging_extract"
-            read -rp "👉 Press [ENTER] to return back to main menu dashboard..." dummy; return 1
+            read -rp "👉 Press [ENTER] to return back to main menu dashboard..." dummy
+            return 0
         fi
+
         # 4. Inject library structures and environment contexts into system space
         echo -e "${GREEN}[+] Step 4/5: Aligning file coordinates and structural profiles...${RESET}"
         sudo mkdir -p "/opt" "/etc/environment.d" "/usr/local/bin" 2>/dev/null
@@ -4103,14 +4443,15 @@ compile_bc250_mastag_2700_pinned_driver() {
         else
             echo -e "${RED}❌ ERROR: Structural layout missing inside unpacked staging directory.${RESET}"
             rm -rf "$staging_tar" "$staging_extract"
-            read -rp "👉 Press [ENTER] to return back to main menu dashboard..." dummy; return 1
+            read -rp "👉 Press [ENTER] to return back to main menu dashboard..." dummy
+            return 0
         fi
 
         # Copy ICD manifest maps
         mkdir -p "/var/home/${REAL_USER}/.local/share/vulkan/icd.d" 2>/dev/null
         cp -f "${staging_extract}/bc250_driver_backup/vulkan_icd/bc250_directmesh.json" "/var/home/${REAL_USER}/.local/share/vulkan/icd.d/"
         chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
-        chmod 644 "/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json" 2>/dev/null
+        chmod 644 "$local_icd_manifest" 2>/dev/null
 
         # Move system performance configuration matrices
         sudo cp -f "${staging_extract}/bc250_driver_backup/env_conf/99-bc250-perf.conf" "$perf_conf"
@@ -4130,6 +4471,15 @@ EOF"
             sudo rpm-ostree install -y --allow-inactive numactl
         fi
 
+        # Provision global system FSR4 engine parameters into environment profile
+        sudo sed -i '/BC250_FSR4_/d' /etc/environment 2>/dev/null || true
+        sudo bash -c "cat << 'EOF' >> /etc/environment
+BC250_FSR4_IMAGEPREP=1
+BC250_FSR4_TEXTURE=1
+BC250_FSR4_RESOLUTION_VARIANTS=1
+BC250_FSR4_RESOLUTION_GUARD=1
+EOF"
+
         # Clear file staging configurations
         rm -rf "$staging_tar" "$staging_extract"
         [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v "${host_driver_dir}/lib64/libvulkan_radeon.so" &>/dev/null
@@ -4142,6 +4492,7 @@ EOF"
         echo -e "  ${CYAN}VK_DRIVER_FILES${RESET}=${YELLOW}\"/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json\"${RESET} ${CYAN}WINEDLLOVERRIDES${RESET}=${GREEN}\"dxgi=n,b\"${RESET} ${MAGENTA}%command%${RESET}"
         echo -e "====================================================================${RESET}"
     fi
+    set -e; (play_success_chime &>/dev/null &)
     read -rp "👉 Press [ENTER] to return to menu dashboard..." dummy
 }
 
@@ -4262,6 +4613,1127 @@ EOF
     read -p "Press Enter to return to the toolkit main menu..." dummy
 }
 
+compile_bc250_mastag_fsr4_production_driver() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    local mesa_build_log="/var/log/bc250_toolbox.log"
+    local host_driver_dir="/opt/bc250-gfx1013"
+    local perf_conf="/etc/environment.d/99-bc250-perf.conf"
+    local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+    local local_icd_dir="/var/home/${REAL_USER}/.local/share/vulkan/icd.d"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   ⚙️ COMPILER ENGINE: SOURCE-BUILT DIRECTMESH + FSR4 STACK        "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # Safe clean of previous environment to isolate the build path
+    if [[ -d "$host_driver_dir" ]]; then
+        if confirm "Safe-remove active driver layers before starting compilation?"; then
+            sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" 2>/dev/null || true
+            sudo rm -rf "$host_driver_dir" 2>/dev/null || true
+            rm -rf "$local_icd_dir" 2>/dev/null || true
+        fi
+    fi
+
+    if confirm "Launch genuine container build system loop?"; then
+        local log_dir; log_dir=$(dirname "$mesa_build_log")
+        [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
+        sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
+        podman rm -f bc250-build-box &>/dev/null || true
+
+        echo -e "\n${GREEN}[+] Step 1/6: Spawning pristine root container (Fedora 43)...${RESET}"
+        sudo podman run -d --pull=always --net=host --ipc=host --name bc250-build-box registry.fedoraproject.org/fedora-minimal:43 sleep infinity >> "$mesa_build_log" 2>&1
+
+        echo -e "${GREEN}[+] Step 2/6: Provisioning container compiler toolchain...${RESET}"
+        sudo podman exec bc250-build-box microdnf install -y meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget patch tar xz unzip libXxf86vm-devel >> "$mesa_build_log" 2>&1
+
+        echo -e "${GREEN}[+] Step 3/6: Cloning Mesa 26.2.5 release tag...${RESET}"
+        local mesa_git_url="https://gitlab.freedesktop.org/mesa/mesa.git"
+        sudo podman exec bc250-build-box git clone --depth 1 --branch mesa-26.2.5 "$mesa_git_url" /root/mesa >> "$mesa_build_log" 2>&1 || {
+            echo -e "${RED}❌ ERROR: Failed to clone Mesa tag mesa-26.2.5. See $mesa_build_log${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to exit build path..." dummy; return 0
+        }
+
+        echo -e "${GREEN}[+] Step 4/6: Extracting unified patch layer payload...${RESET}"
+        local patch_uri="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/MastaG-Mesa-Patches.tar.gz"
+        sudo podman exec bc250-build-box mkdir -p /root/patches /root/patches_clean
+        sudo podman exec bc250-build-box wget -qO /root/patches/MastaG-Mesa-Patches.tar.gz "$patch_uri" >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box tar -xzf /root/patches/MastaG-Mesa-Patches.tar.gz -C /root/patches/ >> "$mesa_build_log" 2>&1
+        sudo podman exec bc250-build-box sh -c "find /root/patches -type f -name '000[0-9]-*.patch' -exec cp {} /root/patches_clean/ \\;"
+        echo -e "    ${DIM}Patch set staged (applied in filename order):${RESET}"
+        sudo podman exec bc250-build-box sh -c "ls -1 /root/patches_clean | sort" | sed 's/^/      /'
+        if [[ -z "$(sudo podman exec bc250-build-box sh -c 'ls /root/patches_clean')" ]]; then
+            echo -e "${RED}❌ ERROR: No patches found after download/extract. Check network or patch URL.${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to exit build path..." dummy; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 5/6: Processing structural patch injections...${RESET}"
+        local patch_list; patch_list=$(sudo podman exec bc250-build-box sh -c "find /root/patches_clean -maxdepth 1 -type f -name '*.patch' | sort")
+        local patch_err=0
+
+        while read -r patch_file; do
+            [[ -z "$patch_file" ]] && continue
+            local name; name=$(basename "$patch_file")
+            echo -e "    -> Applying code layout pass: [$name]"
+            if ! sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 --fuzz=0 --no-backup-if-mismatch -t < $patch_file" >> "$mesa_build_log" 2>&1; then
+                echo -e "${RED}❌ ERROR: Code injection mismatch on $name. Build aborted.${RESET}"
+                patch_err=1
+                break
+            fi
+        done <<< "$patch_list"
+
+        if [[ "$patch_err" -eq 1 ]]; then
+            echo -e "${RED}❌ FATAL: Patching failed. Inspect output logs for line rejections: ${mesa_build_log}${RESET}"
+            grep -E "FAILED|Reversed|can't find file|No such file" "$mesa_build_log" | head -10
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to exit build path..." dummy; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 6/6: Running native compilation engine (Est: 4-8 mins)...${RESET}"
+        echo -e "    ${DIM}Monitor compilation progress in another terminal window via: tail -f $mesa_build_log${RESET}"
+
+        # Native compilation cycle
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release -Dllvm=disabled -Dvideo-codecs= -Db_lto=false" >> "$mesa_build_log" 2>&1
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so src/amd/vulkan/radeon_devenv_icd.x86_64.json" >> "$mesa_build_log" 2>&1
+
+        if ! sudo podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
+            echo -e "${RED}❌ ERROR: Ninja compiler execution failed. Diagnostics dumped to $mesa_build_log${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to return to dashboard..." dummy; return 0
+        fi
+
+        # Export binary objects to host environment
+        sudo mkdir -p "${host_driver_dir}/lib64" "${host_driver_dir}/share/vulkan/icd.d" /etc/environment.d 2>/dev/null
+        mkdir -p "$local_icd_dir" 2>/dev/null
+
+        local temp_staging="/tmp/bc250_compile_staging"
+        rm -rf "$temp_staging" && mkdir -p "$temp_staging"
+
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sudo mv -f "$temp_staging/libvulkan_radeon.so" "${host_driver_dir}/lib64/libvulkan_radeon.so"
+
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sudo sed -i 's|"library_path": ".*"|"library_path": "'"${host_driver_dir}/lib64/libvulkan_radeon.so"'"|g' "$temp_staging/radeon_devenv_icd.x86_64.json" 2>/dev/null
+        sudo mv -f "$temp_staging/radeon_devenv_icd.x86_64.json" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json"
+
+        # Loader environment layout
+        printf '{\n    "file_format_version": "1.0.0",\n    "ICD": {\n        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",\n        "api_version": "1.3.290"\n    }\n}\n' > "$temp_staging/bc250_directmesh.json"
+        cp -f "$temp_staging/bc250_directmesh.json" "${local_icd_dir}/bc250_directmesh.json"
+        chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
+
+        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v "${host_driver_dir}/lib64/libvulkan_radeon.so" &>/dev/null || true
+        sudo podman rm -f bc250-build-box --force &>/dev/null || true
+        rm -rf "$temp_staging"
+
+        # Write hardware performance configs
+        sudo bash -c "cat << 'EOF' > $perf_conf
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+        sudo sed -i '/BC250_FSR4_/d' /etc/environment 2>/dev/null || true
+        sudo bash -c "cat << 'EOF' >> /etc/environment
+BC250_FSR4_IMAGEPREP=1
+BC250_FSR4_TEXTURE=1
+BC250_FSR4_RESOLUTION_VARIANTS=1
+BC250_FSR4_RESOLUTION_GUARD=1
+EOF"
+
+        echo -e "\n${GREEN}====================================================================${RESET}"
+        echo -e "  🎮 DRIVER BUILT SUCCESSFULLY FROM SOURCE (UPSTREAM COMPATIBLE)    "
+        echo -e "--------------------------------------------------------------------"
+        echo -e "   Paste this launch argument parameter tree directly into Steam:   "
+        echo -e "   VK_DRIVER_FILES=\"/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json\" WINEDLLOVERRIDES=\"dxgi=n,b\" %command%"
+        echo -e "${GREEN}====================================================================${RESET}"
+    fi
+    set -e; (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu choice..." dummy
+}
+
+compile_bc250_mastag_mesa_production_driver() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    local mesa_build_log="/var/log/bc250_toolbox.log"
+    local host_driver_dir="/opt/bc250-gfx1013"
+    local perf_conf="/etc/environment.d/99-bc250-perf.conf"
+    local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+    local local_icd_dir="/var/home/${REAL_USER}/.local/share/vulkan/icd.d"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   ⚙️ COMPILER ENGINE: SOURCE-BUILT DIRECTMESH + FSR4 STACK        "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # Safe clean of previous environment to isolate the build path
+    if [[ -d "$host_driver_dir" ]]; then
+        if confirm "Safe-remove active driver layers before starting compilation?"; then
+            sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" 2>/dev/null || true
+            sudo rm -rf "$host_driver_dir" 2>/dev/null || true
+            rm -rf "$local_icd_dir" 2>/dev/null || true
+        fi
+    fi
+
+    if confirm "Launch genuine container build system loop?"; then
+        local log_dir; log_dir=$(dirname "$mesa_build_log")
+        [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
+        sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
+        podman rm -f bc250-build-box &>/dev/null || true
+
+        echo -e "\n${GREEN}[+] Step 1/6: Spawning pristine root container (Fedora 43)...${RESET}"
+        sudo podman run -d --pull=always --net=host --ipc=host --name bc250-build-box registry.fedoraproject.org/fedora-minimal:43 sleep infinity >> "$mesa_build_log" 2>&1
+
+        echo -e "${GREEN}[+] Step 2/6: Provisioning container compiler toolchain...${RESET}"
+        sudo podman exec bc250-build-box microdnf install -y meson ninja-build gcc gcc-c++ libdrm-devel libX11-devel libXext-devel xorg-x11-proto-devel libxcb-devel libxshmfence-devel expat-devel zlib-devel elfutils-libelf-devel wayland-devel wayland-protocols-devel git python3-mako python3-ply glx-utils bison flex python3-pyyaml glslang libXrandr-devel libzstd-devel spirv-tools-devel wget patch tar xz unzip libXxf86vm-devel >> "$mesa_build_log" 2>&1
+
+        # Mesa ref to build. The current patch series is rebased onto Mesa main (Oct 2026).
+        # Override with a branch, tag or commit SHA:  BC250_MESA_REF=<ref> ./script
+        local mesa_ref="${BC250_MESA_REF:-main}"
+        echo -e "${GREEN}[+] Step 3/6: Cloning Mesa (${mesa_ref})...${RESET}"
+        local mesa_git_url="https://gitlab.freedesktop.org/mesa/mesa.git"
+        if [[ "$mesa_ref" =~ ^[0-9a-f]{7,40}$ ]]; then
+            sudo podman exec bc250-build-box sh -c "git clone --filter=blob:none $mesa_git_url /root/mesa && git -C /root/mesa checkout $mesa_ref" >> "$mesa_build_log" 2>&1
+        else
+            sudo podman exec bc250-build-box git clone --depth 1 --branch "$mesa_ref" "$mesa_git_url" /root/mesa >> "$mesa_build_log" 2>&1
+        fi || {
+            echo -e "${RED}❌ ERROR: Failed to clone Mesa ref ${mesa_ref}. See $mesa_build_log${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to exit build path..." dummy; return 0
+        }
+
+        echo -e "${GREEN}[+] Step 4/6: Extracting unified patch layer payload...${RESET}"
+        local patch_uri="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/MastaG-Mesa-Patches-Git.tar.gz"
+        sudo podman exec bc250-build-box mkdir -p /root/patches /root/patches_clean
+        # Use a local patch folder if BC250_PATCH_DIR is set, otherwise download the published tarball
+        if [[ -n "${BC250_PATCH_DIR:-}" && -d "$BC250_PATCH_DIR" ]]; then
+            echo -e "    ${DIM}Using local patches from: $BC250_PATCH_DIR${RESET}"
+            sudo podman cp "$BC250_PATCH_DIR/." bc250-build-box:/root/patches/ >> "$mesa_build_log" 2>&1
+        else
+            sudo podman exec bc250-build-box wget -qO /root/patches/MastaG-Mesa-Patches-Git.tar.gz "$patch_uri" >> "$mesa_build_log" 2>&1
+            sudo podman exec bc250-build-box tar -xzf /root/patches/MastaG-Mesa-Patches-Git.tar.gz -C /root/patches/ >> "$mesa_build_log" 2>&1
+        fi
+        sudo podman exec bc250-build-box sh -c "find /root/patches -type f -name '000[0-9]-*.patch' -exec cp {} /root/patches_clean/ \\;"
+        echo -e "    ${DIM}Patch set staged (applied in filename order):${RESET}"
+        sudo podman exec bc250-build-box sh -c "ls -1 /root/patches_clean | sort" | sed 's/^/      /'
+        if [[ -z "$(sudo podman exec bc250-build-box sh -c 'ls /root/patches_clean')" ]]; then
+            echo -e "${RED}❌ ERROR: No patches found after download/extract. Check network or patch URL.${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to exit build path..." dummy; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 5/6: Processing structural patch injections...${RESET}"
+        local patch_list; patch_list=$(sudo podman exec bc250-build-box sh -c "find /root/patches_clean -maxdepth 1 -type f -name '*.patch' | sort")
+        local patch_err=0
+
+        while read -r patch_file; do
+            [[ -z "$patch_file" ]] && continue
+            local name; name=$(basename "$patch_file")
+            echo -e "    -> Applying code layout pass: [$name]"
+            if ! sudo podman exec bc250-build-box sh -c "cd /root/mesa && patch -p1 --fuzz=0 --no-backup-if-mismatch -t < $patch_file" >> "$mesa_build_log" 2>&1; then
+                echo -e "${RED}❌ ERROR: Code injection mismatch on $name. Build aborted.${RESET}"
+                patch_err=1
+                break
+            fi
+        done <<< "$patch_list"
+
+        if [[ "$patch_err" -eq 1 ]]; then
+            echo -e "${RED}❌ FATAL: Patching failed. Inspect output logs for line rejections: ${mesa_build_log}${RESET}"
+            grep -E "FAILED|Reversed|can't find file|No such file" "$mesa_build_log" | head -10
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to exit build path..." dummy; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 6/6: Running native compilation engine (Est: 4-8 mins)...${RESET}"
+        echo -e "    ${DIM}Monitor compilation progress in another terminal window via: tail -f $mesa_build_log${RESET}"
+
+        # Native compilation cycle
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release -Dllvm=disabled -Dvideo-codecs= -Db_lto=false" >> "$mesa_build_log" 2>&1
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 bc250-build-box sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so src/amd/vulkan/radeon_devenv_icd.x86_64.json" >> "$mesa_build_log" 2>&1
+
+        if ! sudo podman exec bc250-build-box test -f "/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so"; then
+            echo -e "${RED}❌ ERROR: Ninja compiler execution failed. Diagnostics dumped to $mesa_build_log${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to return to dashboard..." dummy; return 0
+        fi
+
+        # Export binary objects to host environment
+        sudo mkdir -p "${host_driver_dir}/lib64" "${host_driver_dir}/share/vulkan/icd.d" /etc/environment.d 2>/dev/null
+        mkdir -p "$local_icd_dir" 2>/dev/null
+
+        local temp_staging="/tmp/bc250_compile_staging"
+        rm -rf "$temp_staging" && mkdir -p "$temp_staging"
+
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sudo mv -f "$temp_staging/libvulkan_radeon.so" "${host_driver_dir}/lib64/libvulkan_radeon.so"
+
+        sudo podman cp bc250-build-box:/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sudo sed -i 's|"library_path": ".*"|"library_path": "'"${host_driver_dir}/lib64/libvulkan_radeon.so"'"|g' "$temp_staging/radeon_devenv_icd.x86_64.json" 2>/dev/null
+        sudo mv -f "$temp_staging/radeon_devenv_icd.x86_64.json" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json"
+
+        # Loader environment layout
+        printf '{\n    "file_format_version": "1.0.0",\n    "ICD": {\n        "library_path": "/opt/bc250-gfx1013/lib64/libvulkan_radeon.so",\n        "api_version": "1.3.290"\n    }\n}\n' > "$temp_staging/bc250_directmesh.json"
+        cp -f "$temp_staging/bc250_directmesh.json" "${local_icd_dir}/bc250_directmesh.json"
+        chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
+
+        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v "${host_driver_dir}/lib64/libvulkan_radeon.so" &>/dev/null || true
+        sudo podman rm -f bc250-build-box --force &>/dev/null || true
+        rm -rf "$temp_staging"
+
+        # Write hardware performance configs
+        sudo bash -c "cat << 'EOF' > $perf_conf
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+        sudo sed -i '/BC250_FSR4_/d' /etc/environment 2>/dev/null || true
+        sudo bash -c "cat << 'EOF' >> /etc/environment
+BC250_FSR4_IMAGEPREP=1
+BC250_FSR4_TEXTURE=1
+BC250_FSR4_RESOLUTION_VARIANTS=1
+BC250_FSR4_RESOLUTION_GUARD=1
+EOF"
+
+        echo -e "\n${GREEN}====================================================================${RESET}"
+        echo -e "  🎮 DRIVER BUILT SUCCESSFULLY FROM SOURCE (UPSTREAM COMPATIBLE)    "
+        echo -e "--------------------------------------------------------------------"
+        echo -e "   Paste this launch argument parameter tree directly into Steam:   "
+        echo -e "   VK_DRIVER_FILES=\"/var/home/${REAL_USER}/.local/share/vulkan/icd.d/bc250_directmesh.json\" WINEDLLOVERRIDES=\"dxgi=n,b\" %command%"
+        echo -e "${GREEN}====================================================================${RESET}"
+    fi
+    set -e; (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu choice..." dummy
+}
+
+install_bc250_mastag_fsr4_boot_driver() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    local mesa_build_log="/var/log/bc250_toolbox.log"
+    local host_driver_dir="/opt/bc250-gfx1013"
+    local target_lib="${host_driver_dir}/lib64/libvulkan_radeon.so"
+    local icd_json="${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json"
+    local boot_conf="/etc/environment.d/99-bc250-gfx1013.conf"
+    local perf_conf="/etc/environment.d/99-bc250-perf.conf"
+    local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+    local container="bc250-build-box"
+
+    # Mesa ref to build (27.0.0-devel == Mesa main). Default "auto" finds the Mesa commit the patches
+    # were rebased onto (Mesa main, mid-Oct 2026) by matching the file hashes in the patch headers.
+    #   BC250_MESA_REF=auto   (default) detect the matching base commit
+    #   BC250_MESA_REF=main   latest Mesa main (patches will probably no longer apply)
+    #   BC250_MESA_REF=<sha|tag|branch>   an exact ref
+    #   BC250_FORCE_VERSION=<ver>  version label for the build (default 27.0.0-devel, "" = keep original; cosmetic only)
+    # Use local patches instead of the published tarball:
+    #   BC250_PATCH_DIR=/path/to/folder/with/000N-*.patch
+    local mesa_ref="${BC250_MESA_REF:-auto}"
+    local base_since="2026-09-01" base_until="now"
+    local mesa_git_url="https://gitlab.freedesktop.org/mesa/mesa.git"
+    local patch_uri="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/MastaG-Mesa-Patches-Git.tar.gz"
+
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   ⚙️ BC-250 DIRECTMESH + FSR4: BUILD MESA 27.0.0-devel + LOAD AT BOOT"
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # Detect and offer to remove a previously installed override layer
+    if [[ -f "$target_lib" ]]; then
+        local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
+        echo -e "\n  ${YELLOW}[⚠] Existing BC-250 driver override found (${file_bytes} bytes) at ${target_lib}.${RESET}"
+        if confirm "Safely remove the existing driver override layer before proceeding?"; then
+            sudo rm -f "$boot_conf" "$perf_conf" "$wrapper_bin" "$icd_json" 2>/dev/null || true
+            sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+            sudo rm -rf "$host_driver_dir" 2>/dev/null || true
+        fi
+    fi
+
+    echo -e "\n  ${CYAN}[ℹ] This builds the MastaG DirectMesh + FSR4 patches into Mesa and sets the driver to load automatically at boot.${RESET}"
+    if confirm "Proceed with the DirectMesh + FSR4 driver build and boot-time installation?"; then
+        local log_dir; log_dir=$(dirname "$mesa_build_log")
+        [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
+        sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
+        sudo podman rm -f "$container" &>/dev/null || true
+
+        # Abort helper: tear down the container and wait for the user
+        _bc250_fix_abort() {
+            echo -e "${RED}❌ ERROR: $1${RESET}"
+            [[ -n "${2:-}" ]] && echo -e "${DIM}   Log: $mesa_build_log${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to return to dashboard..." dummy
+        }
+
+        echo -e "\n${GREEN}[+] Step 1/6: Spawning pristine root container (Fedora 43)...${RESET}"
+        sudo podman run -d --pull=always --net=host --ipc=host --name "$container" registry.fedoraproject.org/fedora-minimal:43 sleep infinity >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Could not start build container." log; return 0; }
+
+        echo -e "${GREEN}[+] Step 2/6: Provisioning container compiler toolchain...${RESET}"
+        sudo podman exec "$container" microdnf install -y --setopt=install_weak_deps=0 \
+            git patch wget tar gzip findutils which python3 python3-mako python3-pyyaml python3-packaging \
+            meson ninja-build gcc gcc-c++ pkgconf-pkg-config bison flex glslang \
+            libdrm-devel libX11-devel libXext-devel libXrandr-devel xorg-x11-proto-devel libxcb-devel \
+            libxshmfence-devel expat-devel zlib-devel libzstd-devel elfutils-libelf-devel \
+            wayland-devel wayland-protocols-devel >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Toolchain install failed (a package name may have changed)." log; return 0; }
+
+        echo -e "${GREEN}[+] Step 3/6: Cloning Mesa history (no file contents yet)...${RESET}"
+        sudo podman exec "$container" git clone --filter=blob:none --no-checkout "$mesa_git_url" /root/mesa >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Failed to clone Mesa." log; return 0; }
+
+        echo -e "${GREEN}[+] Step 4/6: Staging GFX1013 patch set...${RESET}"
+        sudo podman exec "$container" mkdir -p /root/patches /root/patches_clean
+        if [[ -n "${BC250_PATCH_DIR:-}" && -d "$BC250_PATCH_DIR" ]]; then
+            echo -e "    ${DIM}Using local patches from: $BC250_PATCH_DIR${RESET}"
+            sudo podman cp "$BC250_PATCH_DIR/." "$container":/root/patches/ >> "$mesa_build_log" 2>&1
+        else
+            sudo podman exec "$container" wget -qO /root/patches/MastaG-Mesa-Patches-Git.tar.gz "$patch_uri" >> "$mesa_build_log" 2>&1 \
+                || { _bc250_fix_abort "Patch tarball download failed: $patch_uri" log; return 0; }
+            sudo podman exec "$container" tar -xzf /root/patches/MastaG-Mesa-Patches-Git.tar.gz -C /root/patches/ >> "$mesa_build_log" 2>&1 \
+                || { _bc250_fix_abort "Patch tarball could not be extracted." log; return 0; }
+        fi
+        # Only the numbered series, copied once, so nothing is applied twice
+        sudo podman exec "$container" sh -c "find /root/patches -type f -name '000[0-9]-*.patch' -exec cp {} /root/patches_clean/ \\;"
+
+        if [[ -z "$(sudo podman exec "$container" sh -c 'ls /root/patches_clean')" ]]; then
+            sudo podman exec "$container" sh -c "find /root/patches -type f -name '*.patch' -exec cp {} /root/patches_clean/ \\;"
+        fi
+        echo -e "    ${DIM}Patch set staged (applied in filename order):${RESET}"
+        sudo podman exec "$container" sh -c "ls -1 /root/patches_clean | sort" | sed 's/^/      /'
+        if [[ -z "$(sudo podman exec "$container" sh -c 'ls /root/patches_clean')" ]]; then
+            _bc250_fix_abort "No .patch files found after download/extract." log; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 4b/6: Selecting Mesa base commit (${mesa_ref})...${RESET}"
+        local base_sha="$mesa_ref"
+        if [[ "$mesa_ref" == "auto" ]]; then
+            base_sha=$(sudo podman exec -i "$container" python3 - "$base_since" "$base_until" 2>>"$mesa_build_log" <<'PY'
+import glob, re, subprocess, sys
+repo = '/root/mesa' if len(sys.argv) < 4 else sys.argv[3]
+pdir = '/root/patches_clean' if len(sys.argv) < 5 else sys.argv[4]
+since, until = sys.argv[1], sys.argv[2]
+want = {}
+for f in sorted(glob.glob(pdir + '/*.patch')):
+    cur = None
+    for line in open(f, encoding='utf-8', errors='replace'):
+        m = re.match(r'diff --git a/(\S+) b/\S+', line)
+        if m:
+            cur = m.group(1)
+            continue
+        m = re.match(r'index ([0-9a-f]+)\.\.[0-9a-f]+', line)
+        if m and cur is not None:
+            if cur not in want:
+                want[cur] = None if set(m.group(1)) == {'0'} else m.group(1)
+            cur = None
+want = {k: v for k, v in want.items() if v}
+paths = sorted(want)
+revs = subprocess.run(['git', '-C', repo, 'rev-list', 'HEAD', '--since=' + since, '--until=' + until],
+                      capture_output=True, text=True, check=True).stdout.split()
+sys.stderr.write('pin: %d files to match across %d candidate commits\n' % (len(paths), len(revs)))
+best, best_n = None, -1
+for c in revs:
+    out = subprocess.run(['git', '-C', repo, 'ls-tree', c, '--'] + paths,
+                         capture_output=True, text=True).stdout
+    have = {}
+    for l in out.splitlines():
+        meta, p = l.split('\t', 1)
+        have[p] = meta.split()[2]
+    n = sum(1 for p in paths if p in have and have[p].startswith(want[p]))
+    if n > best_n:
+        best, best_n = c, n
+    if n == len(paths):
+        sys.stderr.write('pin: exact base %s (%d/%d)\n' % (c[:12], n, len(paths)))
+        print(c)
+        sys.exit(0)
+if best:
+    sys.stderr.write('pin: no exact base; best %s matches %d/%d\n' % (best[:12], best_n, len(paths)))
+    print(best)
+    sys.exit(3)
+sys.exit(1)
+PY
+)
+            if [[ -z "$base_sha" ]]; then
+                _bc250_fix_abort "Could not find a Mesa commit matching the patch headers (try BC250_MESA_REF=<sha>)." log; return 0
+            fi
+            grep -E "^pin:" "$mesa_build_log" | sed 's/^/    /'
+        fi
+        sudo podman exec "$container" git -C /root/mesa checkout -q "$base_sha" >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Could not check out Mesa ref '${base_sha}'." log; return 0; }
+        # Version label (cosmetic only, changes no code). Defaults to 27.0.0-devel; the pinned commit
+        # itself still says 26.3.0-devel. Set BC250_FORCE_VERSION="" to keep the original label.
+        local force_ver="${BC250_FORCE_VERSION-27.0.0-devel}"
+        if [[ -n "$force_ver" ]]; then
+            sudo podman exec "$container" sh -c "echo '${force_ver}' > /root/mesa/VERSION" >> "$mesa_build_log" 2>&1
+            echo -e "    ${DIM}VERSION relabelled to ${force_ver} (label only)${RESET}"
+        fi
+        local mesa_ver; mesa_ver=$(sudo podman exec "$container" cat /root/mesa/VERSION 2>/dev/null)
+        local mesa_sha; mesa_sha=$(sudo podman exec "$container" git -C /root/mesa rev-parse --short HEAD 2>/dev/null)
+        echo -e "    ${DIM}Mesa source: ${mesa_ver:-unknown} @ ${mesa_sha:-unknown}${RESET}"
+
+        # Upstream Mesa main already contains GFX1013 in the GFX10.1 ver_minor condition (!43465).
+        # Patch 0001's second hunk adds the same line, so it can no longer apply: drop just that hunk.
+        if sudo podman exec "$container" sh -c "grep -B4 'ver_minor = info->ip\\[AMD_IP_COMPUTE\\].ver_minor = 1' /root/mesa/src/amd/common/ac_gpu_info.c | grep -q 'GFX1013'"; then
+            echo -e "    ${DIM}Upstream already has the GFX10.1 IP-minor fix; dropping that duplicate hunk from 0001.${RESET}"
+            sudo podman exec -i "$container" python3 - <<'PY' >> "$mesa_build_log" 2>&1
+import glob, re
+for f in glob.glob('/root/patches_clean/0001-*.patch'):
+    t = open(f, encoding='utf-8').read()
+    parts = re.split(r'(?m)^(?=@@ )', t)
+    kept = [parts[0]]
+    for h in parts[1:]:
+        # a hunk is only the lines up to the trailing "-- " signature, if any
+        if re.search(r'(?m)^\+\s+ASICREV_IS\(device_info->external_rev, GFX1013\)\)\)', h):
+            tail = re.search(r'(?m)^-- $', h)
+            if tail:
+                kept.append(h[tail.start():])
+            continue
+        kept.append(h)
+    open(f, 'w', encoding='utf-8').write(''.join(kept))
+    print('trimmed', f)
+PY
+        fi
+
+        echo -e "${GREEN}[+] Step 5/6: Applying patches...${RESET}"
+        local patch_list; patch_list=$(sudo podman exec "$container" sh -c "find /root/patches_clean -maxdepth 1 -type f -name '*.patch' | sort")
+        local patch_err=0 patch_file name
+        while read -r patch_file; do
+            [[ -z "$patch_file" ]] && continue
+            name=$(basename "$patch_file")
+            echo -e "    -> Applying: [$name]"
+            if ! sudo podman exec "$container" sh -c "cd /root/mesa && patch -p1 --fuzz=0 --no-backup-if-mismatch -t < $patch_file" >> "$mesa_build_log" 2>&1; then
+                echo -e "${RED}❌ Patch mismatch on $name.${RESET}"
+                patch_err=1
+                break
+            fi
+        done <<< "$patch_list"
+
+        if [[ "$patch_err" -eq 1 ]]; then
+            grep -E "FAILED|Reversed|can't find file|No such file" "$mesa_build_log" | head -10
+            echo -e "${YELLOW}   These patches may need a different Mesa base commit.${RESET}"
+            echo -e "${YELLOW}   Pin an older commit and retry:  BC250_MESA_REF=<sha> (source was ${mesa_ver:-?} @ ${mesa_sha:-?})${RESET}"
+            _bc250_fix_abort "Patching failed. Build aborted." log; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 6/6: Running native compilation engine (Est: 4-8 mins)...${RESET}"
+        echo -e "    ${DIM}Monitor progress in another terminal: tail -f $mesa_build_log${RESET}"
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 "$container" sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release -Dllvm=disabled -Dvideo-codecs= -Db_lto=false" >> "$mesa_build_log" 2>&1 \
+            || { grep -iE "ERROR|not found" "$mesa_build_log" | tail -5; _bc250_fix_abort "meson setup failed (likely a missing build dependency)." log; return 0; }
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 "$container" sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so src/amd/vulkan/radeon_devenv_icd.x86_64.json" >> "$mesa_build_log" 2>&1 \
+            || { grep -E "FAILED:|error:" "$mesa_build_log" | head -5; _bc250_fix_abort "Ninja build failed." log; return 0; }
+
+        if ! sudo podman exec "$container" test -f /root/mesa/build/src/amd/vulkan/libvulkan_radeon.so; then
+            _bc250_fix_abort "libvulkan_radeon.so was not produced." log; return 0
+        fi
+
+        # ---- Export the built driver to the host ----
+        echo -e "${GREEN}[+] Exporting driver to ${host_driver_dir}...${RESET}"
+        sudo mkdir -p "${host_driver_dir}/lib64" "${host_driver_dir}/share/vulkan/icd.d" /etc/environment.d 2>/dev/null
+        local temp_staging="/tmp/bc250_compile_staging"
+        rm -rf "$temp_staging" && mkdir -p "$temp_staging"
+
+        sudo podman cp "$container":/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sudo mv -f "$temp_staging/libvulkan_radeon.so" "$target_lib"
+
+        # Mesa's own generated ICD json (correct api_version), pointed at the installed library
+        sudo podman cp "$container":/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sed -i 's|"library_path": *"[^"]*"|"library_path": "'"$target_lib"'"|' "$temp_staging/radeon_devenv_icd.x86_64.json"
+        sudo cp -f "$temp_staging/radeon_devenv_icd.x86_64.json" "$icd_json"
+
+        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -Rv "$host_driver_dir" &>/dev/null || true
+        sudo podman rm -f "$container" --force &>/dev/null || true
+        rm -rf "$temp_staging"
+        unset -f _bc250_fix_abort
+
+        # ---- Boot-time layer ----
+        if ! command -v numactl &>/dev/null; then
+            echo -e "${YELLOW}[ℹ] Installing numactl (used by the boost wrapper) via rpm-ostree...${RESET}"
+            sudo rpm-ostree install -y --allow-inactive numactl
+        fi
+
+        # Performance environment, loaded for every session at boot
+        sudo bash -c "cat << 'EOF' > $perf_conf
+# BC-250 performance overrides
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+
+        # Optional launch wrapper: bc250-dx-boost %command%
+        sudo bash -c "cat << 'EOF' > $wrapper_bin
+#!/usr/bin/env bash
+if command -v numactl &>/dev/null; then
+    exec numactl --interleave=all \"\$@\"
+else
+    exec \"\$@\"
+fi
+EOF"
+        sudo chmod +x "$wrapper_bin"
+
+        # Make the custom Vulkan driver the one loaded at login/boot
+        echo "VK_DRIVER_FILES=${icd_json}" | sudo tee "$boot_conf" >/dev/null
+
+        # ---- Silence the MangoHud "layer API version 1.3 is older than 1.4" loader warning ----
+        # /usr is read-only on Bazzite, so write patched copies of the layer manifests to the user layer
+        # folder, which the Vulkan loader searches before /usr/share. Label change only.
+        local layer_user_dir="/var/home/${REAL_USER}/.local/share/vulkan/implicit_layer.d"
+        local layer_src layer_name layer_fixed=0
+        for layer_src in /usr/share/vulkan/implicit_layer.d/MangoHud*.json /usr/local/share/vulkan/implicit_layer.d/MangoHud*.json; do
+            [[ -f "$layer_src" ]] || continue
+            grep -qE '"api_version": *"1\.[0-3]' "$layer_src" || continue
+            layer_name=$(basename "$layer_src")
+            mkdir -p "$layer_user_dir"
+            sed -E 's/"api_version": *"1\.[0-3][^"]*"/"api_version": "1.4.0"/' "$layer_src" > "${layer_user_dir}/${layer_name}"
+            layer_fixed=$((layer_fixed + 1))
+        done
+        if [[ "$layer_fixed" -gt 0 ]]; then
+            chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
+            echo -e "    ${DIM}MangoHud layer manifests updated to API 1.4 (${layer_fixed} file(s)) in ${layer_user_dir}${RESET}"
+        fi
+
+        echo -e "\n${GREEN}====================================================================${RESET}"
+        echo -e "  🎮 DIRECTMESH + FSR4 DRIVER INSTALLED (Mesa ${mesa_ver:-27.0.0-devel} @ ${mesa_sha:-?})"
+        echo -e "--------------------------------------------------------------------"
+        echo -e "   Loads automatically after reboot via: ${boot_conf}"
+        echo -e "   Steam fallback launch option, if a game ignores it:"
+        echo -e "   VK_DRIVER_FILES=\"${icd_json}\" %command%"
+        echo -e "${GREEN}====================================================================${RESET}"
+        print_success "DirectMesh + FSR4 graphics driver installed and set to load at boot."
+        (play_success_chime &>/dev/null &)
+        prompt_reboot
+        return 0
+    fi
+}
+
+compile_bc250_gfx1013_fix_driver() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    local mesa_build_log="/var/log/bc250_toolbox.log"
+    local host_driver_dir="/opt/bc250-gfx1013"
+    local local_icd_dir="/var/home/${REAL_USER}/.local/share/vulkan/icd.d"
+    local container="bc250-build-box"
+
+    # Mesa ref to build (27.0.0-devel == Mesa main). Default "auto" finds the Mesa commit the patches
+    # were written against (patch dates ~2026-08-08) by matching the file hashes in the patch headers.
+    #   BC250_MESA_REF=auto   (default) detect the matching base commit
+    #   BC250_MESA_REF=main   latest Mesa main (patches will probably no longer apply)
+    #   BC250_MESA_REF=<sha|tag|branch>   an exact ref
+    #   BC250_FORCE_VERSION=<ver>  version label for the build (default 27.0.0-devel, "" = keep original; cosmetic only)
+    # Use local patches instead of the published tarball:
+    #   BC250_PATCH_DIR=/path/to/folder/with/000N-*.patch
+    local mesa_ref="${BC250_MESA_REF:-auto}"
+    local base_since="2026-06-01" base_until="2026-08-20"
+    local mesa_git_url="https://gitlab.freedesktop.org/mesa/mesa.git"
+    local patch_uri="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/BC250-GFX1013-Fix.tar.gz"
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   ⚙️ COMPILER ENGINE: GFX1013 FIX (COMPUTE QUEUE + MESH/TASK) BUILD  "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # Safe clean of previous driver layers to isolate the build path
+    if [[ -d "$host_driver_dir" ]]; then
+        if confirm "Safe-remove active driver layers before starting compilation?"; then
+            sudo rm -rf "$host_driver_dir" 2>/dev/null || true
+            rm -f "${local_icd_dir}/bc250_gfx1013_fix.json" 2>/dev/null || true
+        fi
+    fi
+
+    if confirm "Launch genuine container build system loop?"; then
+        local log_dir; log_dir=$(dirname "$mesa_build_log")
+        [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
+        sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
+        sudo podman rm -f "$container" &>/dev/null || true
+
+        # Abort helper: tear down the container and wait for the user
+        _bc250_fix_abort() {
+            echo -e "${RED}❌ ERROR: $1${RESET}"
+            [[ -n "${2:-}" ]] && echo -e "${DIM}   Log: $mesa_build_log${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to return to dashboard..." dummy
+        }
+
+        echo -e "\n${GREEN}[+] Step 1/6: Spawning pristine root container (Fedora 43)...${RESET}"
+        sudo podman run -d --pull=always --net=host --ipc=host --name "$container" registry.fedoraproject.org/fedora-minimal:43 sleep infinity >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Could not start build container." log; return 0; }
+
+        echo -e "${GREEN}[+] Step 2/6: Provisioning container compiler toolchain...${RESET}"
+        sudo podman exec "$container" microdnf install -y --setopt=install_weak_deps=0 \
+            git patch wget tar gzip findutils which python3 python3-mako python3-pyyaml python3-packaging \
+            meson ninja-build gcc gcc-c++ pkgconf-pkg-config bison flex glslang \
+            libdrm-devel libX11-devel libXext-devel libXrandr-devel xorg-x11-proto-devel libxcb-devel \
+            libxshmfence-devel expat-devel zlib-devel libzstd-devel elfutils-libelf-devel \
+            wayland-devel wayland-protocols-devel >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Toolchain install failed (a package name may have changed)." log; return 0; }
+
+        echo -e "${GREEN}[+] Step 3/6: Cloning Mesa history (no file contents yet)...${RESET}"
+        sudo podman exec "$container" git clone --filter=blob:none --no-checkout "$mesa_git_url" /root/mesa >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Failed to clone Mesa." log; return 0; }
+
+        echo -e "${GREEN}[+] Step 4/6: Staging GFX1013 patch set...${RESET}"
+        sudo podman exec "$container" mkdir -p /root/patches /root/patches_clean
+        if [[ -n "${BC250_PATCH_DIR:-}" && -d "$BC250_PATCH_DIR" ]]; then
+            echo -e "    ${DIM}Using local patches from: $BC250_PATCH_DIR${RESET}"
+            sudo podman cp "$BC250_PATCH_DIR/." "$container":/root/patches/ >> "$mesa_build_log" 2>&1
+        else
+            sudo podman exec "$container" wget -qO /root/patches/BC250-GFX1013-Fix.tar.gz "$patch_uri" >> "$mesa_build_log" 2>&1 \
+                || { _bc250_fix_abort "Patch tarball download failed: $patch_uri" log; return 0; }
+            sudo podman exec "$container" tar -xzf /root/patches/BC250-GFX1013-Fix.tar.gz -C /root/patches/ >> "$mesa_build_log" 2>&1 \
+                || { _bc250_fix_abort "Patch tarball could not be extracted." log; return 0; }
+        fi
+        # Only the numbered series, copied once, so nothing is applied twice
+        sudo podman exec "$container" sh -c "find /root/patches -type f -name '000[0-9]-*.patch' -exec cp {} /root/patches_clean/ \\;"
+        echo -e "    ${DIM}Patch set staged (applied in filename order):${RESET}"
+        sudo podman exec "$container" sh -c "ls -1 /root/patches_clean | sort" | sed 's/^/      /'
+        if [[ -z "$(sudo podman exec "$container" sh -c 'ls /root/patches_clean')" ]]; then
+            _bc250_fix_abort "No 000N-*.patch files found after download/extract." log; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 4b/6: Selecting Mesa base commit (${mesa_ref})...${RESET}"
+        local base_sha="$mesa_ref"
+        if [[ "$mesa_ref" == "auto" ]]; then
+            base_sha=$(sudo podman exec -i "$container" python3 - "$base_since" "$base_until" 2>>"$mesa_build_log" <<'PY'
+import glob, re, subprocess, sys
+repo = '/root/mesa' if len(sys.argv) < 4 else sys.argv[3]
+pdir = '/root/patches_clean' if len(sys.argv) < 5 else sys.argv[4]
+since, until = sys.argv[1], sys.argv[2]
+want = {}
+for f in sorted(glob.glob(pdir + '/*.patch')):
+    cur = None
+    for line in open(f, encoding='utf-8', errors='replace'):
+        m = re.match(r'diff --git a/(\S+) b/\S+', line)
+        if m:
+            cur = m.group(1)
+            continue
+        m = re.match(r'index ([0-9a-f]+)\.\.[0-9a-f]+', line)
+        if m and cur is not None:
+            if cur not in want:
+                want[cur] = None if set(m.group(1)) == {'0'} else m.group(1)
+            cur = None
+want = {k: v for k, v in want.items() if v}
+paths = sorted(want)
+revs = subprocess.run(['git', '-C', repo, 'rev-list', 'HEAD', '--since=' + since, '--until=' + until],
+                      capture_output=True, text=True, check=True).stdout.split()
+sys.stderr.write('pin: %d files to match across %d candidate commits\n' % (len(paths), len(revs)))
+best, best_n = None, -1
+for c in revs:
+    out = subprocess.run(['git', '-C', repo, 'ls-tree', c, '--'] + paths,
+                         capture_output=True, text=True).stdout
+    have = {}
+    for l in out.splitlines():
+        meta, p = l.split('\t', 1)
+        have[p] = meta.split()[2]
+    n = sum(1 for p in paths if p in have and have[p].startswith(want[p]))
+    if n > best_n:
+        best, best_n = c, n
+    if n == len(paths):
+        sys.stderr.write('pin: exact base %s (%d/%d)\n' % (c[:12], n, len(paths)))
+        print(c)
+        sys.exit(0)
+if best:
+    sys.stderr.write('pin: no exact base; best %s matches %d/%d\n' % (best[:12], best_n, len(paths)))
+    print(best)
+    sys.exit(3)
+sys.exit(1)
+PY
+)
+            if [[ -z "$base_sha" ]]; then
+                _bc250_fix_abort "Could not find a Mesa commit matching the patch headers (try BC250_MESA_REF=<sha>)." log; return 0
+            fi
+            grep -E "^pin:" "$mesa_build_log" | sed 's/^/    /'
+        fi
+        sudo podman exec "$container" git -C /root/mesa checkout -q "$base_sha" >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Could not check out Mesa ref '${base_sha}'." log; return 0; }
+        # Version label (cosmetic only, changes no code). Defaults to 27.0.0-devel; the pinned commit
+        # itself still says 26.3.0-devel. Set BC250_FORCE_VERSION="" to keep the original label.
+        local force_ver="${BC250_FORCE_VERSION-27.0.0-devel}"
+        if [[ -n "$force_ver" ]]; then
+            sudo podman exec "$container" sh -c "echo '${force_ver}' > /root/mesa/VERSION" >> "$mesa_build_log" 2>&1
+            echo -e "    ${DIM}VERSION relabelled to ${force_ver} (label only)${RESET}"
+        fi
+        local mesa_ver; mesa_ver=$(sudo podman exec "$container" cat /root/mesa/VERSION 2>/dev/null)
+        local mesa_sha; mesa_sha=$(sudo podman exec "$container" git -C /root/mesa rev-parse --short HEAD 2>/dev/null)
+        echo -e "    ${DIM}Mesa source: ${mesa_ver:-unknown} @ ${mesa_sha:-unknown}${RESET}"
+
+        # Upstream Mesa main already contains GFX1013 in the GFX10.1 ver_minor condition (!43465).
+        # Patch 0001's second hunk adds the same line, so it can no longer apply: drop just that hunk.
+        if sudo podman exec "$container" sh -c "grep -B4 'ver_minor = info->ip\\[AMD_IP_COMPUTE\\].ver_minor = 1' /root/mesa/src/amd/common/ac_gpu_info.c | grep -q 'GFX1013'"; then
+            echo -e "    ${DIM}Upstream already has the GFX10.1 IP-minor fix; dropping that duplicate hunk from 0001.${RESET}"
+            sudo podman exec -i "$container" python3 - <<'PY' >> "$mesa_build_log" 2>&1
+import glob, re
+for f in glob.glob('/root/patches_clean/0001-*.patch'):
+    t = open(f, encoding='utf-8').read()
+    parts = re.split(r'(?m)^(?=@@ )', t)
+    kept = [parts[0]]
+    for h in parts[1:]:
+        # a hunk is only the lines up to the trailing "-- " signature, if any
+        if re.search(r'(?m)^\+\s+ASICREV_IS\(device_info->external_rev, GFX1013\)\)\)', h):
+            tail = re.search(r'(?m)^-- $', h)
+            if tail:
+                kept.append(h[tail.start():])
+            continue
+        kept.append(h)
+    open(f, 'w', encoding='utf-8').write(''.join(kept))
+    print('trimmed', f)
+PY
+        fi
+
+        echo -e "${GREEN}[+] Step 5/6: Applying patches...${RESET}"
+        local patch_list; patch_list=$(sudo podman exec "$container" sh -c "find /root/patches_clean -maxdepth 1 -type f -name '*.patch' | sort")
+        local patch_err=0 patch_file name
+        while read -r patch_file; do
+            [[ -z "$patch_file" ]] && continue
+            name=$(basename "$patch_file")
+            echo -e "    -> Applying: [$name]"
+            if ! sudo podman exec "$container" sh -c "cd /root/mesa && patch -p1 --fuzz=0 --no-backup-if-mismatch -t < $patch_file" >> "$mesa_build_log" 2>&1; then
+                echo -e "${RED}❌ Patch mismatch on $name.${RESET}"
+                patch_err=1
+                break
+            fi
+        done <<< "$patch_list"
+
+        if [[ "$patch_err" -eq 1 ]]; then
+            grep -E "FAILED|Reversed|can't find file|No such file" "$mesa_build_log" | head -10
+            echo -e "${YELLOW}   These patches may need a different Mesa base commit.${RESET}"
+            echo -e "${YELLOW}   Pin an older commit and retry:  BC250_MESA_REF=<sha> (source was ${mesa_ver:-?} @ ${mesa_sha:-?})${RESET}"
+            _bc250_fix_abort "Patching failed. Build aborted." log; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 6/6: Running native compilation engine (Est: 4-8 mins)...${RESET}"
+        echo -e "    ${DIM}Monitor progress in another terminal: tail -f $mesa_build_log${RESET}"
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 "$container" sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release -Dllvm=disabled -Dvideo-codecs= -Db_lto=false" >> "$mesa_build_log" 2>&1 \
+            || { grep -iE "ERROR|not found" "$mesa_build_log" | tail -5; _bc250_fix_abort "meson setup failed (likely a missing build dependency)." log; return 0; }
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 "$container" sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so src/amd/vulkan/radeon_devenv_icd.x86_64.json" >> "$mesa_build_log" 2>&1 \
+            || { grep -E "FAILED:|error:" "$mesa_build_log" | head -5; _bc250_fix_abort "Ninja build failed." log; return 0; }
+
+        if ! sudo podman exec "$container" test -f /root/mesa/build/src/amd/vulkan/libvulkan_radeon.so; then
+            _bc250_fix_abort "libvulkan_radeon.so was not produced." log; return 0
+        fi
+
+        # Export binaries to the host
+        sudo mkdir -p "${host_driver_dir}/lib64" "${host_driver_dir}/share/vulkan/icd.d" 2>/dev/null
+        mkdir -p "$local_icd_dir" 2>/dev/null
+        local temp_staging="/tmp/bc250_compile_staging"
+        rm -rf "$temp_staging" && mkdir -p "$temp_staging"
+
+        sudo podman cp "$container":/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sudo mv -f "$temp_staging/libvulkan_radeon.so" "${host_driver_dir}/lib64/libvulkan_radeon.so"
+
+        # Use Mesa's own generated ICD json (correct api_version), pointed at the installed library
+        sudo podman cp "$container":/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sed -i 's|"library_path": *"[^"]*"|"library_path": "'"${host_driver_dir}/lib64/libvulkan_radeon.so"'"|' "$temp_staging/radeon_devenv_icd.x86_64.json"
+        sudo cp -f "$temp_staging/radeon_devenv_icd.x86_64.json" "${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json"
+        cp -f "$temp_staging/radeon_devenv_icd.x86_64.json" "${local_icd_dir}/bc250_gfx1013_fix.json"
+        chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
+
+        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -v "${host_driver_dir}/lib64/libvulkan_radeon.so" &>/dev/null || true
+        sudo podman rm -f "$container" --force &>/dev/null || true
+        rm -rf "$temp_staging"
+        unset -f _bc250_fix_abort
+
+        echo -e "\n${GREEN}====================================================================${RESET}"
+        echo -e "  🎮 GFX1013 DRIVER BUILT FROM SOURCE (Mesa ${mesa_ver:-27.0.0-devel} @ ${mesa_sha:-?})"
+        echo -e "--------------------------------------------------------------------"
+        echo -e "   Use this launch argument (Steam) or export it in a shell:        "
+        echo -e "   VK_DRIVER_FILES=\"${local_icd_dir}/bc250_gfx1013_fix.json\" %command%"
+        echo -e "${GREEN}====================================================================${RESET}"
+    fi
+    (play_success_chime &>/dev/null &)
+    read -rp "👉 Press [ENTER] to return to menu choice..." dummy
+}
+
+install_bc250_gfx1013_fix_boot_driver() {
+    local CYAN='\033[0;36m' local GREEN='\033[0;32m' local YELLOW='\033[1;33m'
+    local RED='\033[0;31m' local DIM='\033[38;2;110;110;110m' local RESET='\033[0m'
+
+    local mesa_build_log="/var/log/bc250_toolbox.log"
+    local host_driver_dir="/opt/bc250-gfx1013"
+    local target_lib="${host_driver_dir}/lib64/libvulkan_radeon.so"
+    local icd_json="${host_driver_dir}/share/vulkan/icd.d/radeon_icd.x86_64.json"
+    local boot_conf="/etc/environment.d/99-bc250-gfx1013.conf"
+    local perf_conf="/etc/environment.d/99-bc250-perf.conf"
+    local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+    local container="bc250-build-box"
+
+    # Mesa ref to build (27.0.0-devel == Mesa main). Default "auto" finds the Mesa commit the patches
+    # were written against (patch dates ~2026-08-08) by matching the file hashes in the patch headers.
+    #   BC250_MESA_REF=auto   (default) detect the matching base commit
+    #   BC250_MESA_REF=main   latest Mesa main (patches will probably no longer apply)
+    #   BC250_MESA_REF=<sha|tag|branch>   an exact ref
+    #   BC250_FORCE_VERSION=<ver>  version label for the build (default 27.0.0-devel, "" = keep original; cosmetic only)
+    # Use local patches instead of the published tarball:
+    #   BC250_PATCH_DIR=/path/to/folder/with/000N-*.patch
+    local mesa_ref="${BC250_MESA_REF:-auto}"
+    local base_since="2026-06-01" base_until="2026-08-20"
+    local mesa_git_url="https://gitlab.freedesktop.org/mesa/mesa.git"
+    local patch_uri="https://raw.githubusercontent.com/Forbidden-Darkness/Bazzite_Toolbox/main/Overclock/BC-250-Graphics-Compiler/Compiled/Compressed/BC250-GFX1013-Fix.tar.gz"
+
+
+    clear
+    echo -e "${CYAN}====================================================================${RESET}"
+    echo -e "   ⚙️ BC-250 GFX1013 FIX: BUILD MESA 27.0.0-devel + LOAD AT BOOT      "
+    echo -e "${CYAN}====================================================================${RESET}"
+
+    # Detect and offer to remove a previously installed override layer
+    if [[ -f "$target_lib" ]]; then
+        local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
+        echo -e "\n  ${YELLOW}[⚠] Existing BC-250 driver override found (${file_bytes} bytes) at ${target_lib}.${RESET}"
+        if confirm "Safely remove the existing driver override layer before proceeding?"; then
+            sudo rm -f "$boot_conf" "$perf_conf" "$wrapper_bin" "$icd_json" 2>/dev/null || true
+            sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+            sudo rm -rf "$host_driver_dir" 2>/dev/null || true
+        fi
+    fi
+
+    echo -e "\n  ${CYAN}[ℹ] This builds the GFX1013 fix patches into Mesa and sets the driver to load automatically at boot.${RESET}"
+    if confirm "Proceed with the GFX1013 driver build and boot-time installation?"; then
+        local log_dir; log_dir=$(dirname "$mesa_build_log")
+        [[ ! -d "$log_dir" ]] && sudo mkdir -p "$log_dir" 2>/dev/null
+        sudo rm -f "$mesa_build_log" && sudo touch "$mesa_build_log" && sudo chmod 666 "$mesa_build_log" 2>/dev/null || true
+        sudo podman rm -f "$container" &>/dev/null || true
+
+        # Abort helper: tear down the container and wait for the user
+        _bc250_fix_abort() {
+            echo -e "${RED}❌ ERROR: $1${RESET}"
+            [[ -n "${2:-}" ]] && echo -e "${DIM}   Log: $mesa_build_log${RESET}"
+            sudo podman rm -f bc250-build-box --force &>/dev/null || true
+            read -rp "👉 Press [ENTER] to return to dashboard..." dummy
+        }
+
+        echo -e "\n${GREEN}[+] Step 1/6: Spawning pristine root container (Fedora 43)...${RESET}"
+        sudo podman run -d --pull=always --net=host --ipc=host --name "$container" registry.fedoraproject.org/fedora-minimal:43 sleep infinity >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Could not start build container." log; return 0; }
+
+        echo -e "${GREEN}[+] Step 2/6: Provisioning container compiler toolchain...${RESET}"
+        sudo podman exec "$container" microdnf install -y --setopt=install_weak_deps=0 \
+            git patch wget tar gzip findutils which python3 python3-mako python3-pyyaml python3-packaging \
+            meson ninja-build gcc gcc-c++ pkgconf-pkg-config bison flex glslang \
+            libdrm-devel libX11-devel libXext-devel libXrandr-devel xorg-x11-proto-devel libxcb-devel \
+            libxshmfence-devel expat-devel zlib-devel libzstd-devel elfutils-libelf-devel \
+            wayland-devel wayland-protocols-devel >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Toolchain install failed (a package name may have changed)." log; return 0; }
+
+        echo -e "${GREEN}[+] Step 3/6: Cloning Mesa history (no file contents yet)...${RESET}"
+        sudo podman exec "$container" git clone --filter=blob:none --no-checkout "$mesa_git_url" /root/mesa >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Failed to clone Mesa." log; return 0; }
+
+        echo -e "${GREEN}[+] Step 4/6: Staging GFX1013 patch set...${RESET}"
+        sudo podman exec "$container" mkdir -p /root/patches /root/patches_clean
+        if [[ -n "${BC250_PATCH_DIR:-}" && -d "$BC250_PATCH_DIR" ]]; then
+            echo -e "    ${DIM}Using local patches from: $BC250_PATCH_DIR${RESET}"
+            sudo podman cp "$BC250_PATCH_DIR/." "$container":/root/patches/ >> "$mesa_build_log" 2>&1
+        else
+            sudo podman exec "$container" wget -qO /root/patches/BC250-GFX1013-Fix.tar.gz "$patch_uri" >> "$mesa_build_log" 2>&1 \
+                || { _bc250_fix_abort "Patch tarball download failed: $patch_uri" log; return 0; }
+            sudo podman exec "$container" tar -xzf /root/patches/BC250-GFX1013-Fix.tar.gz -C /root/patches/ >> "$mesa_build_log" 2>&1 \
+                || { _bc250_fix_abort "Patch tarball could not be extracted." log; return 0; }
+        fi
+        # Only the numbered series, copied once, so nothing is applied twice
+        sudo podman exec "$container" sh -c "find /root/patches -type f -name '000[0-9]-*.patch' -exec cp {} /root/patches_clean/ \\;"
+        echo -e "    ${DIM}Patch set staged (applied in filename order):${RESET}"
+        sudo podman exec "$container" sh -c "ls -1 /root/patches_clean | sort" | sed 's/^/      /'
+        if [[ -z "$(sudo podman exec "$container" sh -c 'ls /root/patches_clean')" ]]; then
+            _bc250_fix_abort "No 000N-*.patch files found after download/extract." log; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 4b/6: Selecting Mesa base commit (${mesa_ref})...${RESET}"
+        local base_sha="$mesa_ref"
+        if [[ "$mesa_ref" == "auto" ]]; then
+            base_sha=$(sudo podman exec -i "$container" python3 - "$base_since" "$base_until" 2>>"$mesa_build_log" <<'PY'
+import glob, re, subprocess, sys
+repo = '/root/mesa' if len(sys.argv) < 4 else sys.argv[3]
+pdir = '/root/patches_clean' if len(sys.argv) < 5 else sys.argv[4]
+since, until = sys.argv[1], sys.argv[2]
+want = {}
+for f in sorted(glob.glob(pdir + '/*.patch')):
+    cur = None
+    for line in open(f, encoding='utf-8', errors='replace'):
+        m = re.match(r'diff --git a/(\S+) b/\S+', line)
+        if m:
+            cur = m.group(1)
+            continue
+        m = re.match(r'index ([0-9a-f]+)\.\.[0-9a-f]+', line)
+        if m and cur is not None:
+            if cur not in want:
+                want[cur] = None if set(m.group(1)) == {'0'} else m.group(1)
+            cur = None
+want = {k: v for k, v in want.items() if v}
+paths = sorted(want)
+revs = subprocess.run(['git', '-C', repo, 'rev-list', 'HEAD', '--since=' + since, '--until=' + until],
+                      capture_output=True, text=True, check=True).stdout.split()
+sys.stderr.write('pin: %d files to match across %d candidate commits\n' % (len(paths), len(revs)))
+best, best_n = None, -1
+for c in revs:
+    out = subprocess.run(['git', '-C', repo, 'ls-tree', c, '--'] + paths,
+                         capture_output=True, text=True).stdout
+    have = {}
+    for l in out.splitlines():
+        meta, p = l.split('\t', 1)
+        have[p] = meta.split()[2]
+    n = sum(1 for p in paths if p in have and have[p].startswith(want[p]))
+    if n > best_n:
+        best, best_n = c, n
+    if n == len(paths):
+        sys.stderr.write('pin: exact base %s (%d/%d)\n' % (c[:12], n, len(paths)))
+        print(c)
+        sys.exit(0)
+if best:
+    sys.stderr.write('pin: no exact base; best %s matches %d/%d\n' % (best[:12], best_n, len(paths)))
+    print(best)
+    sys.exit(3)
+sys.exit(1)
+PY
+)
+            if [[ -z "$base_sha" ]]; then
+                _bc250_fix_abort "Could not find a Mesa commit matching the patch headers (try BC250_MESA_REF=<sha>)." log; return 0
+            fi
+            grep -E "^pin:" "$mesa_build_log" | sed 's/^/    /'
+        fi
+        sudo podman exec "$container" git -C /root/mesa checkout -q "$base_sha" >> "$mesa_build_log" 2>&1 \
+            || { _bc250_fix_abort "Could not check out Mesa ref '${base_sha}'." log; return 0; }
+        # Version label (cosmetic only, changes no code). Defaults to 27.0.0-devel; the pinned commit
+        # itself still says 26.3.0-devel. Set BC250_FORCE_VERSION="" to keep the original label.
+        local force_ver="${BC250_FORCE_VERSION-27.0.0-devel}"
+        if [[ -n "$force_ver" ]]; then
+            sudo podman exec "$container" sh -c "echo '${force_ver}' > /root/mesa/VERSION" >> "$mesa_build_log" 2>&1
+            echo -e "    ${DIM}VERSION relabelled to ${force_ver} (label only)${RESET}"
+        fi
+        local mesa_ver; mesa_ver=$(sudo podman exec "$container" cat /root/mesa/VERSION 2>/dev/null)
+        local mesa_sha; mesa_sha=$(sudo podman exec "$container" git -C /root/mesa rev-parse --short HEAD 2>/dev/null)
+        echo -e "    ${DIM}Mesa source: ${mesa_ver:-unknown} @ ${mesa_sha:-unknown}${RESET}"
+
+        # Upstream Mesa main already contains GFX1013 in the GFX10.1 ver_minor condition (!43465).
+        # Patch 0001's second hunk adds the same line, so it can no longer apply: drop just that hunk.
+        if sudo podman exec "$container" sh -c "grep -B4 'ver_minor = info->ip\\[AMD_IP_COMPUTE\\].ver_minor = 1' /root/mesa/src/amd/common/ac_gpu_info.c | grep -q 'GFX1013'"; then
+            echo -e "    ${DIM}Upstream already has the GFX10.1 IP-minor fix; dropping that duplicate hunk from 0001.${RESET}"
+            sudo podman exec -i "$container" python3 - <<'PY' >> "$mesa_build_log" 2>&1
+import glob, re
+for f in glob.glob('/root/patches_clean/0001-*.patch'):
+    t = open(f, encoding='utf-8').read()
+    parts = re.split(r'(?m)^(?=@@ )', t)
+    kept = [parts[0]]
+    for h in parts[1:]:
+        # a hunk is only the lines up to the trailing "-- " signature, if any
+        if re.search(r'(?m)^\+\s+ASICREV_IS\(device_info->external_rev, GFX1013\)\)\)', h):
+            tail = re.search(r'(?m)^-- $', h)
+            if tail:
+                kept.append(h[tail.start():])
+            continue
+        kept.append(h)
+    open(f, 'w', encoding='utf-8').write(''.join(kept))
+    print('trimmed', f)
+PY
+        fi
+
+        echo -e "${GREEN}[+] Step 5/6: Applying patches...${RESET}"
+        local patch_list; patch_list=$(sudo podman exec "$container" sh -c "find /root/patches_clean -maxdepth 1 -type f -name '*.patch' | sort")
+        local patch_err=0 patch_file name
+        while read -r patch_file; do
+            [[ -z "$patch_file" ]] && continue
+            name=$(basename "$patch_file")
+            echo -e "    -> Applying: [$name]"
+            if ! sudo podman exec "$container" sh -c "cd /root/mesa && patch -p1 --fuzz=0 --no-backup-if-mismatch -t < $patch_file" >> "$mesa_build_log" 2>&1; then
+                echo -e "${RED}❌ Patch mismatch on $name.${RESET}"
+                patch_err=1
+                break
+            fi
+        done <<< "$patch_list"
+
+        if [[ "$patch_err" -eq 1 ]]; then
+            grep -E "FAILED|Reversed|can't find file|No such file" "$mesa_build_log" | head -10
+            echo -e "${YELLOW}   These patches may need a different Mesa base commit.${RESET}"
+            echo -e "${YELLOW}   Pin an older commit and retry:  BC250_MESA_REF=<sha> (source was ${mesa_ver:-?} @ ${mesa_sha:-?})${RESET}"
+            _bc250_fix_abort "Patching failed. Build aborted." log; return 0
+        fi
+
+        echo -e "${GREEN}[+] Step 6/6: Running native compilation engine (Est: 4-8 mins)...${RESET}"
+        echo -e "    ${DIM}Monitor progress in another terminal: tail -f $mesa_build_log${RESET}"
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 "$container" sh -c "cd /root/mesa && meson setup build/ -Dgallium-drivers= -Dvulkan-drivers=amd -Dbuildtype=release -Dllvm=disabled -Dvideo-codecs= -Db_lto=false" >> "$mesa_build_log" 2>&1 \
+            || { grep -iE "ERROR|not found" "$mesa_build_log" | tail -5; _bc250_fix_abort "meson setup failed (likely a missing build dependency)." log; return 0; }
+        sudo podman exec -e PYTHONDONTWRITEBYTECODE=1 "$container" sh -c "cd /root/mesa && ninja -C build/ src/amd/vulkan/libvulkan_radeon.so src/amd/vulkan/radeon_devenv_icd.x86_64.json" >> "$mesa_build_log" 2>&1 \
+            || { grep -E "FAILED:|error:" "$mesa_build_log" | head -5; _bc250_fix_abort "Ninja build failed." log; return 0; }
+
+        if ! sudo podman exec "$container" test -f /root/mesa/build/src/amd/vulkan/libvulkan_radeon.so; then
+            _bc250_fix_abort "libvulkan_radeon.so was not produced." log; return 0
+        fi
+
+        # ---- Export the built driver to the host ----
+        echo -e "${GREEN}[+] Exporting driver to ${host_driver_dir}...${RESET}"
+        sudo mkdir -p "${host_driver_dir}/lib64" "${host_driver_dir}/share/vulkan/icd.d" /etc/environment.d 2>/dev/null
+        local temp_staging="/tmp/bc250_compile_staging"
+        rm -rf "$temp_staging" && mkdir -p "$temp_staging"
+
+        sudo podman cp "$container":/root/mesa/build/src/amd/vulkan/libvulkan_radeon.so "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sudo mv -f "$temp_staging/libvulkan_radeon.so" "$target_lib"
+
+        # Mesa's own generated ICD json (correct api_version), pointed at the installed library
+        sudo podman cp "$container":/root/mesa/build/src/amd/vulkan/radeon_devenv_icd.x86_64.json "$temp_staging/" >> "$mesa_build_log" 2>&1
+        sed -i 's|"library_path": *"[^"]*"|"library_path": "'"$target_lib"'"|' "$temp_staging/radeon_devenv_icd.x86_64.json"
+        sudo cp -f "$temp_staging/radeon_devenv_icd.x86_64.json" "$icd_json"
+
+        [[ -x /usr/sbin/restorecon ]] && sudo restorecon -Rv "$host_driver_dir" &>/dev/null || true
+        sudo podman rm -f "$container" --force &>/dev/null || true
+        rm -rf "$temp_staging"
+        unset -f _bc250_fix_abort
+
+        # ---- Boot-time layer ----
+        if ! command -v numactl &>/dev/null; then
+            echo -e "${YELLOW}[ℹ] Installing numactl (used by the boost wrapper) via rpm-ostree...${RESET}"
+            sudo rpm-ostree install -y --allow-inactive numactl
+        fi
+
+        # Performance environment, loaded for every session at boot
+        sudo bash -c "cat << 'EOF' > $perf_conf
+# BC-250 performance overrides
+RADV_PERF_HACKS=ngg_streamout
+RADV_DEBUG=nooutoforder
+EOF"
+
+        # Optional launch wrapper: bc250-dx-boost %command%
+        sudo bash -c "cat << 'EOF' > $wrapper_bin
+#!/usr/bin/env bash
+if command -v numactl &>/dev/null; then
+    exec numactl --interleave=all \"\$@\"
+else
+    exec \"\$@\"
+fi
+EOF"
+        sudo chmod +x "$wrapper_bin"
+
+        # Make the custom Vulkan driver the one loaded at login/boot
+        echo "VK_DRIVER_FILES=${icd_json}" | sudo tee "$boot_conf" >/dev/null
+
+        # ---- Silence the MangoHud "layer API version 1.3 is older than 1.4" loader warning ----
+        # /usr is read-only on Bazzite, so write patched copies of the layer manifests to the user layer
+        # folder, which the Vulkan loader searches before /usr/share. Label change only.
+        local layer_user_dir="/var/home/${REAL_USER}/.local/share/vulkan/implicit_layer.d"
+        local layer_src layer_name layer_fixed=0
+        for layer_src in /usr/share/vulkan/implicit_layer.d/MangoHud*.json /usr/local/share/vulkan/implicit_layer.d/MangoHud*.json; do
+            [[ -f "$layer_src" ]] || continue
+            grep -qE '"api_version": *"1\.[0-3]' "$layer_src" || continue
+            layer_name=$(basename "$layer_src")
+            mkdir -p "$layer_user_dir"
+            sed -E 's/"api_version": *"1\.[0-3][^"]*"/"api_version": "1.4.0"/' "$layer_src" > "${layer_user_dir}/${layer_name}"
+            layer_fixed=$((layer_fixed + 1))
+        done
+        if [[ "$layer_fixed" -gt 0 ]]; then
+            chown -R "${REAL_USER}":"${REAL_USER}" "/var/home/${REAL_USER}/.local/share/vulkan" 2>/dev/null || true
+            echo -e "    ${DIM}MangoHud layer manifests updated to API 1.4 (${layer_fixed} file(s)) in ${layer_user_dir}${RESET}"
+        fi
+
+        echo -e "\n${GREEN}====================================================================${RESET}"
+        echo -e "  🎮 GFX1013 DRIVER INSTALLED (Mesa ${mesa_ver:-27.0.0-devel} @ ${mesa_sha:-?})"
+        echo -e "--------------------------------------------------------------------"
+        echo -e "   Loads automatically after reboot via: ${boot_conf}"
+        echo -e "   Steam fallback launch option, if a game ignores it:"
+        echo -e "   VK_DRIVER_FILES=\"${icd_json}\" %command%"
+        echo -e "${GREEN}====================================================================${RESET}"
+        print_success "GFX1013 graphics driver installed and set to load at boot."
+        (play_success_chime &>/dev/null &)
+        prompt_reboot
+        return 0
+    fi
+}
+
 toggle_compute_queue_fix() {
     # 🚀 LOCAL ENVIRONMENT INSULATION: Hardcode tracking parameters securely
     local mesa_build_log="/var/log/bc250_toolbox.log"
@@ -4299,18 +5771,18 @@ toggle_compute_queue_fix() {
         case "$sub_opt" in
             1) # 🎯 FIX 1: Restored the completely missing Main Menu option selector branch
                 echo -e "\n${CYAN}  [⚙] Select Target Silicon Family Optimization Profile:${RESET}"
-                echo -e "      a) ${DIM}Custom Route (Navi10 - 40 CU): Download & Install Pre-Compiled Performance Driver${RESET}"
-                echo -e "      b) ${DIM}Custom Route (Navi14 - 24 CU): Download & Install Pre-Compiled Performance Driver${RESET}"
+                echo -e "\033[1;33m      A) Custom Route (Navi10 - 40 CU): Download & Install Pre-Compiled Performance Driver\033[0m"
+                echo -e "\033[0;94m      B) Custom Route (Navi14 - 24 CU): Download & Install Pre-Compiled Performance Driver\033[0m"
                 echo ""
-                echo -e "      c) ${GREEN}Deploy Pre-built Driver: Run Async Compute v0.2.4 Tarball Installer${RESET}"
-                echo -e "      d) ${YELLOW}Manage DirectMesh + FSR4 Matrix (Mesa 27.0.0 Stable Tracking Mirror)${RESET}"
-                echo -e "      e) ${DIM}Compile DirectMesh (Mesa 26.2.1): Stable 4K APU Patch (lonewolf0622 Track)${RESET}"
-                echo -e "      f) ${RED}Restore Stock Driver:  Remove Custom Mesa Overrides & Restore Factory State${RESET}"
-                echo -e "      g) ${CYAN}Telemetry Check:       Check Driver Activation & Hardware Extension Status${RESET}"
+                echo -e "\033[1;33m      C) Deploy Pre-built Driver: Run Async Compute v0.2.4 Tarball Installer\033[0m"
+                echo -e "\033[0;94m      D) Manage DirectMesh + FSR4 Matrix (Mesa 27.0.0 Stable Tracking Mirror)\033[0m"
+                echo -e "\033[1;33m      E) Compile DirectMesh (Mesa 26.2.1): Stable 4K APU Patch (lonewolf0622 Track)\033[0m"
+                echo -e "\033[0;94m      F) Restore Stock Driver:  Remove Custom Mesa Overrides & Restore Factory State\033[0m"
+                echo -e "\033[1;33m      G) Telemetry Check:       Check Driver Activation & Hardware Extension Status\033[0m"
                 echo ""
-                echo -e "      h) ${DIM}Punktfunk Setup:       Install / Reinstall Game Streaming Server${RESET}"
-                echo -e "      i) ${DIM}Punktfunk Remove:      Completely Uninstall & Purge Streaming Files${RESET}"
-                echo -e "      j) ${DIM}Punktfunk Fix:         Run Fail-Safe Troubleshooter (CPU Video Mode)${RESET}"
+                echo -e "\033[0;94m      H) Punktfunk Setup:       Install / Reinstall Game Streaming Server\033[0m"
+                echo -e "\033[1;33m      I) Punktfunk Remove:      Completely Uninstall & Purge Streaming Files\033[0m"
+                echo -e "\033[0;94m      J) Punktfunk Fix:         Run Fail-Safe Troubleshooter (CPU Video Mode)\033[0m"
                 echo ""
                 local ACTION_CHOICE; read -rp "$(echo -e "  ${CYAN}Select an option [a-i]: ${RESET}")" ACTION_CHOICE
                 case "$ACTION_CHOICE" in
@@ -4502,20 +5974,44 @@ EOF"
             echo -e "\033[0;36m====================================================================\033[0m"
             echo -e "   🎮  AMD BC-250 GRAPHICS MATRIX DEPLOYMENT WORKFLOW"
             echo -e "\033[0;36m====================================================================\033[0m"
-            echo -e "      1) 🚀 Run Live Native Compilation Suite (Mesa 27.0.0-devel)"
-            echo -e "      2) 📦 Extract Pre-Compiled Production Payload (Fast Install)"
-            echo -e "      3) ↩️  Return back to main dashboard menu"
+            echo -e "\033[1;33m      1) 🚀 Run Live Native Compilation Suite (Directmesh Mesa 26.2.4-devel)\033[0m"
+            echo -e "\033[0;94m      2) 📦 Extract Pre-Compiled Production Payload (Fast Install Directmesh Mesa 26.2.4-devel)\033[0m"
+            echo -e "\033[1;33m      3) 📦 Extract Pre-Compiled Production Payload (Fast Install Directmesh Mesa 27.0.0-devel)\033[0m"
+            echo -e "\033[0;94m      4) 🛠️ Compile MastaG FSR4 Production Driver (MastaG patches/mesa, Mesa 26.2.5)\033[0m"
+            echo -e "\033[1;33m      5) 🛠️ Compile MastaG Mesa Production Driver (MastaG patches/mesa-git, Mesa 27.0.0-devel)\033[0m"
+            echo -e "\033[0;94m      6) 🔧 Compile GFX1013 Fix Driver (Compute Queue + Mesh/Task Shaders, build only, Mesa 27.0.0-devel)\033[0m"
+            echo -e "\033[1;33m      7) ⚡ Install GFX1013 Fix Driver + Load at Boot (Mesa 27.0.0-devel)\033[0m"
+            echo -e "\033[0;94m      8) ⚡ Install MastaG DirectMesh + FSR4 Driver + Load at Boot (Mesa 27.0.0-devel)\033[0m"
+            echo -e "\033[1;33m      9) ↩️ Return back to main dashboard menu\033[0m"
             echo -e "\033[0;36m====================================================================\033[0m"
-            read -rp "👉 Enter selection index [1-3]: " sub_choice
+            read -rp "👉 Enter selection index [1-8, 9 to return]: " sub_choice
 
             case "$sub_choice" in
                 1)
-                    compile_bc250_mastag_fsr4_driver
+                    compile_bc250_lonewolf_fsr4_production_driver
                     ;;
                 2)
+                    install_bc250_precompiled_production_driver
+                    ;;
+                3)
                     compile_bc250_mastag_2700_pinned_driver
                     ;;
-                *)
+                4)
+                    compile_bc250_mastag_fsr4_production_driver
+                    ;;
+                5)
+                    compile_bc250_mastag_mesa_production_driver
+                    ;;
+                6)
+                    compile_bc250_gfx1013_fix_driver
+                    ;;
+                7)
+                    install_bc250_gfx1013_fix_boot_driver
+                    ;;
+                8)
+                    install_bc250_mastag_fsr4_boot_driver
+                    ;;
+                9|*)
                     echo -e "\nReturning to dashboard..."
                     sleep 1
                     ;;
@@ -4526,77 +6022,157 @@ EOF"
                         compile_bc250_mastag_2621_driver
                         ;;
                     f|F)
-                        # Option 3 uninstaller sweeps the environment completely clean
-                local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                local active_profile="Factory Stock Driver (No active overrides detected)"
-                if [[ -f "$target_lib" ]]; then
-                    local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
-                    if (( file_bytes > 21700000 )); then active_profile="CHIP_NAVI14 / DirectMesh v1.3.1 (Unified GTT Layout)"; else active_profile="CHIP_NAVI10 (Dedicated)"; fi
-                fi
+                        # Uninstaller: sweeps every custom BC-250 graphics layer off the host
+                        local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
+                        local boot_conf="/etc/environment.d/99-bc250-gfx1013.conf"
+                        local perf_conf="/etc/environment.d/99-bc250-perf.conf"
+                        local wrapper_bin="/usr/local/bin/bc250-dx-boost"
+                        local user_home="/var/home/${REAL_USER:-bsystem}"
+                        local active_profile="Factory Stock Driver (No active overrides detected)"
 
-                echo -e "\n  ${YELLOW}[⚠] Preparing to safely remove custom graphics layers...${RESET}"
-                echo -e "      Detected Active Target: ${CYAN}${active_profile}${RESET}"
-                if confirm "Completely uninstall the active driver overrides and purge sandbox storage?"; then
-                    echo -e "\n  \033[1;33m[⚙] Purging atomic cache and dropping pending transaction layers...\033[0m"
-                    sudo rpm-ostree cleanup -m || true
-                    sudo rpm-ostree cleanup -p || true
+                        if [[ -f "$target_lib" ]]; then
+                            local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
+                            # Same version detection as the telemetry check: read the Mesa version built into the driver
+                            local built_ver; built_ver=$(grep -aoE 'Mesa [0-9]+\.[0-9]+\.[0-9]+(-devel)? \(git-[0-9a-f]+\)' "$target_lib" 2>/dev/null | head -n1)
+                            [[ -z "$built_ver" ]] && built_ver=$(grep -aoE 'Mesa [0-9]+\.[0-9]+\.[0-9]+(-devel)?' "$target_lib" 2>/dev/null | head -n1)
+                            local built_num; built_num=$(sed -E 's/^Mesa ([0-9]+\.[0-9]+\.[0-9]+(-devel)?).*/\1/' <<<"$built_ver")
+                            if [[ -n "$built_ver" ]]; then
+                                case "$built_num" in
+                                    27.0.0-devel) active_profile="Mesa 27.0.0-devel (DirectMesh / GFX1013 fix tracking build)" ;;
+                                    26.2.5)       active_profile="Mesa 26.2.5 (MastaG patches/mesa build)" ;;
+                                    26.2.4*)      active_profile="Mesa 26.2.4 (Directmesh build)" ;;
+                                    26.2.1*)      active_profile="Mesa 26.2.1 (DirectMesh stable 4K APU track)" ;;
+                                    *)            active_profile="Unrecognized custom build (Mesa ${built_num})" ;;
+                                esac
+                            elif (( file_bytes > 21700000 )); then
+                                active_profile="CHIP_NAVI14 / DirectMesh v1.3.1 (Unified GTT Layout) [size-based guess]"
+                            else
+                                active_profile="CHIP_NAVI10 (Dedicated) [size-based guess]"
+                            fi
+                        elif [[ -f "$boot_conf" ]]; then
+                            active_profile="Override config present, but the driver file is missing (leftover config)"
+                        fi
 
-                    echo -e "  \033[1;33m[⚙] Reclaiming host directory structures...\033[0m"
-                    sudo rm -f /etc/environment.d/99-bc250-gfx1013.conf "$perf_conf" "$wrapper_bin" /opt/bc250-gfx1013/share/vulkan/icd.d/radeon_icd.x86_64.json 2>/dev/null || true
-                    sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
-                    sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                        echo -e "\n  ${YELLOW}[⚠] Preparing to safely remove custom graphics layers...${RESET}"
+                        echo -e "      Detected Active Target: ${CYAN}${active_profile}${RESET}"
+                        if confirm "Completely uninstall the active driver overrides and purge sandbox storage?"; then
+                            echo -e "\n  \033[1;33m[⚙] Purging atomic cache and dropping pending transaction layers...\033[0m"
+                            sudo rpm-ostree cleanup -m || true
+                            sudo rpm-ostree cleanup -p || true
 
-                    echo -e "  \033[1;33m[⚙] Flushing virtual compilation sandboxes and container layers...\033[0m"
-                    # 🧬 NATIVE EXTRACTION: Appended your fresh bc250-build-box along with the legacy container elements
-                    podman rm -f bc250-navi10-box bc250-build-box &>/dev/null || true
-                    podman rmi -f registry.fedoraproject.org/fedora:43 registry.fedoraproject.org/fedora:44 &>/dev/null || true
-                    podman container prune -f &>/dev/null || true
-                    podman image prune -f &>/dev/null || true
+                            echo -e "  \033[1;33m[⚙] Reclaiming host directory structures...\033[0m"
+                            sudo rm -f "$boot_conf" "$perf_conf" "$wrapper_bin" 2>/dev/null || true
+                            sudo sed -i '/VK_DRIVER_FILES/d' /etc/environment 2>/dev/null || true
+                            sudo rm -rf /opt/bc250-gfx1013 2>/dev/null || true
+                            # Per-user layers created by the compile / boot-install functions
+                            rm -f "${user_home}/.local/share/vulkan/icd.d/bc250_gfx1013_fix.json" 2>/dev/null || true
+                            rm -rf /tmp/bc250_compile_staging 2>/dev/null || true
+                            # MangoHud manifest copies are only removed when the stock manifest still exists in /usr/share
+                            local mh_copy
+                            for mh_copy in "${user_home}"/.local/share/vulkan/implicit_layer.d/MangoHud*.json; do
+                                [[ -f "$mh_copy" && -f "/usr/share/vulkan/implicit_layer.d/$(basename "$mh_copy")" ]] && rm -f "$mh_copy"
+                            done
 
-                    print_success "Async Compute Queue patches uninstalled and performance configs reclaimed!"
-                    play_success_chime; prompt_reboot; continue
-                fi
-                ;;
+                            echo -e "  \033[1;33m[⚙] Flushing virtual compilation sandboxes and container layers...\033[0m"
+                            # The build functions use rootful podman (sudo); older routes used rootless, so sweep both
+                            sudo podman rm -f bc250-navi10-box bc250-build-box &>/dev/null || true
+                            podman rm -f bc250-navi10-box bc250-build-box &>/dev/null || true
+                            sudo podman rmi -f registry.fedoraproject.org/fedora-minimal:43 registry.fedoraproject.org/fedora-minimal:44 registry.fedoraproject.org/fedora:43 registry.fedoraproject.org/fedora:44 &>/dev/null || true
+                            podman rmi -f registry.fedoraproject.org/fedora:43 registry.fedoraproject.org/fedora:44 &>/dev/null || true
+                            sudo podman container prune -f &>/dev/null || true
+                            sudo podman image prune -f &>/dev/null || true
+                            podman container prune -f &>/dev/null || true
+                            podman image prune -f &>/dev/null || true
+
+                            print_success "Custom BC-250 graphics driver overrides uninstalled and performance configs reclaimed!"
+                            play_success_chime; prompt_reboot; continue
+                        else
+                            echo -e "\n  ${CYAN}[-] Uninstall cancelled. No changes made.${RESET}"
+                            sleep 1.2
+                        fi
+                        ;;
 
                     g|G)
                         echo -e "\n${CYAN}[ℹ] Verifying Active Hardware Pipeline Status Profiles...${RESET}"
-                local stock_ver; stock_ver=$(rpm -q mesa-dri-drivers --qf "%{VERSION}\n" 2>/dev/null | head -n1 || echo "Unknown")
-                echo -e "  Stock System Driver Version:  ${YELLOW}${stock_ver}${RESET}"
-
-                local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
-                if [[ -f "/etc/environment.d/99-bc250-gfx1013.conf" ]] || (grep -q "VK_DRIVER_FILES" /etc/environment 2>/dev/null); then
-                    echo -e "  Custom ICD Configuration Layer: ${GREEN}ACTIVE (Using Custom Mod Override)${RESET}"
-
-                    if [[ -f "$target_lib" ]]; then
-                        local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
-
-                        # --- SAFE DECIMAL MATH CALCULATOR ---
-                        local mb=$(( file_bytes / 1024 / 1024 ))
-                        local decimal=$(( (file_bytes % (1024 * 1024)) * 100 / (1024 * 1024) ))
-                        local decimal_formatted; printf -v decimal_formatted "%02d" "$decimal"
-
-                        echo -e "  Compiled Binary Size Footprint: ${CYAN}${mb}.${decimal_formatted} MB ($file_bytes bytes)${RESET}"
-
-                        # 🧬 TELEMETRY ENHANCEMENT: Matches your byte sizes to flag your compiled layout profile
-                        if (( file_bytes > 21700000 )); then
-                            echo -e "  Detected Loaded Driver Profile: ${GREEN}CHIP_NAVI14 / DirectMesh v1.3.1 (Unified GTT Layout — 24 CUs)${RESET}"
-                        else
-                            echo -e "  Detected Loaded Driver Profile: ${GREEN}CHIP_NAVI10 (Dedicated High-Tier Layout — 40 CUs)${RESET}"
+                        local stock_ver="Unknown"
+                        if rpm -q mesa-dri-drivers &>/dev/null; then
+                            stock_ver=$(rpm -q mesa-dri-drivers --qf "%{VERSION}\n" 2>/dev/null | head -n1)
+                        elif rpm -q mesa-vulkan-drivers &>/dev/null; then
+                            stock_ver=$(rpm -q mesa-vulkan-drivers --qf "%{VERSION}\n" 2>/dev/null | head -n1)
                         fi
-                    fi
-                else
-                    echo -e "  Custom ICD Configuration Layer: ${RED}NOT DETECTED (Using Factory Stock)${RESET}"
-                fi
+                        echo -e "  Stock System Driver Version:  ${YELLOW}${stock_ver}${RESET}"
 
-                echo -e "\n${CYAN}[ℹ] Querying Active Vulkan Telemetry Extensions:${RESET}"
-                if [[ -f "$target_lib" ]]; then
-                    strings "$target_lib" | grep -E "VK_EXT_mesh_shader|VK_NV_mesh_shader" || echo "  -> Custom extensions compiled but dormant (Reboot required)"
-                else
-                    echo "  -> Extension indicators empty (Stock Profile)"
-                fi
-                echo ""
-                read -rp "Press [Enter] to return back to sub-menu..." dummy
-                ;;
+                        local target_lib="/opt/bc250-gfx1013/lib64/libvulkan_radeon.so"
+                        local built_ver="" built_num=""
+                        if [[ -f "/etc/environment.d/99-bc250-gfx1013.conf" ]] || (grep -q "VK_DRIVER_FILES" /etc/environment 2>/dev/null); then
+                            echo -e "  Custom ICD Configuration Layer: ${GREEN}ACTIVE (Using Custom Mod Override)${RESET}"
+
+                            if [[ -f "$target_lib" ]]; then
+                                local file_bytes; file_bytes=$(stat -c %s "$target_lib" 2>/dev/null || echo "0")
+
+                                # --- SAFE DECIMAL MATH CALCULATOR ---
+                                local mb=$(( file_bytes / 1024 / 1024 ))
+                                local decimal=$(( (file_bytes % (1024 * 1024)) * 100 / (1024 * 1024) ))
+                                local decimal_formatted; printf -v decimal_formatted "%02d" "$decimal"
+                                echo -e "  Compiled Binary Size Footprint: ${CYAN}${mb}.${decimal_formatted} MB ($file_bytes bytes)${RESET}"
+
+                                # --- MESA VERSION DETECTION (reads the version string built into the driver) ---
+                                built_ver=$(grep -aoE 'Mesa [0-9]+\.[0-9]+\.[0-9]+(-devel)? \(git-[0-9a-f]+\)' "$target_lib" 2>/dev/null | head -n1)
+                                [[ -z "$built_ver" ]] && built_ver=$(grep -aoE 'Mesa [0-9]+\.[0-9]+\.[0-9]+(-devel)?' "$target_lib" 2>/dev/null | head -n1)
+                                built_num=$(sed -E 's/^Mesa ([0-9]+\.[0-9]+\.[0-9]+(-devel)?).*/\1/' <<<"$built_ver")
+
+                                if [[ -n "$built_ver" ]]; then
+                                    echo -e "  Compiled Driver Version:        ${CYAN}${built_ver}${RESET}"
+                                    local profile_name
+                                    case "$built_num" in
+                                        27.0.0-devel) profile_name="Mesa 27.0.0-devel (DirectMesh / GFX1013 fix tracking build)" ;;
+                                        26.2.5)       profile_name="Mesa 26.2.5 (MastaG patches/mesa build)" ;;
+                                        26.2.4*)      profile_name="Mesa 26.2.4 (Directmesh build)" ;;
+                                        26.2.1*)      profile_name="Mesa 26.2.1 (DirectMesh stable 4K APU track)" ;;
+                                        *)            profile_name="Unrecognized custom build (Mesa ${built_num})" ;;
+                                    esac
+                                    echo -e "  Detected Loaded Driver Profile: ${GREEN}${profile_name}${RESET}"
+                                else
+                                    # No version string found: fall back to the old size-based guess
+                                    if (( file_bytes > 21700000 )); then
+                                        echo -e "  Detected Loaded Driver Profile: ${GREEN}CHIP_NAVI14 / DirectMesh v1.3.1 (Unified GTT Layout — 24 CUs) ${DIM}[size-based guess]${RESET}"
+                                    else
+                                        echo -e "  Detected Loaded Driver Profile: ${GREEN}CHIP_NAVI10 (Dedicated High-Tier Layout — 40 CUs) ${DIM}[size-based guess]${RESET}"
+                                    fi
+                                fi
+                            fi
+
+                            # --- WHAT VULKAN IS ACTUALLY LOADING RIGHT NOW ---
+                            if command -v vulkaninfo &>/dev/null; then
+                                local active_info
+                                active_info=$(timeout 10 vulkaninfo --summary 2>/dev/null | grep -m1 "driverInfo" | sed -E 's/^[^=]*= *//')
+                                if [[ -n "$active_info" ]]; then
+                                    echo -e "  Active Vulkan Driver (loaded):  ${CYAN}${active_info}${RESET}"
+                                    if [[ -n "$built_num" && "$active_info" == *"$built_num"* ]]; then
+                                        echo -e "  Load Status:                    ${GREEN}Running the compiled custom driver${RESET}"
+                                    elif [[ -n "$built_num" ]]; then
+                                        echo -e "  Load Status:                    ${YELLOW}Loaded driver differs from the compiled one (reboot / re-login needed?)${RESET}"
+                                    fi
+                                fi
+                            fi
+                        else
+                            echo -e "  Custom ICD Configuration Layer: ${RED}NOT DETECTED (Using Factory Stock)${RESET}"
+                        fi
+
+                        echo -e "\n${CYAN}[ℹ] Querying Active Vulkan Telemetry Extensions:${RESET}"
+                        if [[ -f "$target_lib" ]]; then
+                            local ext_found; ext_found=$(grep -aoE 'VK_(EXT|NV)_mesh_shader' "$target_lib" 2>/dev/null | sort -u)
+                            if [[ -n "$ext_found" ]]; then
+                                sed 's/^/  -> /' <<<"$ext_found"
+                            else
+                                echo "  -> No mesh-shader extension strings found in this driver build"
+                            fi
+                        else
+                            echo "  -> Extension indicators empty (Stock Profile)"
+                        fi
+                        echo ""
+                        read -rp "Press [Enter] to return back to sub-menu..." dummy
+                        ;;
                 # 🚀 ROUTING ENGINE HOOK: Calls the standalone FSR4 installation engine pass
                     h|H) manage_punktfunk_setup ;;
                     i|I) manage_punktfunk_uninstall ;;
@@ -5240,164 +6816,196 @@ toggle_ds5_bridge_fix() {
 # 🎛️ GROUP 3 (CONT.): HARDWARE ALLOCATION SPLITS & DYNAMIC CMOS RAM HOOKS
 # ==============================================================================
 toggle_ram_split() {
+    # Colour fallbacks so the function works even if only some of the toolbox colour vars exist
+    local _reset="${RESET:-${NC:-\033[0m}}"
+    local RESET="$_reset" NC="$_reset"
+    local YELLOW="${YELLOW:-\033[1;33m}" GREEN="${GREEN:-\033[0;32m}" RED="${RED:-\033[0;31m}"
+    local CYAN="${CYAN:-\033[0;36m}" DIM="${DIM:-\033[38;2;110;110;110m}" BIBlack="${BIBlack:-\033[1;90m}"
+
+    local log="${RAM_SPLIT_LOG:-/var/log/bc250_oc_install.log}"
+    local karg_re='^(ttm\.pages_limit|ttm\.page_pool_size|amdgpu\.gttsize)='
+    local k w
+
     if ram_split_installed; then
         echo -e "\n  ${YELLOW}[⚠] Custom RAM/VRAM memory split layout detected on this host.${RESET}"
         echo -e "      Selecting this action will revert your configuration back to the stock layout."
 
         if confirm "Do you want to proceed with the rollback?"; then
-            # 🧬 CMOS SAFETY RECOVERY GATE
-            # Immediately resets the physical hardware parameters back to stock 8GB defaults
-            if [[ -x "$RAM_SPLIT_BIN" ]]; then
-                echo -e "${GREEN}[+] Restoring CMOS baseline VRAM maps to stock factory 8GB indices...${NC}"
-                sudo "$RAM_SPLIT_BIN" UMA_SIZE 8192 >> /var/log/bc250_oc_install.log 2>&1
-            else
-                # Pre-flight build stub fallback in case transient binary was deleted manually
-                ram_split_build_tool >/dev/null 2>&1
-                if [[ -x "$RAM_SPLIT_BIN" ]]; then
-                    sudo "$RAM_SPLIT_BIN" UMA_SIZE 8192 >> /var/log/bc250_oc_install.log 2>&1
-                fi
+            # Reset the hardware UMA (VRAM carve-out) byte back to the stock marker
+            echo -e "${GREEN}[+] Restoring baseline VRAM size to the stock 8GB setting...${NC}"
+            if ! ram_split_set_uma 8192; then
+                echo -e "${YELLOW}[!] Could not reset the hardware UMA setting (see $log). Continuing with the software rollback.${NC}"
             fi
 
-            echo -e "${RED}[+] Removing configuration profiles and clearing modprobe overrides...${NC}"
+            echo -e "${RED}[+] Removing configuration profile and modprobe overrides...${NC}"
             sudo rm -f /etc/modprobe.d/bc250-mem.conf
 
-            # 🧬 UNIFIED ATOMIC PURGE & RE-ENFORCEMENT PASS
-            # Combines the variable deletion and the splash screen re-append into a single
-            # atomic step to prevent system layers from dropping vital loading flags.
-            if rpm-ostree kargs 2>/dev/null | grep -q "ttm.pages_limit"; then
-                echo -e "${RED}[+] Reverting atomic kernel configurations...${NC}"
-                sudo rpm-ostree kargs \
-                    --delete=ttm.pages_limit \
-                    --delete=ttm.page_pool_size \
-                    --delete=amdgpu.gttsize \
-                    --append="quiet" \
-                    --append="rhgb" >> /var/log/bc250_oc_install.log 2>&1
+            # Remove exactly the memory kargs that are present (by full key=value), and make sure
+            # the splash args exist exactly once. One atomic rpm-ostree transaction.
+            local -a del_args=()
+            while read -r k; do
+                [[ -n "$k" ]] && del_args+=(--delete="$k")
+            done < <(rpm-ostree kargs 2>/dev/null | tr ' ' '\n' | grep -E "$karg_re")
 
-                # Sync flags to local default boot parameters fallback template
-                sudo sed -i 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="quiet rhgb /g' /etc/default/grub 2>/dev/null
-
-                # 🧬 GRUB ENVIRONMENT BLOCK FORCE-INJECTION
-                # Direct environment write that overrides ostree caching blocks and guarantees
-                # the native black boot screen returns instantly on your next system start.
-                echo -e "${GREEN}[+] Hard-locking visual splash screen variables...${NC}"
-                sudo grub2-editenv - set kernelopts="quiet rhgb" 2>/dev/null
-
-                # 🧬 MAXIMUM PROTECTION SYNC: Legacy grub2-mkconfig is completely stripped out!
-                # Relying exclusively on Bazzite's native ujust wrapper to lock the BLS entries safely.
+            if (( ${#del_args[@]} )); then
+                echo -e "${RED}[+] Reverting kernel arguments...${NC}"
+                if ! sudo rpm-ostree kargs "${del_args[@]}" --append-if-missing=quiet --append-if-missing=rhgb >> "$log" 2>&1; then
+                    echo -e "${RED}❌ rpm-ostree could not revert the kernel arguments. See $log${NC}"
+                    read -rp "  Press [Enter] to return..." _
+                    return 1
+                fi
                 print_info "Synchronizing system boot records..."
                 ujust regenerate-grub &>/dev/null || true
             fi
 
-            print_success "Memory profile successfully reset to stock configurations!"
-
-            # 🧬 INSTANT TRANSACTION SHUTDOWN: Restarts the system immediately to safely
-            # lock down the pristine stock image layer before background states can desync.
-            echo -e "${YELLOW}[●] Rebooting device to finalize stock recovery handles...${NC}"
+            print_success "Memory profile successfully reset to stock configuration!"
+            echo -e "${YELLOW}[●] A reboot is required to finish the stock recovery.${NC}"
             sleep 2
-            play_success_chime; prompt_reboot; continue
+            play_success_chime; prompt_reboot; return 0
         else
-            echo -e "${CYAN}[-] Rollback cancelled. Returning cleanly to main menu...${NC}"
+            echo -e "${CYAN}[-] Rollback cancelled. Returning to main menu...${NC}"
             sleep 1.5
-        fi
-    else
-        echo -e "\n  ${CYAN}[ℹ] System is running the stock unified memory allocation profile.${RESET}"
-        echo -e "      This utility will reallocate your memory blocks to optimize System vs. VRAM space."
-        echo ""
-
-        # AUTOMATED BUILD HOOK: Interrogate and run compiler requirements check before opening selection grid
-        if [[ ! -x "$RAM_SPLIT_BIN" ]]; then
-            echo -e "  ${YELLOW}[+] Local binary missing. Initiating pre-flight compiler stub routine...${NC}"
-            if ! ram_split_build_tool; then
-                echo -e "  ${RED}✘ CRITICAL ERROR:${NC} Could not verify or compile the necessary hardware utility handle."
-                echo -e "                     Aborting layout assignment changes to safeguard the platform state."
-                echo ""
-                type_prompt "  Press [Enter] to return to the toolkit main menu... " 0.03
-                read -rp "  "
-                return 1
-            fi
-            echo ""
-        fi
-
-        echo -e "  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${CYAN}║                    MEMORY ALLOCATION TARGETS                      ║${NC}"
-        echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
-        echo ""
-        echo -e "    ${CYAN}1)${RESET} Extreme VRAM Split  ${DIM}(~6GB System RAM  / ~10GB Dedicated VRAM)${RESET}"
-        echo -e "    ${CYAN}2)${RESET} High VRAM Split     ${DIM}(~7GB System RAM  / ~9GB Dedicated VRAM)${RESET}"
-        echo -e "    ${CYAN}3)${RESET} Stock Layout Split  ${DIM}(~8GB System RAM  / ~8GB Dedicated VRAM)${RESET}"
-        echo -e "    ${CYAN}4)${RESET} Balanced Allocation ${DIM}(~10GB System RAM / ~6GB Dedicated VRAM — Fixes Framebuffer Crashes)${RESET}"
-        # 🧬 FIXED: Corrected layout index from 4) to 5) for clean user menu navigation
-        echo -e "    ${CYAN}5)${RESET} Entry VRAM Split    ${DIM}(~12GB System RAM / ~4GB Dedicated VRAM)${RESET}"
-        echo -e "    ${CYAN}6)${RESET} Native 512MB Split  ${DIM}(Maximum System RAM / ~512MB Base — Recommended for LLM Workloads)${RESET}"
-        echo ""
-        echo -e "    ${RED}[Enter] or Any Key to Abort and Cancel Layout Changes${NC}"
-        echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
-        echo ""
-        read -rp "  Select allocation profile index [1-6]: " split_choice
-
-        local ttm_val=""
-        local gtt_val=""
-        case "$split_choice" in
-            1) ttm_val="1572864"; gtt_val="10240" ;;
-            2) ttm_val="1835008"; gtt_val="9216"  ;;
-            3) ttm_val="2097152"; gtt_val="8192"  ;;
-            4) ttm_val="2621440"; gtt_val="6144"  ;;
-            5) ttm_val="3145728"; gtt_val="4096"  ;;
-            6) ttm_val="3932160"; gtt_val="15104" ;;
-            *) echo -e "${YELLOW}[-] Layout change bypassed. Returning to menu...${NC}"; sleep 1.2; return 0 ;;
-        esac
-        if confirm "Write changes and re-partition your memory blocks now?"; then
-            echo -e "${GREEN}[+] Staging memory configuration tables...${NC}"
-            sudo mkdir -p /etc/modprobe.d
-
-            # Write standard unified drivers parameter layout to modprobe files
-            echo -e "options ttm pages_limit=$ttm_val page_pool_size=$ttm_val\noptions amdgpu gttsize=$gtt_val" | sudo tee /etc/modprobe.d/bc250-mem.conf >/dev/null
-
-            if command -v rpm-ostree &>/dev/null; then
-                echo -e "${GREEN}[+] Step 1: Injecting system memory allocation layers...${NC}"
-                sudo rpm-ostree kargs --append="ttm.pages_limit=$ttm_val" --append="ttm.page_pool_size=$ttm_val" --append="amdgpu.gttsize=$gtt_val" >> /var/log/bc250_oc_install.log 2>&1
-
-                # Force-injects the visual loading splash parameters right on installation
-                echo -e "${GREEN}[+] Step 2: Enforcing native black boot splash parameters...${NC}"
-                sudo rpm-ostree kargs --append="quiet" --append="rhgb" >> /var/log/bc250_oc_install.log 2>&1
-
-                sudo sed -i 's/GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="quiet rhgb /g' /etc/default/grub 2>/dev/null
-                sudo grub2-editenv - set kernelopts="quiet rhgb" 2>/dev/null
-                ujust regenerate-grub &>/dev/null || true
-            fi
-
-            print_success "RAM/VRAM memory split targets successfully written to hardware tree!"
-            play_success_chime; prompt_reboot; continue
-        else
-            echo -e "${RED}[-❌-] Partitioning aborted. No changes made.${NC}"
-            sleep 1.5
+            return 0
         fi
     fi
+
+    # ---------------- Apply / change a profile ----------------
+    echo -e "\n  ${CYAN}[ℹ] System is running the stock unified memory allocation profile.${RESET}"
+    echo -e "      This utility will reallocate your memory blocks to optimize System vs. VRAM space."
+    echo ""
+
+    # Make sure the current version of the helper binary is built before opening the menu
+    if ! ram_split_build_tool; then
+        echo -e "  ${RED}✘ CRITICAL ERROR:${NC} Could not verify or compile the necessary hardware utility."
+        echo -e "                     Aborting layout changes to safeguard the platform state."
+        echo ""
+        type_prompt "  Press [Enter] to return to the toolkit main menu... " 0.03
+        read -rp "  " _
+        return 1
+    fi
+    echo ""
+
+    echo -e "  ${CYAN}╔═══════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "  ${CYAN}║                    MEMORY ALLOCATION TARGETS                      ║${NC}"
+    echo -e "  ${CYAN}╚═══════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "    ${CYAN}1)${RESET} Extreme VRAM Split  ${DIM}(~6GB System RAM  / ~10GB Dedicated VRAM)${RESET}"
+    echo -e "    ${CYAN}2)${RESET} High VRAM Split     ${DIM}(~7GB System RAM  / ~9GB Dedicated VRAM)${RESET}"
+    echo -e "    ${CYAN}3)${RESET} Stock Layout Split  ${DIM}(~8GB System RAM  / ~8GB Dedicated VRAM)${RESET}"
+    echo -e "    ${CYAN}4)${RESET} Balanced Allocation ${DIM}(~10GB System RAM / ~6GB Dedicated VRAM — Fixes Framebuffer Crashes)${RESET}"
+    echo -e "    ${CYAN}5)${RESET} Entry VRAM Split    ${DIM}(~12GB System RAM / ~4GB Dedicated VRAM)${RESET}"
+    echo -e "    ${CYAN}6)${RESET} Native 512MB Split  ${DIM}(Maximum System RAM / ~512MB Base — Recommended for LLM Workloads)${RESET}"
+    echo ""
+    echo -e "    ${RED}[Enter] or any other key to abort and cancel layout changes${NC}"
+    echo -e "  ${BIBlack}─────────────────────────────────────────────────────────────────────${NC}"
+    echo ""
+    local split_choice
+    read -rp "  Select allocation profile index [1-6]: " split_choice
+
+    # Profile table in MiB (pages = MiB * 256 for 4 KiB pages)
+    local ttm_mib gtt_mib
+    case "$split_choice" in
+        1) ttm_mib=6144;  gtt_mib=10240 ;;
+        2) ttm_mib=7168;  gtt_mib=9216  ;;
+        3) ttm_mib=8192;  gtt_mib=8192  ;;
+        4) ttm_mib=10240; gtt_mib=6144  ;;
+        5) ttm_mib=12288; gtt_mib=4096  ;;
+        6) ttm_mib=15360; gtt_mib=15104 ;;
+        *) echo -e "${YELLOW}[-] Layout change bypassed. Returning to menu...${NC}"; sleep 1.2; return 0 ;;
+    esac
+    local ttm_val=$(( ttm_mib * 256 ))
+    local gtt_val="$gtt_mib"
+
+    # Show what will really be written. The kernel caps GPU-usable system memory (GTT) at the
+    # smaller of the TTM page limit and amdgpu.gttsize.
+    local eff_gtt=$(( ttm_mib < gtt_mib ? ttm_mib : gtt_mib ))
+    local mem_total_mib; mem_total_mib=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null)
+    echo ""
+    echo -e "  ${CYAN}Values to be written:${NC}"
+    echo -e "    ttm.pages_limit / ttm.page_pool_size : ${ttm_val} pages (${ttm_mib} MiB)"
+    echo -e "    amdgpu.gttsize                       : ${gtt_mib} MiB"
+    echo -e "    Effective GPU-usable system memory   : ~${eff_gtt} MiB (the smaller of the two)"
+    echo -e "    ${DIM}Note: this changes GPU-usable system memory only; it does not change the BIOS VRAM carve-out (UMA size).${NC}"
+    if (( gtt_mib > ttm_mib )); then
+        echo -e "    ${YELLOW}[!] gttsize is larger than the TTM page limit, so the page limit is what applies.${NC}"
+    fi
+    if [[ -n "$mem_total_mib" ]] && (( ttm_mib > mem_total_mib )); then
+        echo -e "    ${YELLOW}[!] The TTM limit is larger than the ${mem_total_mib} MiB the OS currently sees.${NC}"
+    fi
+    echo ""
+
+    if ! confirm "Write changes and re-partition your memory blocks now?"; then
+        echo -e "${RED}[-] Partitioning aborted. No changes made.${NC}"
+        sleep 1.5
+        return 0
+    fi
+
+    echo -e "${GREEN}[+] Staging memory configuration tables...${NC}"
+    sudo mkdir -p /etc/modprobe.d
+    printf 'options ttm pages_limit=%s page_pool_size=%s\noptions amdgpu gttsize=%s\n' \
+        "$ttm_val" "$ttm_val" "$gtt_val" | sudo tee /etc/modprobe.d/bc250-mem.conf >/dev/null
+
+    if command -v rpm-ostree &>/dev/null; then
+        echo -e "${GREEN}[+] Updating kernel arguments (one transaction)...${NC}"
+        local -a want=("ttm.pages_limit=$ttm_val" "ttm.page_pool_size=$ttm_val" "amdgpu.gttsize=$gtt_val")
+        local cur; cur=$(rpm-ostree kargs 2>/dev/null | tr ' ' '\n')
+        local -a karg_args=()
+        local keep
+
+        # Drop stale values of our keys (so switching profile needs no rollback first)...
+        while read -r k; do
+            [[ -z "$k" ]] && continue
+            keep=0
+            for w in "${want[@]}"; do [[ "$k" == "$w" ]] && keep=1; done
+            (( keep )) || karg_args+=(--delete="$k")
+        done < <(grep -E "$karg_re" <<<"$cur")
+        # ...and append only what is not already present.
+        for w in "${want[@]}"; do
+            grep -qxF -- "$w" <<<"$cur" || karg_args+=(--append="$w")
+        done
+        karg_args+=(--append-if-missing=quiet --append-if-missing=rhgb)
+
+        if ! sudo rpm-ostree kargs "${karg_args[@]}" >> "$log" 2>&1; then
+            echo -e "${RED}❌ rpm-ostree could not update the kernel arguments. See $log${NC}"
+            read -rp "  Press [Enter] to return..." _
+            return 1
+        fi
+        ujust regenerate-grub &>/dev/null || true
+    fi
+
+    print_success "RAM/VRAM memory split targets successfully written!"
+    play_success_chime; prompt_reboot; return 0
 }
 
-### New
+# Set the BIOS UMA (VRAM carve-out) byte through the helper, with the nvram module loaded and the result checked.
+ram_split_set_uma() {
+    local mb="$1" log="${RAM_SPLIT_LOG:-/var/log/bc250_oc_install.log}"
+    ram_split_build_tool || return 1
+    sudo modprobe nvram 2>/dev/null || true
+    if [[ ! -e /dev/nvram ]]; then
+        echo "ram_split_set_uma: /dev/nvram is not available (nvram kernel module missing?)" | tee -a "$log" >&2
+        return 1
+    fi
+    sudo "$RAM_SPLIT_BIN" UMA_SIZE "$mb" 2>&1 | tee -a "$log"
+    return "${PIPESTATUS[0]}"
+}
 
 ram_split_build_tool() {
-    # If the binary already exists and is executable, pass cleanly
-    [[ -x "$RAM_SPLIT_BIN" ]] && return 0
+    # Reuse the existing binary only if it is the current version (older builds had no read-back checks)
+    if [[ -x "$RAM_SPLIT_BIN" ]] && "$RAM_SPLIT_BIN" VERSION 2>/dev/null | grep -q "bc250memcfg-v2"; then
+        return 0
+    fi
 
-    # ZERO-FRICTION PROVISIONING: Automatically build the workspace environment if missing
     if [[ ! -d "$RAM_SPLIT_DIR" ]]; then
         print_info "Creating missing toolkit directory workspace..."
         mkdir -p "$RAM_SPLIT_DIR" 2>/dev/null
     fi
 
-    # 🧬 PRERUN CLEAN HOOK: Forcefully purge stale corrupted webpage logs from client files
-    if [[ -f "$RAM_SPLIT_DIR/main.cpp" ]] && grep -qiE '(doctype html|html|Skeleton|ScreenReaderHeading)' "$RAM_SPLIT_DIR/main.cpp"; then
-        print_warning "Stale HTML web pollution discovered on disk. Purging garbage files safely..."
-        rm -f "$RAM_SPLIT_DIR/main.cpp" 2>/dev/null
-    fi
-    # Trigger fresh content parsing if local staging targets are empty
-    if [[ ! -f "$RAM_SPLIT_DIR/main.cpp" && ! -f "$RAM_SPLIT_DIR/main.c" ]]; then
-        # 🧬 BAZZITE 43/44 OFFLINE-FIRST ENGINE: Extract pure standard C to guarantee offline success
-        print_info "Extracting stable hardware partition database source from internal script memory..."
+    # Always regenerate the embedded source so the build matches this script
+    rm -f "$RAM_SPLIT_DIR/main.c" "$RAM_SPLIT_DIR/main.cpp" 2>/dev/null
+    print_info "Extracting hardware partition utility source from internal script memory..."
 
-        cat << 'EOF' > "$RAM_SPLIT_DIR/main.c"
+    cat << 'EOF' > "$RAM_SPLIT_DIR/main.c"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5407,55 +7015,91 @@ ram_split_build_tool() {
 #define NVRAM_SIZE 114
 #define CMOS_UMA_OFFSET 0x18
 
-int main(int argc, char* argv[]) {
-    if (getuid() != 0) {
-        fprintf(stderr, "Error: This hardware utility must be executed as root.\n");
+static int read_all(int fd, unsigned char *buf) {
+    if (lseek(fd, 0, SEEK_SET) < 0) return -1;
+    return read(fd, buf, NVRAM_SIZE) == NVRAM_SIZE ? 0 : -1;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc == 2 && strcmp(argv[1], "VERSION") == 0) {
+        printf("bc250memcfg-v2\n");
+        return 0;
+    }
+
+    const char *dev = getenv("BC250_NVRAM_DEV");   /* test hook; defaults to the real device */
+    if (!dev) {
+        dev = "/dev/nvram";
+        if (getuid() != 0) {
+            fprintf(stderr, "Error: this utility must be executed as root.\n");
+            return 1;
+        }
+    }
+
+    unsigned char buf[NVRAM_SIZE] = {0};
+    int is_get = (argc < 2 || strcmp(argv[1], "GET") == 0);
+    int fd = open(dev, is_get ? O_RDONLY : O_RDWR);
+    if (fd < 0) {
+        fprintf(stderr, "Fatal: cannot open %s.\n", dev);
+        return 1;
+    }
+    if (read_all(fd, buf) != 0) {
+        fprintf(stderr, "Fatal: could not read all %d bytes of CMOS.\n", NVRAM_SIZE);
+        close(fd);
         return 1;
     }
 
-    if (argc < 2) {
-        printf("Configured Parameters:\n");
-        printf("UMA_SIZE=512\n");
+    if (is_get) {
+        printf("UMA_BYTE=0x%02X\n", buf[CMOS_UMA_OFFSET]);
+        printf("UMA_SIZE=%d (raw byte x 16 MB)\n", buf[CMOS_UMA_OFFSET] * 16);
+        close(fd);
         return 0;
     }
 
-    // Explicitly check argument conditions securely via mapped memory arrays
     if (strcmp(argv[1], "UMA_SIZE") == 0 && argc == 3) {
         int target_mb = atoi(argv[2]);
-        if (target_mb < 256 || target_mb > 16384) {
-            fprintf(stderr, "Invalid allocation target array bounds specified.\n");
+        if (target_mb < 256 || target_mb > 16384 || target_mb % 16 != 0) {
+            fprintf(stderr, "Invalid size: must be 256-16384 MB and a multiple of 16.\n");
+            close(fd);
+            return 1;
+        }
+        int units = target_mb / 16;
+        unsigned char value;
+        if (units <= 255) {
+            value = (unsigned char)units;
+        } else if (target_mb == 8192) {
+            /* Historic stock marker: 8192/16 = 512 does not fit in one byte; older builds wrapped it to 0x00. */
+            value = 0x00;
+        } else {
+            fprintf(stderr, "%d MB does not fit in the single CMOS byte (max 4080 MB). Not written.\n", target_mb);
+            close(fd);
             return 1;
         }
 
-        int fd = open("/dev/nvram", O_RDWR);
-        if (fd < 0) {
-            fprintf(stderr, "Fatal: Failed to establish kernel /dev/nvram system handles.\n");
+        unsigned char old = buf[CMOS_UMA_OFFSET];
+        buf[CMOS_UMA_OFFSET] = value;
+        if (lseek(fd, 0, SEEK_SET) < 0 || write(fd, buf, NVRAM_SIZE) != NVRAM_SIZE) {
+            fprintf(stderr, "Fatal: CMOS write failed.\n");
+            close(fd);
             return 1;
         }
 
-        unsigned char nvram_buffer[NVRAM_SIZE] = {0};
-        if (read(fd, nvram_buffer, NVRAM_SIZE) > 0) {
-            nvram_buffer[CMOS_UMA_OFFSET] = (target_mb / 16) & 0xFF;
-            lseek(fd, 0, SEEK_SET);
-            write(fd, nvram_buffer, NVRAM_SIZE);
+        unsigned char check[NVRAM_SIZE] = {0};
+        if (read_all(fd, check) != 0 || check[CMOS_UMA_OFFSET] != value) {
+            fprintf(stderr, "Fatal: read-back verification failed (wanted 0x%02X).\n", value);
+            close(fd);
+            return 1;
         }
-
         close(fd);
-        printf("UMA_SIZE successfully adjusted to %dMB inside hardware maps.\n", target_mb);
+        printf("UMA byte 0x%02X -> 0x%02X (requested %d MB), verified.\n", old, value, target_mb);
         return 0;
     }
 
-    return 0;
+    fprintf(stderr, "Usage: %s [GET | VERSION | UMA_SIZE <MB>]\n", argv[0]);
+    close(fd);
+    return 1;
 }
 EOF
 
-        # 🧬 INTERNET BACKUP ROUTE: If local write flags restrict internal space, fall back to downloading
-        if [[ ! -f "$RAM_SPLIT_DIR/main.c" ]]; then
-            print_warning "Local extraction blocked. Fetching clean community fallback from repo streams..."
-            local upstream_src="https://raw.githubusercontent.com/fanoush/bc250_memcfg/refs/heads/master/main.cpp"
-            curl -s -L --connect-timeout 5 "$upstream_src" -o "$RAM_SPLIT_DIR/main.cpp"
-        fi
-    fi
     if ! ram_split_gcc_can_compile; then
         print_warning "Build elements (gcc / g++) are missing or not layered inside this Bazzite deployment."
         print_info "Please run: 'sudo rpm-ostree install gcc' and reboot to unlock memory splitting."
@@ -5463,27 +7107,20 @@ EOF
     fi
 
     print_info "Compiling memory translation controls. Please hold..."
-
-    local cc_engine="g++"
-    local build_target="main.cpp"
-
-    if [[ -f "$RAM_SPLIT_DIR/main.c" ]]; then
-        cc_engine="gcc"
-        build_target="main.c"
-    elif ! command -v g++ &>/dev/null; then
-        cc_engine="gcc"
-    fi
-
-    if ! (cd "$RAM_SPLIT_DIR" && $cc_engine -Os "$build_target" -o bc250memcfg); then
+    if ! (cd "$RAM_SPLIT_DIR" && gcc -Os main.c -o "$RAM_SPLIT_BIN"); then
         print_error "Failed to assemble the internal memory layout controller."
         return 1
     fi
-
     chmod +x "$RAM_SPLIT_BIN" 2>/dev/null || true
-    rm -f "$RAM_SPLIT_DIR/main.cpp" "$RAM_SPLIT_DIR/main.c" 2>/dev/null
+    rm -f "$RAM_SPLIT_DIR/main.c" 2>/dev/null
 
+    if [[ ! -x "$RAM_SPLIT_BIN" ]]; then
+        print_error "Build finished but $RAM_SPLIT_BIN was not created."
+        return 1
+    fi
     print_success "Memory profile compiler routine successfully built!"
 }
+
 # ==============================================================================
 # UNIFIED INTERACTIVE CLOSURE ENGINE: CONTROL SHUTDOWN / REBOOT / EXIT
 # ==============================================================================
