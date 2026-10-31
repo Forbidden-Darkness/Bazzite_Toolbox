@@ -1187,7 +1187,7 @@ run_stability_sweep() {
             printf '\r\033[K  %s%b %b🔄 Stressing thread... %ds/%ds%b' "$tag" "$note" "$YELLOW" "$elapsed" "$test_duration" "$NC"
             sleep 1
         done
-        wait "$pid"; rc=$?
+        rc=0; wait "$pid" || rc=$?
         pid=""
 
         if (( interrupted )); then
@@ -1239,17 +1239,67 @@ run_stability_sweep() {
 # GPU / CU helpers
 # ------------------------------------------------------------------------------
 
-# Runs the live manager as root, output goes to the sweep log
+# Preflight line: $1 = ok|warn|fail, $2 = text
+_bc250_chk() {
+    case "$1" in
+        ok)   echo -e "  ${BIGreen}[✓]${NC} $2" ;;
+        warn) echo -e "  ${YELLOW}[!]${NC} $2" ;;
+        *)    echo -e "  ${BIRed}[✗]${NC} $2" ;;
+    esac
+}
+
+# Print why we are leaving and WAIT, so the reason can never flash past.
+# $1 = reason, $2 = optional hint
+_bc250_bail() {
+    echo -e "\n  ${BIRed}$1${NC}"
+    [[ -n "${2:-}" ]] && echo -e "  $2"
+    _bc250_log "${_BC250_CU_LOG:-}" "BAIL: $1"
+    [[ -n "${_BC250_CU_LOG:-}" ]] && echo -e "  ${DIM}Log: ${_BC250_CU_LOG}${NC}"
+    read -rp "  Press Enter to return to the menu..."
+}
+
+# Last lines of the sweep log (the manager's own error messages), colours stripped
+_bc250_cu_show_err() {
+    [[ -r "${_BC250_CU_LOG:-}" ]] || return 0
+    tail -n "${1:-6}" "$_BC250_CU_LOG" | sed 's/\x1b\[[0-9;]*m//g; s/^/      /'
+}
+
+# Runs the live manager as root (via bash, so a missing +x bit doesn't matter).
+# Output goes to the sweep log. Extra flags like --dry-run can be passed first.
 _bc250_cu_mgr() {
     local mgr=$1; shift
-    sudo "$mgr" --yes "$@" >> "${_BC250_CU_LOG:-/dev/null}" 2>&1
+    sudo bash "$mgr" --yes "$@" >> "${_BC250_CU_LOG:-/dev/null}" 2>&1
+}
+
+# Find the manager script; prints its path
+_bc250_find_manager() {
+    local c d unit
+    local -a cands=()
+    if [[ -n "${BC250_CU_MANAGER:-}" ]]; then
+        [[ -f "$BC250_CU_MANAGER" ]] && { printf '%s\n' "$BC250_CU_MANAGER"; return 0; }
+        return 1
+    fi
+    cands+=("$(command -v bc250-cu-live-manager 2>/dev/null || true)")
+    cands+=("$(command -v bc250-cu-live-manager.sh 2>/dev/null || true)")
+    unit=/etc/systemd/system/bc250-cu-live-manager.service
+    if [[ -r "$unit" ]]; then
+        cands+=("$(sed -n 's/^ExecStart=\([^ ]*\).*/\1/p' "$unit" | head -n1)")
+    fi
+    cands+=(/usr/local/bin/bc250-cu-live-manager /var/usrlocal/bin/bc250-cu-live-manager)
+    for d in "${BASH_SOURCE[0]%/*}" "$HOME" "$HOME/Downloads" "$HOME/Desktop" "$PWD"; do
+        cands+=("$d/bc250-cu-live-manager.sh" "$d/bc250-cu-live-manager")
+    done
+    for c in "${cands[@]}"; do
+        [[ -n "$c" && -f "$c" ]] && { printf '%s\n' "$c"; return 0; }
+    done
+    return 1
 }
 
 # $1 = conf file. Prints the 4 array masks (SE0.SH0 SE0.SH1 SE1.SH0 SE1.SH1) as decimals.
 _bc250_read_wgp_masks() {
     local raw mask
     local -a arr
-    raw=$(grep -m1 '^[[:space:]]*BC250_WGP_MASKS=' "$1" 2>/dev/null | cut -d= -f2- | tr -d "\"' ")
+    raw=$(grep -m1 '^[[:space:]]*BC250_WGP_MASKS=' "$1" 2>/dev/null | cut -d= -f2- | tr -d "\"' " || true)
     [[ -n "$raw" ]] || return 1
     IFS=',' read -r -a arr <<< "$raw"
     (( ${#arr[@]} == 4 )) || return 1
@@ -1261,38 +1311,50 @@ _bc250_read_wgp_masks() {
 
 # Leave only WGP $2 (se.sh.w) enabled inside its shader array. The target is
 # enabled first so the array is never empty. $3 = that array's saved mask.
+# Whole lists go in one call: the manager accepts several WGPs per command.
 _bc250_cu_isolate() {
     local mgr=$1 id=$2 mask=$3 se sh w ow
+    local -a others=()
     IFS=. read -r se sh w <<< "$id"
-    _bc250_cu_mgr "$mgr" enable-wgp "$id" || return 1
     for ow in 0 1 2 3 4; do
-        (( ow != w && ((mask >> ow) & 1) )) || continue
-        _bc250_cu_mgr "$mgr" disable-wgp "$se.$sh.$ow" || return 1
+        if (( ow != w && ((mask >> ow) & 1) )); then others+=("$se.$sh.$ow"); fi
     done
+    _bc250_cu_mgr "$mgr" enable-wgp "$id" || return 1
+    if (( ${#others[@]} > 0 )); then
+        _bc250_cu_mgr "$mgr" disable-wgp "${others[@]}" || return 1
+    fi
+    return 0
 }
 
-# Put that shader array back to its saved mask (re-enable first, then drop the target)
-_bc250_cu_unisolate() {
-    local mgr=$1 id=$2 mask=$3 se sh w ow
-    IFS=. read -r se sh w <<< "$id"
-    for ow in 0 1 2 3 4; do
-        (( (mask >> ow) & 1 )) || continue
-        _bc250_cu_mgr "$mgr" enable-wgp "$se.$sh.$ow" || return 1
-    done
-    (( (mask >> w) & 1 )) || _bc250_cu_mgr "$mgr" disable-wgp "$id" || return 1
-}
+# Put the saved table back (one call; the manager applies the saved boot table)
+_bc250_cu_restore() { _bc250_cu_mgr "$1" apply-service; }
 
 # $1 = epoch seconds. Prints up to 3 amdgpu error lines logged since then.
 _bc250_cu_kernel_errors() {
     command -v journalctl &>/dev/null || return 0
-    sudo journalctl -k --since "@$1" --no-pager -q 2>/dev/null \
-        | grep -iE 'amdgpu.*(timeout|reset|fault|hang|hung|error)' | head -n 3
+    { sudo journalctl -k --since "@$1" --no-pager -q 2>/dev/null \
+        | grep -iE 'amdgpu.*(timeout|reset|fault|hang|hung|error)' | head -n 3; } || true
 }
 
 # ------------------------------------------------------------------------------
 # GPU sweep: one WGP (CU pair) at a time
 # ------------------------------------------------------------------------------
 run_cu_stability_sweep() {
+    # Make sure the whole file was copied, not just this function
+    local fn missing=""
+    for fn in _bc250_header _bc250_prompt _bc250_log _bc250_chk _bc250_bail _bc250_cu_show_err \
+              _bc250_cu_mgr _bc250_find_manager _bc250_read_wgp_masks _bc250_cu_isolate \
+              _bc250_cu_restore _bc250_cu_kernel_errors; do
+        declare -F "$fn" &>/dev/null || missing+=" $fn"
+    done
+    if [[ -n "$missing" ]]; then
+        echo "ERROR: run_cu_stability_sweep needs these helper functions from bc250_stability_tests.sh:"
+        echo "      $missing"
+        echo "Copy the whole file into your toolkit, not just this function."
+        read -rp "Press Enter to return to the menu..."
+        return 1
+    fi
+
     clear
     _bc250_header "🔬" "AMD BC-250 Per-WGP (CU Pair) Stability Sweep"
     echo ""
@@ -1300,60 +1362,88 @@ run_cu_stability_sweep() {
     echo -e "  The hardware masks CUs in WGP pairs (2 CUs each, 20 WGPs = 40 CUs), so a WGP is the"
     echo -e "  smallest unit that can be isolated. Each WGP is tested alone inside its shader array"
     echo -e "  (the other arrays keep your saved table) while a GPU load runs and the kernel log is"
-    echo -e "  watched for amdgpu errors. Your table is restored after every WGP and at the end."
+    echo -e "  watched for amdgpu errors. Your saved table is restored after every WGP."
     echo ""
     echo -e "  ${BIRed}This rewrites live GPU registers and CAN hang the GPU. Close games, save your work.${NC}"
     echo -e "  ${DIM}Run it from Desktop Mode (a benchmark needs a display).${NC}"
     echo ""
 
-    # ---- Locate the live manager ----
-    local mgr="${BC250_CU_MANAGER:-}" c
-    if [[ -z "$mgr" ]]; then
-        for c in "$(command -v bc250-cu-live-manager 2>/dev/null)" \
-                 /usr/local/bin/bc250-cu-live-manager \
-                 "$HOME/bc250-cu-live-manager.sh" ./bc250-cu-live-manager.sh; do
-            [[ -n "$c" && -x "$c" ]] && { mgr="$c"; break; }
-        done
-    fi
-    if [[ -z "$mgr" || ! -x "$mgr" ]]; then
-        echo -e "${BIRed}❌ ERROR: bc250-cu-live-manager not found.${NC}"
-        echo -e "   Install it, or point to it:  ${CYAN}BC250_CU_MANAGER=/path/to/bc250-cu-live-manager.sh${NC}"
-        read -rp "Press Enter to return..."
-        return 1
-    fi
-    sudo -v || { echo -e "${BIRed}❌ sudo is required.${NC}"; return 1; }
-
-    local conf="${BC250_CU_CONF:-/etc/bc250-cu-live-manager.conf}"
     _BC250_CU_LOG="$HOME/bc250-cu-sweep-$(date +%Y%m%d_%H%M%S).log"
     : > "$_BC250_CU_LOG"
     local log="$_BC250_CU_LOG"
+    local conf="${BC250_CU_CONF:-/etc/bc250-cu-live-manager.conf}"
+
+    # ======================= Preflight =======================
+    echo -e "  ${BOLD}Preflight checks${NC}"
+    _bc250_chk ok "Helper functions loaded"
+
+    if ! sudo -v; then
+        _bc250_chk fail "sudo access"
+        _bc250_bail "sudo is required for GPU register access."
+        return 1
+    fi
+    _bc250_chk ok "sudo access"
+
+    local mgr=""
+    mgr=$(_bc250_find_manager) || mgr=""
+    if [[ -z "$mgr" ]]; then
+        _bc250_chk fail "Live manager script not found"
+        local given
+        read -rp "  Path to bc250-cu-live-manager.sh (blank to cancel): " given
+        given="${given/#\~/$HOME}"
+        if [[ -n "$given" && -f "$given" ]]; then
+            mgr="$given"
+        else
+            _bc250_bail "bc250-cu-live-manager is required." \
+                "Set BC250_CU_MANAGER=/path/to/bc250-cu-live-manager.sh and try again."
+            return 1
+        fi
+    fi
+    _bc250_chk ok "Live manager: $mgr"
     _bc250_log "$log" "manager=$mgr conf=$conf"
 
+    # Read-only register test: --dry-run prints the writes instead of doing them
+    echo -ne "  ${DIM}Testing GPU register access (dry run, nothing is written)...${NC}"
+    if _bc250_cu_mgr "$mgr" --dry-run enable-wgp 0.0.0; then
+        printf '\r\033[K'; _bc250_chk ok "GPU register access (umr) works"
+    else
+        printf '\r\033[K'; _bc250_chk fail "GPU register access failed. The manager said:"
+        _bc250_cu_show_err 6
+        _bc250_bail "The live manager can't reach the GPU registers, so no sweep is possible." \
+            "Usual causes: umr not installed (sudo bash $mgr install-umr; on Bazzite reboot afterwards), or not a BC-250."
+        return 1
+    fi
+
     # ---- Snapshot: the restore target is the saved table ----
-    echo -e "  Restores use the table saved in ${CYAN}${conf}${NC}."
     local ans
+    echo ""
+    echo -e "  Restores use the table saved in ${CYAN}${conf}${NC}."
     read -rp "  Save the CURRENT live table there first (existing file is backed up)? [Y/n]: " ans
     if [[ ! "$ans" =~ ^[Nn]$ ]]; then
-        [[ -f "$conf" ]] && sudo cp -p "$conf" "${conf}.bak_$(date +%Y%m%d_%H%M%S)"
+        if [[ -f "$conf" ]]; then
+            sudo cp -p "$conf" "${conf}.bak_$(date +%Y%m%d_%H%M%S)" || true
+        fi
         if ! _bc250_cu_mgr "$mgr" write-service-table; then
-            echo -e "${BIRed}❌ Could not save the live table (see $log). Nothing was changed.${NC}"
-            read -rp "Press Enter to return..."
+            _bc250_chk fail "Could not save the live table. The manager said:"
+            _bc250_cu_show_err 6
+            _bc250_bail "Nothing was changed."
             return 1
         fi
     fi
 
     local -a saved=()
-    mapfile -t saved < <(_bc250_read_wgp_masks "$conf")
+    mapfile -t saved < <(_bc250_read_wgp_masks "$conf" || true)
     if (( ${#saved[@]} != 4 )); then
-        echo -e "${BIRed}❌ Could not read BC250_WGP_MASKS from ${conf}. Nothing was changed.${NC}"
-        read -rp "Press Enter to return..."
+        _bc250_chk fail "Saved table not readable"
+        _bc250_bail "Could not read BC250_WGP_MASKS from ${conf}. Nothing was changed." \
+            "Save a table first: sudo bash $mgr write-service-table"
         return 1
     fi
     local enabled_wgps=0 i m
     for m in "${saved[@]}"; do
         for (( i=0; i<5; i++ )); do enabled_wgps=$(( enabled_wgps + ((m >> i) & 1) )); done
     done
-    echo -e "  Saved table: ${BOLD}${enabled_wgps}/20 WGPs${NC} (${BOLD}$(( enabled_wgps * 2 ))/40 CUs${NC}) enabled.\n"
+    _bc250_chk ok "Saved table: ${enabled_wgps}/20 WGPs ($(( enabled_wgps * 2 ))/40 CUs) enabled"
 
     # ---- GPU load detection ----
     local load_tmpl="${BC250_CU_TEST_CMD:-}" t
@@ -1367,24 +1457,39 @@ run_cu_stability_sweep() {
     if [[ -z "$load_tmpl" ]] && command -v vkmark &>/dev/null; then
         load_tmpl="vkmark -b vertex:duration={SECS}"
     fi
+    if [[ -z "$load_tmpl" ]] && command -v stress-ng &>/dev/null; then
+        load_tmpl="stress-ng --gpu 1 --timeout {SECS}s"
+    fi
+    if [[ -n "$load_tmpl" ]]; then
+        _bc250_chk ok "GPU load: ${load_tmpl%% *}"
+    else
+        _bc250_chk warn "GPU load: none found (Manual mode only)"
+    fi
+    echo ""
 
-    # ---- Mode ----
+    # ======================= Mode =======================
     echo -e "  Test modes:"
     if [[ -n "$load_tmpl" ]]; then
         echo -e "    [1] Automatic  ${DIM}(${load_tmpl%% *} load + kernel-log watch)${NC}"
     else
-        echo -e "    [1] Automatic  ${DIM}(unavailable: install glmark2/vkmark or set BC250_CU_TEST_CMD)${NC}"
+        echo -e "    [1] Automatic  ${DIM}(unavailable: install glmark2 or vkmark, or set BC250_CU_TEST_CMD)${NC}"
     fi
     echo -e "    [2] Manual     ${DIM}(each WGP is isolated, you test with your own game and report the result)${NC}"
     echo -e "    [3] Cancel"
     _bc250_prompt "👉 Select mode: "
-    local mode_choice mode secs=20
+    local mode_choice mode="" secs=20
     read -r mode_choice
     case "$mode_choice" in
-        1) [[ -n "$load_tmpl" ]] || { echo -e "${YELLOW}[-] No GPU load tool available.${NC}"; sleep 1; return 0; }
-           mode=auto ;;
+        1) if [[ -n "$load_tmpl" ]]; then
+               mode=auto
+           else
+               _bc250_bail "Automatic mode needs a GPU load tool and none was found." \
+                   "Install glmark2 or vkmark (Bazzite: brew/rpm-ostree), or choose Manual mode."
+               return 0
+           fi ;;
         2) mode=manual ;;
-        *) echo -e "\n${YELLOW}[-] Sweep aborted cleanly. Returning to master menu...${NC}"; sleep 1; return 0 ;;
+        3) echo -e "\n${YELLOW}[-] Sweep cancelled. Nothing was changed.${NC}"; sleep 1; return 0 ;;
+        *) _bc250_bail "Invalid selection '${mode_choice}'. Nothing was changed."; return 0 ;;
     esac
     if [[ "$mode" == "auto" ]]; then
         echo -e "    [1] 20 seconds per WGP    [2] 60 seconds per WGP"
@@ -1393,7 +1498,7 @@ run_cu_stability_sweep() {
         [[ "$dur_choice" == "2" ]] && secs=60
     fi
 
-    # ---- Scope ----
+    # ======================= Scope =======================
     echo -e "    [1] All 20 WGPs    [2] Only WGPs not in the saved table (newly unlocked)"
     _bc250_prompt "👉 Select scope: "
     local scope_choice; read -r scope_choice
@@ -1410,13 +1515,14 @@ run_cu_stability_sweep() {
         done
     done
     if (( ${#targets[@]} == 0 )); then
-        echo -e "\n${YELLOW}[-] Nothing to test: every WGP is already in the saved table.${NC}"
-        read -rp "Press Enter to return..."
+        _bc250_bail "Nothing to test: every WGP is already in the saved table."
         return 0
     fi
-    local est=$(( ${#targets[@]} * (secs + 6) ))
+    local est=$(( ${#targets[@]} * (secs + 15) ))
     echo -e "\n  Will test ${BOLD}${#targets[@]} WGPs${NC}"
-    [[ "$mode" == "auto" ]] && echo -e "  Estimated run time: ~$(( est / 60 )) min"
+    if [[ "$mode" == "auto" ]]; then
+        echo -e "  Estimated run time: ~$(( est / 60 )) min"
+    fi
     echo -e "  Log (survives a hard hang): ${CYAN}${log}${NC}"
     local ack
     read -rp "  Type YES to begin: " ack
@@ -1424,25 +1530,30 @@ run_cu_stability_sweep() {
         echo -e "\n${YELLOW}[-] Aborted. Nothing was changed.${NC}"; sleep 1; return 0
     fi
 
-    # ---- Baseline: prove the load works on the unmodified table before touching anything ----
-    local interrupted=0 pid="" old_int old_term t0 rc errs cmd_str
-    old_int=$(trap -p INT); old_term=$(trap -p TERM)
+    # Ctrl+C stops after the current step; the table is always restored below
+    local interrupted=0 pid="" old_int old_term t0=0 rc=0 errs="" cmd_str=""
+    old_int=$(trap -p INT || true); old_term=$(trap -p TERM || true)
     trap 'interrupted=1; [[ -n "$pid" ]] && kill "$pid" 2>/dev/null' INT TERM
 
+    # ---- Baseline: prove the load works on the unmodified table before touching anything ----
     local abort=0
     if [[ "$mode" == "auto" ]]; then
         echo -e "\n  ${YELLOW}[⚙] Baseline run on your current table...${NC}"
         cmd_str=${load_tmpl//\{SECS\}/10}
         t0=$(( $(date +%s) - 1 ))
         timeout -k 5 40 bash -c "$cmd_str" >> "$log" 2>&1 </dev/null &
-        pid=$!; wait "$pid"; rc=$?; pid=""
+        pid=$!
+        rc=0; wait "$pid" || rc=$?
+        pid=""
         errs=$(_bc250_cu_kernel_errors "$t0")
         if (( interrupted )); then
             abort=1
         elif (( rc != 0 )) || [[ -n "$errs" ]]; then
-            echo -e "  ${BIRed}[❌] Baseline failed (exit ${rc}). Fix this first; no WGPs were touched.${NC}"
-            [[ -n "$errs" ]] && echo "$errs" | sed 's/^/      /'
-            echo -e "      Details: ${log}"
+            echo -e "  ${BIRed}[❌] Baseline failed (exit ${rc}). No WGPs were touched.${NC}"
+            if [[ -n "$errs" ]]; then echo "$errs" | sed 's/^/      /'; fi
+            echo -e "      The load tool said:"
+            _bc250_cu_show_err 5
+            echo -e "      Fix this first (is a display available? is '${load_tmpl%% *}' working?)."
             abort=1
         else
             echo -e "  ${BIGreen}[✓] Baseline OK${NC}\n"
@@ -1450,12 +1561,11 @@ run_cu_stability_sweep() {
     fi
 
     # ---- Sweep ----
-    local id label mask_idx res note sel
+    local id label mask_idx res note sel cu_lo
     local -a r_id=() r_res=() r_note=()
-    local cu_lo
     if (( ! abort )); then
         for id in "${targets[@]}"; do
-            (( interrupted )) && break
+            if (( interrupted )); then break; fi
             IFS=. read -r se sh w <<< "$id"
             mask_idx=$(( se * 2 + sh )); cu_lo=$(( w * 2 ))
             label="SE${se}.SH${sh} WGP${w} (CU ${cu_lo}-$(( cu_lo + 1 )))"
@@ -1463,20 +1573,23 @@ run_cu_stability_sweep() {
             _bc250_log "$log" "TESTING $id"
 
             if ! _bc250_cu_isolate "$mgr" "$id" "${saved[mask_idx]}"; then
-                _bc250_cu_unisolate "$mgr" "$id" "${saved[mask_idx]}"
                 printf '\r\033[K'
-                echo -e "  ${label}  ${BIRed}[❌] ERROR (could not apply mask, see log)${NC}"
+                echo -e "  ${label}  ${BIRed}[❌] ERROR (could not apply mask):${NC}"
+                _bc250_cu_show_err 4
+                _bc250_cu_restore "$mgr" || true
                 r_id+=("$id"); r_res+=("ERROR"); r_note+=("mask write failed")
                 break
             fi
 
-            res="PASS"; note=""
+            res="PASS"; note=""; errs=""
             if [[ "$mode" == "auto" ]]; then
                 printf '\r\033[K  %s  %b🔄 loading GPU (%ds)...%b' "$label" "$YELLOW" "$secs" "$NC"
                 cmd_str=${load_tmpl//\{SECS\}/$secs}
                 t0=$(( $(date +%s) - 1 ))
                 timeout -k 5 $(( secs + 30 )) bash -c "$cmd_str" >> "$log" 2>&1 </dev/null &
-                pid=$!; wait "$pid"; rc=$?; pid=""
+                pid=$!
+                rc=0; wait "$pid" || rc=$?
+                pid=""
                 errs=$(_bc250_cu_kernel_errors "$t0")
                 if (( interrupted )); then
                     res="SKIP"; note="interrupted"
@@ -1490,6 +1603,7 @@ run_cu_stability_sweep() {
             else
                 printf '\r\033[K'
                 echo -e "  ${label}  ${GREEN}isolated${NC} - run your game/test now."
+                sel=""
                 read -rp "    Result? [p]ass / [f]ail / [s]kip / [q]uit: " sel
                 case "$sel" in
                     f|F) res="FAIL"; note="reported by user" ;;
@@ -1499,8 +1613,9 @@ run_cu_stability_sweep() {
             fi
 
             _bc250_log "$log" "RESULT $id $res $note"
-            if ! _bc250_cu_unisolate "$mgr" "$id" "${saved[mask_idx]}"; then
-                echo -e "\n  ${BIRed}[!] Could not restore the array after ${id}; stopping.${NC}"
+            if ! _bc250_cu_restore "$mgr"; then
+                echo -e "\n  ${BIRed}[!] Could not restore the saved table after ${id}; stopping.${NC}"
+                _bc250_cu_show_err 4
                 abort=1
             fi
 
@@ -1508,11 +1623,11 @@ run_cu_stability_sweep() {
             case "$res" in
                 PASS) echo -e "  ${label}  ${BIGreen}[✓] PASSED${NC}" ;;
                 FAIL) echo -e "  ${label}  ${BIRed}[❌] FAILED (${note})${NC}"
-                      [[ -n "$errs" ]] && echo "$errs" | sed 's/^/        /' ;;
+                      if [[ -n "$errs" ]]; then echo "$errs" | sed 's/^/        /'; fi ;;
                 *)    echo -e "  ${label}  ${MAGENTA}[-] ${note}${NC}" ;;
             esac
             r_id+=("$id"); r_res+=("$res"); r_note+=("$note")
-            (( abort )) && break
+            if (( abort )); then break; fi
         done
     fi
 
@@ -1520,10 +1635,10 @@ run_cu_stability_sweep() {
     if [[ -n "$old_int" ]]; then eval "$old_int"; else trap - INT; fi
     if [[ -n "$old_term" ]]; then eval "$old_term"; else trap - TERM; fi
     echo -e "\n  ${YELLOW}[⚙] Restoring saved CU table...${NC}"
-    if _bc250_cu_mgr "$mgr" apply-service; then
+    if _bc250_cu_restore "$mgr"; then
         echo -e "  ${BIGreen}[✓] Saved table restored.${NC}"
     else
-        echo -e "  ${BIRed}[❌] Could not confirm the restore.${NC} Run: ${CYAN}sudo ${mgr} apply-service${NC} (or reboot)."
+        echo -e "  ${BIRed}[❌] Could not confirm the restore.${NC} Run: ${CYAN}sudo bash ${mgr} apply-service${NC} (or reboot)."
     fi
 
     # ---- Summary ----
@@ -1536,16 +1651,16 @@ run_cu_stability_sweep() {
             *)    n_other=$(( n_other + 1 )) ;;
         esac
     done
-    (( interrupted )) && echo -e "\n${YELLOW}[-] Sweep stopped early.${NC}"
+    if (( interrupted )); then echo -e "\n${YELLOW}[-] Sweep stopped early.${NC}"; fi
     echo -e "\n  Results: ${BIGreen}${n_pass} passed${NC}  │  ${BIRed}${n_fail} failed${NC}  │  ${MAGENTA}${n_other} skipped/error${NC}"
     if (( n_fail > 0 )); then
         echo -e "\n  ${BIRed}Suspect WGP(s):${NC} ${bad[*]}   ${DIM}(format SE.SH.WGP)${NC}"
-        echo -e "  To fence one off:  ${CYAN}sudo ${mgr} disable-wgp <id>${NC}  then save the table."
+        echo -e "  To fence one off:  ${CYAN}sudo bash ${mgr} disable-wgp <id>${NC}  then save the table."
         echo -e "  ${DIM}Nothing was disabled automatically.${NC}"
     elif (( n_pass > 0 && ! interrupted && ! abort )); then
         echo -e "\n${BIGreen}[✓] SUCCESS: every tested WGP passed.${NC}"
         echo -e "  ${DIM}Synthetic loads can miss CUs that only fail in games; use Manual mode to double-check.${NC}"
-        declare -F play_success_chime &>/dev/null && play_success_chime
+        if declare -F play_success_chime &>/dev/null; then play_success_chime; fi
     fi
     echo -e "  Log: ${log}"
     _bc250_prompt "👉 Press Enter to return cleanly to the toolkit dashboard..."
