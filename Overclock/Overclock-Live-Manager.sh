@@ -1024,86 +1024,531 @@ uninstall_cpu_overclock() {
 }
 
 # ==============================================================================
-# SUBROUTINE: SILICON PER-CORE STABILITY SWEEP & HARDWARE CHANNEL VALIDATOR
+#  BC-250 stability tools
+#    run_stability_sweep     - CPU: pins a load to each logical thread in turn
+#    run_cu_stability_sweep  - GPU: isolates each WGP (2 CUs) in turn and loads it
+#
+#  Expects the usual toolkit colour variables (DIM, BOLD, RED, GREEN, YELLOW,
+#  CYAN, MAGENTA, BIRed, BIGreen, NC). type_prompt / play_success_chime are
+#  used if they exist and skipped if they don't.
 # ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Shared helpers
+# ------------------------------------------------------------------------------
+
+# $1 = emoji (renders 2 columns wide), $2 = title. Box inner width = 84.
+_bc250_header() {
+    local inner=84 text="$1  $2" w pad_l pad_r bar
+    w=$(( ${#text} + 1 ))                       # the emoji is 1 char but 2 columns
+    pad_l=$(( (inner - w) / 2 ))
+    pad_r=$(( inner - w - pad_l ))
+    printf -v bar '%*s' "$inner" ''
+    bar=${bar// /─}
+    echo -e "${DIM}┌${bar}┐${NC}"
+    printf '%b│%b%*s%s%*s%b│%b\n' "$DIM" "$NC" "$pad_l" '' "$text" "$pad_r" '' "$DIM" "$NC"
+    echo -e "${DIM}└${bar}┘${NC}"
+}
+
+# type_prompt if the toolkit has it, plain printf otherwise
+_bc250_prompt() {
+    if declare -F type_prompt &>/dev/null; then
+        type_prompt "$1" "${2:-0.03}"
+    else
+        printf '%s' "$1"
+    fi
+}
+
+# "0-3,8,10-11" -> one CPU id per line
+_bc250_expand_cpu_list() {
+    local -a parts
+    local part lo hi i
+    IFS=',' read -r -a parts <<< "$1"
+    for part in "${parts[@]}"; do
+        if [[ "$part" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+            lo=${BASH_REMATCH[1]}; hi=${BASH_REMATCH[2]}
+            for (( i=lo; i<=hi; i++ )); do echo "$i"; done
+        elif [[ "$part" =~ ^[0-9]+$ ]]; then
+            echo "$part"
+        fi
+    done
+}
+
+# $1 = log file, rest = message. Synced to disk so it survives a hard hang.
+_bc250_log() {
+    local f=$1; shift
+    [[ -n "$f" ]] || return 0
+    printf '%s %s\n' "$(date +%T)" "$*" >> "$f" 2>/dev/null
+    sync 2>/dev/null
+}
+
+# ------------------------------------------------------------------------------
+# CPU sweep
+# ------------------------------------------------------------------------------
 run_stability_sweep() {
     clear
-    echo -e "${DIM}┌────────────────────────────────────────────────────────────────────────────────────┐${RESET}"
-    echo -e "${DIM}│${RESET}                 📟  AMD BC-250 Per-Core Stability Sweep Engine                     ${DIM}│${RESET}"
-    echo -e "${DIM}└────────────────────────────────────────────────────────────────────────────────────┘${RESET}"
+    _bc250_header "📟" "AMD BC-250 Per-Core Stability Sweep Engine"
     echo ""
-    echo -e "  ${BOLD}${YELLOW}⚠️  SILICON STABILITY CRUISE MODULE:${RESET}"
+    echo -e "  ${BOLD}${YELLOW}⚠️  SILICON STABILITY CRUISE MODULE:${NC}"
     echo -e "  This automation utility isolates every logical core execution channel individually."
     echo -e "  By pinning processor workloads using explicit taskset affinity masks, it forces"
     echo -e "  focused validation stress onto specific silicon blocks to test Curve Optimizer bounds."
     echo ""
 
-    # Check for underlying execution utilities inside Bazzite's atomic layers
+    # Required tools (Bazzite's atomic layers may not ship them)
     local stress_bin=""
     if command -v stress-ng &>/dev/null; then stress_bin="stress-ng"
     elif command -v stress &>/dev/null; then stress_bin="stress"
-    else
+    fi
+    if [[ -z "$stress_bin" ]]; then
         echo -e "${BIRed}❌ ERROR: Missing verification tools. Neither 'stress-ng' nor 'stress' found.${NC}"
         echo -e "          Please run Option [1b] or verify network connectivity profiles.${NC}"
-        read -p "Press Enter to return..." && return 1
+        read -rp "Press Enter to return..."
+        return 1
+    fi
+    if ! command -v taskset &>/dev/null; then
+        echo -e "${BIRed}❌ ERROR: 'taskset' (util-linux) is required for per-core pinning.${NC}"
+        read -rp "Press Enter to return..."
+        return 1
     fi
 
     echo -e "  Available Automated Test Profiles:"
-    echo -e "    [1] Ultra-Fast Validation Pass  ${DIM}(15 Seconds per Core Row — Quick Verification)${RESET}"
-    echo -e "    [2] Deep Hardware Burn-In Sweep ${DIM}(60 Seconds per Core Row — Thorough Validation)${RESET}"
-    echo -e "    [3] Cancel & Exit               ${DIM}(Abort validation testing and return to master menu)${RESET}"
+    echo -e "    [1] Ultra-Fast Validation Pass  ${DIM}(15 Seconds per Core Row — Quick Verification)${NC}"
+    echo -e "    [2] Deep Hardware Burn-In Sweep ${DIM}(60 Seconds per Core Row — Thorough Validation)${NC}"
+    echo -e "    [3] Cancel & Exit               ${DIM}(Abort validation testing and return to master menu)${NC}"
     echo ""
-    type_prompt "👉 Select test duration profile: " 0.03
+    _bc250_prompt "👉 Select test duration profile: "
     local sweep_choice; read -r sweep_choice
 
     local test_duration=0
     case "$sweep_choice" in
         1) test_duration=15 ;;
         2) test_duration=60 ;;
-        *) echo -e "\n${YELLOW}[-] Sweep sequence aborted cleanly. Returning to master menu...${NC}"; sleep 1; return 0 ;;
+        3) echo -e "\n${YELLOW}[-] Sweep sequence aborted cleanly. Returning to master menu...${NC}"; sleep 1; return 0 ;;
+        *) echo -e "\n${YELLOW}[-] Invalid selection. Returning to master menu...${NC}"; sleep 1; return 0 ;;
     esac
 
-    local total_online_cores; total_online_cores=$(nproc --all 2>/dev/null || echo "16")
-    echo -e "\n${YELLOW}[⚙] Commencing stability sweep across ${total_online_cores} active paths...${NC}"
-    echo -e "    Using testing tool: ${CYAN}${stress_bin}${NC} (${test_duration} seconds per processor block)\n"
+    # Test only the CPUs this shell is actually allowed to run on (handles gaps
+    # in numbering, offline threads and cgroup/affinity limits).
+    local -a cpus=()
+    local affinity
+    affinity=$(taskset -pc $$ 2>/dev/null | sed 's/.*: *//')
+    [[ -n "$affinity" ]] && mapfile -t cpus < <(_bc250_expand_cpu_list "$affinity")
+    if (( ${#cpus[@]} == 0 )); then
+        mapfile -t cpus < <(seq 0 $(( $(getconf _NPROCESSORS_CONF 2>/dev/null || echo 12) - 1 )))
+    fi
+    local total=${#cpus[@]}
+    local est=$(( total * test_duration ))
 
-    for ((core_id=0; core_id<total_online_cores; core_id++)); do
-        local sys_online_file="/sys/devices/system/cpu/cpu${core_id}/online"
-        
-        # Safe Isolation Check: Skip the sweep iteration if a thread has been fenced off or hotplugged out
-        if [[ -f "$sys_online_file" ]]; then
-            if [[ $(cat "$sys_online_file" 2>/dev/null) -eq 0 ]]; then
-                echo -e "  [Thread $(printf "%02d" $core_id)] ${MAGENTA}⚡ SKIPPED (Thread Fenced via Isolation Matrix)${NC}"
-                continue
-            fi
+    echo -e "\n${YELLOW}[⚙] Commencing stability sweep across ${total} active paths...${NC}"
+    echo -e "    Using testing tool: ${CYAN}${stress_bin}${NC} (${test_duration} seconds per processor block)"
+    echo -e "    Estimated run time: ~$(( est / 60 )) min $(( est % 60 )) s  ${DIM}(Ctrl+C aborts safely)${NC}\n"
+
+    # Ctrl+C stops the sweep cleanly instead of reporting every remaining thread as failed
+    local interrupted=0 pid="" old_int
+    old_int=$(trap -p INT)
+    trap 'interrupted=1; [[ -n "$pid" ]] && kill "$pid" 2>/dev/null' INT
+
+    local cpu tag note topo online_file rc t0 elapsed
+    local passed=0 skipped=0 tested=0
+    local -a failed=()
+    local -a cmd
+
+    for cpu in "${cpus[@]}"; do
+        (( interrupted )) && break
+        printf -v tag '[Thread %02d]' "$cpu"
+        note=""
+        topo="/sys/devices/system/cpu/cpu${cpu}/topology/core_id"
+        [[ -r "$topo" ]] && note=" ${DIM}(core $(<"$topo"))${NC}"
+
+        # Safety check: skip threads that have been hotplugged out
+        online_file="/sys/devices/system/cpu/cpu${cpu}/online"
+        if [[ -r "$online_file" && "$(<"$online_file")" == "0" ]]; then
+            echo -e "  ${tag}${note} ${MAGENTA}⚡ SKIPPED (Thread Fenced via Isolation Matrix)${NC}"
+            skipped=$(( skipped + 1 ))
+            continue
         fi
 
-        echo -ne "  [Thread $(printf "%02d" $core_id)] ${YELLOW}🔄 Initializing core affinity load...${NC}"
-
-        # 🚀 THE NATIVE REPAIR: Runs synchronously so the shell accurately captures the execution pass
-        # The timeout is handled natively by the binary, keeping the terminal processing bulletproof
+        # stress-ng --verify makes it check its own results, so a thread that
+        # computes wrong answers is caught (without it only crashes would be).
         if [[ "$stress_bin" == "stress-ng" ]]; then
-            # We use 1 instance of the standard cpu stressor pinned exactly to our target thread via taskset
-            taskset -c "$core_id" stress-ng --cpu 1 --timeout "${test_duration}s" >/dev/null 2>&1
+            cmd=(stress-ng --cpu 1 --verify --timeout "${test_duration}s")
         else
-            taskset -c "$core_id" stress --cpu 1 --timeout "${test_duration}" >/dev/null 2>&1
+            cmd=(stress --cpu 1 --timeout "$test_duration")
         fi
-        
-        local exit_status=$?
 
-        if [ "$exit_status" -eq 0 ]; then
-            echo -e "\r  [Thread $(printf "%02d" $core_id)] ${BIGreen}[✓] PASSED (Silicon register calculations stable)${NC}"
+        # Run in the background so we can show progress, but wait on the PID so the
+        # real exit status is captured. The outer `timeout` catches a wedged thread.
+        t0=$SECONDS
+        timeout -k 5 $(( test_duration + 30 )) taskset -c "$cpu" "${cmd[@]}" >/dev/null 2>&1 </dev/null &
+        pid=$!
+        while kill -0 "$pid" 2>/dev/null; do
+            elapsed=$(( SECONDS - t0 ))
+            printf '\r\033[K  %s%b %b🔄 Stressing thread... %ds/%ds%b' "$tag" "$note" "$YELLOW" "$elapsed" "$test_duration" "$NC"
+            sleep 1
+        done
+        wait "$pid"; rc=$?
+        pid=""
+
+        if (( interrupted )); then
+            printf '\r\033[K'
+            echo -e "  ${tag}${note} ${YELLOW}[-] Interrupted${NC}"
+            break
+        fi
+
+        tested=$(( tested + 1 ))
+        printf '\r\033[K'
+        if (( rc == 0 )); then
+            echo -e "  ${tag}${note} ${BIGreen}[✓] PASSED (Silicon register calculations stable)${NC}"
+            passed=$(( passed + 1 ))
+        elif (( rc == 124 || rc == 137 )); then
+            echo -e "  ${tag}${note} ${BIRed}[❌] HUNG (no response within the time limit)${NC}"
+            failed+=("$cpu")
+        elif [[ "$stress_bin" == "stress-ng" && $rc -eq 2 ]]; then
+            echo -e "  ${tag}${note} ${BIRed}[❌] FAILED (computation verification error)${NC}"
+            failed+=("$cpu")
         else
-            echo -e "\r  [Thread $(printf "%02d" $core_id)] ${BIRed}[❌] FAILED (Hardware engine signal error or lockup cached)${NC}"
-            TABLE_DIRTY=0; SERVICE_PENDING=1
+            echo -e "  ${tag}${note} ${BIRed}[❌] FAILED (${stress_bin} exited with code ${rc})${NC}"
+            failed+=("$cpu")
         fi
     done
 
-    # 🎉 SWEEP COMPLETION SUMMARY PANEL
-    echo -e "\n${BIGreen}[✓] SUCCESS: Silicon Per-Core Stability Sweep successfully completed!${NC}"
-    play_success_chime
-    echo -e "    All processed registers have returned cleanly to default system idle loops."
-    type_prompt "👉 Press Enter to return cleanly to the toolkit dashboard..." 0.03
+    # Restore whatever INT handler the toolkit had
+    if [[ -n "$old_int" ]]; then eval "$old_int"; else trap - INT; fi
+
+    # ---- Summary ----
+    echo ""
+    if (( interrupted )); then
+        echo -e "${YELLOW}[-] Sweep interrupted after ${tested} of ${total} threads.${NC}"
+    fi
+    echo -e "  Results: ${BIGreen}${passed} passed${NC}  │  ${BIRed}${#failed[@]} failed${NC}  │  ${MAGENTA}${skipped} skipped${NC}"
+    if (( ${#failed[@]} > 0 )); then
+        echo -e "\n${BIRed}[❌] Unstable thread(s): ${failed[*]}${NC}"
+        echo -e "    These are the threads to back off (Curve Optimizer / voltage / clocks) and re-test."
+        TABLE_DIRTY=0; SERVICE_PENDING=1
+    elif (( ! interrupted )); then
+        echo -e "\n${BIGreen}[✓] SUCCESS: Silicon Per-Core Stability Sweep completed with no failures!${NC}"
+        declare -F play_success_chime &>/dev/null && play_success_chime
+        echo -e "    All test loads have exited and the cores are back to idle."
+    fi
+    _bc250_prompt "👉 Press Enter to return cleanly to the toolkit dashboard..."
+    read -r
+}
+
+# ------------------------------------------------------------------------------
+# GPU / CU helpers
+# ------------------------------------------------------------------------------
+
+# Runs the live manager as root, output goes to the sweep log
+_bc250_cu_mgr() {
+    local mgr=$1; shift
+    sudo "$mgr" --yes "$@" >> "${_BC250_CU_LOG:-/dev/null}" 2>&1
+}
+
+# $1 = conf file. Prints the 4 array masks (SE0.SH0 SE0.SH1 SE1.SH0 SE1.SH1) as decimals.
+_bc250_read_wgp_masks() {
+    local raw mask
+    local -a arr
+    raw=$(grep -m1 '^[[:space:]]*BC250_WGP_MASKS=' "$1" 2>/dev/null | cut -d= -f2- | tr -d "\"' ")
+    [[ -n "$raw" ]] || return 1
+    IFS=',' read -r -a arr <<< "$raw"
+    (( ${#arr[@]} == 4 )) || return 1
+    for mask in "${arr[@]}"; do
+        [[ "$mask" =~ ^(0[xX][0-9a-fA-F]+|[0-9]+)$ ]] || return 1
+        printf '%d\n' $(( mask & 0x1f ))
+    done
+}
+
+# Leave only WGP $2 (se.sh.w) enabled inside its shader array. The target is
+# enabled first so the array is never empty. $3 = that array's saved mask.
+_bc250_cu_isolate() {
+    local mgr=$1 id=$2 mask=$3 se sh w ow
+    IFS=. read -r se sh w <<< "$id"
+    _bc250_cu_mgr "$mgr" enable-wgp "$id" || return 1
+    for ow in 0 1 2 3 4; do
+        (( ow != w && ((mask >> ow) & 1) )) || continue
+        _bc250_cu_mgr "$mgr" disable-wgp "$se.$sh.$ow" || return 1
+    done
+}
+
+# Put that shader array back to its saved mask (re-enable first, then drop the target)
+_bc250_cu_unisolate() {
+    local mgr=$1 id=$2 mask=$3 se sh w ow
+    IFS=. read -r se sh w <<< "$id"
+    for ow in 0 1 2 3 4; do
+        (( (mask >> ow) & 1 )) || continue
+        _bc250_cu_mgr "$mgr" enable-wgp "$se.$sh.$ow" || return 1
+    done
+    (( (mask >> w) & 1 )) || _bc250_cu_mgr "$mgr" disable-wgp "$id" || return 1
+}
+
+# $1 = epoch seconds. Prints up to 3 amdgpu error lines logged since then.
+_bc250_cu_kernel_errors() {
+    command -v journalctl &>/dev/null || return 0
+    sudo journalctl -k --since "@$1" --no-pager -q 2>/dev/null \
+        | grep -iE 'amdgpu.*(timeout|reset|fault|hang|hung|error)' | head -n 3
+}
+
+# ------------------------------------------------------------------------------
+# GPU sweep: one WGP (CU pair) at a time
+# ------------------------------------------------------------------------------
+run_cu_stability_sweep() {
+    clear
+    _bc250_header "🔬" "AMD BC-250 Per-WGP (CU Pair) Stability Sweep"
+    echo ""
+    echo -e "  ${BOLD}${YELLOW}⚠️  GPU COMPUTE-UNIT ISOLATION MODULE:${NC}"
+    echo -e "  The hardware masks CUs in WGP pairs (2 CUs each, 20 WGPs = 40 CUs), so a WGP is the"
+    echo -e "  smallest unit that can be isolated. Each WGP is tested alone inside its shader array"
+    echo -e "  (the other arrays keep your saved table) while a GPU load runs and the kernel log is"
+    echo -e "  watched for amdgpu errors. Your table is restored after every WGP and at the end."
+    echo ""
+    echo -e "  ${BIRed}This rewrites live GPU registers and CAN hang the GPU. Close games, save your work.${NC}"
+    echo -e "  ${DIM}Run it from Desktop Mode (a benchmark needs a display).${NC}"
+    echo ""
+
+    # ---- Locate the live manager ----
+    local mgr="${BC250_CU_MANAGER:-}" c
+    if [[ -z "$mgr" ]]; then
+        for c in "$(command -v bc250-cu-live-manager 2>/dev/null)" \
+                 /usr/local/bin/bc250-cu-live-manager \
+                 "$HOME/bc250-cu-live-manager.sh" ./bc250-cu-live-manager.sh; do
+            [[ -n "$c" && -x "$c" ]] && { mgr="$c"; break; }
+        done
+    fi
+    if [[ -z "$mgr" || ! -x "$mgr" ]]; then
+        echo -e "${BIRed}❌ ERROR: bc250-cu-live-manager not found.${NC}"
+        echo -e "   Install it, or point to it:  ${CYAN}BC250_CU_MANAGER=/path/to/bc250-cu-live-manager.sh${NC}"
+        read -rp "Press Enter to return..."
+        return 1
+    fi
+    sudo -v || { echo -e "${BIRed}❌ sudo is required.${NC}"; return 1; }
+
+    local conf="${BC250_CU_CONF:-/etc/bc250-cu-live-manager.conf}"
+    _BC250_CU_LOG="$HOME/bc250-cu-sweep-$(date +%Y%m%d_%H%M%S).log"
+    : > "$_BC250_CU_LOG"
+    local log="$_BC250_CU_LOG"
+    _bc250_log "$log" "manager=$mgr conf=$conf"
+
+    # ---- Snapshot: the restore target is the saved table ----
+    echo -e "  Restores use the table saved in ${CYAN}${conf}${NC}."
+    local ans
+    read -rp "  Save the CURRENT live table there first (existing file is backed up)? [Y/n]: " ans
+    if [[ ! "$ans" =~ ^[Nn]$ ]]; then
+        [[ -f "$conf" ]] && sudo cp -p "$conf" "${conf}.bak_$(date +%Y%m%d_%H%M%S)"
+        if ! _bc250_cu_mgr "$mgr" write-service-table; then
+            echo -e "${BIRed}❌ Could not save the live table (see $log). Nothing was changed.${NC}"
+            read -rp "Press Enter to return..."
+            return 1
+        fi
+    fi
+
+    local -a saved=()
+    mapfile -t saved < <(_bc250_read_wgp_masks "$conf")
+    if (( ${#saved[@]} != 4 )); then
+        echo -e "${BIRed}❌ Could not read BC250_WGP_MASKS from ${conf}. Nothing was changed.${NC}"
+        read -rp "Press Enter to return..."
+        return 1
+    fi
+    local enabled_wgps=0 i m
+    for m in "${saved[@]}"; do
+        for (( i=0; i<5; i++ )); do enabled_wgps=$(( enabled_wgps + ((m >> i) & 1) )); done
+    done
+    echo -e "  Saved table: ${BOLD}${enabled_wgps}/20 WGPs${NC} (${BOLD}$(( enabled_wgps * 2 ))/40 CUs${NC}) enabled.\n"
+
+    # ---- GPU load detection ----
+    local load_tmpl="${BC250_CU_TEST_CMD:-}" t
+    if [[ -z "$load_tmpl" ]]; then
+        for t in glmark2 glmark2-es2 glmark2-wayland glmark2-drm; do
+            if command -v "$t" &>/dev/null; then
+                load_tmpl="$t --off-screen -b terrain:duration={SECS}"; break
+            fi
+        done
+    fi
+    if [[ -z "$load_tmpl" ]] && command -v vkmark &>/dev/null; then
+        load_tmpl="vkmark -b vertex:duration={SECS}"
+    fi
+
+    # ---- Mode ----
+    echo -e "  Test modes:"
+    if [[ -n "$load_tmpl" ]]; then
+        echo -e "    [1] Automatic  ${DIM}(${load_tmpl%% *} load + kernel-log watch)${NC}"
+    else
+        echo -e "    [1] Automatic  ${DIM}(unavailable: install glmark2/vkmark or set BC250_CU_TEST_CMD)${NC}"
+    fi
+    echo -e "    [2] Manual     ${DIM}(each WGP is isolated, you test with your own game and report the result)${NC}"
+    echo -e "    [3] Cancel"
+    _bc250_prompt "👉 Select mode: "
+    local mode_choice mode secs=20
+    read -r mode_choice
+    case "$mode_choice" in
+        1) [[ -n "$load_tmpl" ]] || { echo -e "${YELLOW}[-] No GPU load tool available.${NC}"; sleep 1; return 0; }
+           mode=auto ;;
+        2) mode=manual ;;
+        *) echo -e "\n${YELLOW}[-] Sweep aborted cleanly. Returning to master menu...${NC}"; sleep 1; return 0 ;;
+    esac
+    if [[ "$mode" == "auto" ]]; then
+        echo -e "    [1] 20 seconds per WGP    [2] 60 seconds per WGP"
+        _bc250_prompt "👉 Select duration: "
+        local dur_choice; read -r dur_choice
+        [[ "$dur_choice" == "2" ]] && secs=60
+    fi
+
+    # ---- Scope ----
+    echo -e "    [1] All 20 WGPs    [2] Only WGPs not in the saved table (newly unlocked)"
+    _bc250_prompt "👉 Select scope: "
+    local scope_choice; read -r scope_choice
+    local -a targets=()
+    local se sh w idx
+    for se in 0 1; do
+        for sh in 0 1; do
+            idx=$(( se * 2 + sh ))
+            for w in 0 1 2 3 4; do
+                if [[ "$scope_choice" != "2" ]] || (( ! ((saved[idx] >> w) & 1) )); then
+                    targets+=("$se.$sh.$w")
+                fi
+            done
+        done
+    done
+    if (( ${#targets[@]} == 0 )); then
+        echo -e "\n${YELLOW}[-] Nothing to test: every WGP is already in the saved table.${NC}"
+        read -rp "Press Enter to return..."
+        return 0
+    fi
+    local est=$(( ${#targets[@]} * (secs + 6) ))
+    echo -e "\n  Will test ${BOLD}${#targets[@]} WGPs${NC}"
+    [[ "$mode" == "auto" ]] && echo -e "  Estimated run time: ~$(( est / 60 )) min"
+    echo -e "  Log (survives a hard hang): ${CYAN}${log}${NC}"
+    local ack
+    read -rp "  Type YES to begin: " ack
+    if [[ "$ack" != "YES" ]]; then
+        echo -e "\n${YELLOW}[-] Aborted. Nothing was changed.${NC}"; sleep 1; return 0
+    fi
+
+    # ---- Baseline: prove the load works on the unmodified table before touching anything ----
+    local interrupted=0 pid="" old_int old_term t0 rc errs cmd_str
+    old_int=$(trap -p INT); old_term=$(trap -p TERM)
+    trap 'interrupted=1; [[ -n "$pid" ]] && kill "$pid" 2>/dev/null' INT TERM
+
+    local abort=0
+    if [[ "$mode" == "auto" ]]; then
+        echo -e "\n  ${YELLOW}[⚙] Baseline run on your current table...${NC}"
+        cmd_str=${load_tmpl//\{SECS\}/10}
+        t0=$(( $(date +%s) - 1 ))
+        timeout -k 5 40 bash -c "$cmd_str" >> "$log" 2>&1 </dev/null &
+        pid=$!; wait "$pid"; rc=$?; pid=""
+        errs=$(_bc250_cu_kernel_errors "$t0")
+        if (( interrupted )); then
+            abort=1
+        elif (( rc != 0 )) || [[ -n "$errs" ]]; then
+            echo -e "  ${BIRed}[❌] Baseline failed (exit ${rc}). Fix this first; no WGPs were touched.${NC}"
+            [[ -n "$errs" ]] && echo "$errs" | sed 's/^/      /'
+            echo -e "      Details: ${log}"
+            abort=1
+        else
+            echo -e "  ${BIGreen}[✓] Baseline OK${NC}\n"
+        fi
+    fi
+
+    # ---- Sweep ----
+    local id label mask_idx res note sel
+    local -a r_id=() r_res=() r_note=()
+    local cu_lo
+    if (( ! abort )); then
+        for id in "${targets[@]}"; do
+            (( interrupted )) && break
+            IFS=. read -r se sh w <<< "$id"
+            mask_idx=$(( se * 2 + sh )); cu_lo=$(( w * 2 ))
+            label="SE${se}.SH${sh} WGP${w} (CU ${cu_lo}-$(( cu_lo + 1 )))"
+            echo -ne "  ${label}  ${YELLOW}🔄 isolating...${NC}"
+            _bc250_log "$log" "TESTING $id"
+
+            if ! _bc250_cu_isolate "$mgr" "$id" "${saved[mask_idx]}"; then
+                _bc250_cu_unisolate "$mgr" "$id" "${saved[mask_idx]}"
+                printf '\r\033[K'
+                echo -e "  ${label}  ${BIRed}[❌] ERROR (could not apply mask, see log)${NC}"
+                r_id+=("$id"); r_res+=("ERROR"); r_note+=("mask write failed")
+                break
+            fi
+
+            res="PASS"; note=""
+            if [[ "$mode" == "auto" ]]; then
+                printf '\r\033[K  %s  %b🔄 loading GPU (%ds)...%b' "$label" "$YELLOW" "$secs" "$NC"
+                cmd_str=${load_tmpl//\{SECS\}/$secs}
+                t0=$(( $(date +%s) - 1 ))
+                timeout -k 5 $(( secs + 30 )) bash -c "$cmd_str" >> "$log" 2>&1 </dev/null &
+                pid=$!; wait "$pid"; rc=$?; pid=""
+                errs=$(_bc250_cu_kernel_errors "$t0")
+                if (( interrupted )); then
+                    res="SKIP"; note="interrupted"
+                elif (( rc == 124 || rc == 137 )); then
+                    res="FAIL"; note="load hung"
+                elif (( rc != 0 )); then
+                    res="FAIL"; note="load exited ${rc}"
+                elif [[ -n "$errs" ]]; then
+                    res="FAIL"; note="amdgpu errors in kernel log"
+                fi
+            else
+                printf '\r\033[K'
+                echo -e "  ${label}  ${GREEN}isolated${NC} - run your game/test now."
+                read -rp "    Result? [p]ass / [f]ail / [s]kip / [q]uit: " sel
+                case "$sel" in
+                    f|F) res="FAIL"; note="reported by user" ;;
+                    s|S) res="SKIP"; note="skipped" ;;
+                    q|Q) res="SKIP"; note="quit"; interrupted=1 ;;
+                esac
+            fi
+
+            _bc250_log "$log" "RESULT $id $res $note"
+            if ! _bc250_cu_unisolate "$mgr" "$id" "${saved[mask_idx]}"; then
+                echo -e "\n  ${BIRed}[!] Could not restore the array after ${id}; stopping.${NC}"
+                abort=1
+            fi
+
+            printf '\r\033[K'
+            case "$res" in
+                PASS) echo -e "  ${label}  ${BIGreen}[✓] PASSED${NC}" ;;
+                FAIL) echo -e "  ${label}  ${BIRed}[❌] FAILED (${note})${NC}"
+                      [[ -n "$errs" ]] && echo "$errs" | sed 's/^/        /' ;;
+                *)    echo -e "  ${label}  ${MAGENTA}[-] ${note}${NC}" ;;
+            esac
+            r_id+=("$id"); r_res+=("$res"); r_note+=("$note")
+            (( abort )) && break
+        done
+    fi
+
+    # ---- Final restore of the full saved table ----
+    if [[ -n "$old_int" ]]; then eval "$old_int"; else trap - INT; fi
+    if [[ -n "$old_term" ]]; then eval "$old_term"; else trap - TERM; fi
+    echo -e "\n  ${YELLOW}[⚙] Restoring saved CU table...${NC}"
+    if _bc250_cu_mgr "$mgr" apply-service; then
+        echo -e "  ${BIGreen}[✓] Saved table restored.${NC}"
+    else
+        echo -e "  ${BIRed}[❌] Could not confirm the restore.${NC} Run: ${CYAN}sudo ${mgr} apply-service${NC} (or reboot)."
+    fi
+
+    # ---- Summary ----
+    local n_pass=0 n_fail=0 n_other=0 k
+    local -a bad=()
+    for k in "${!r_id[@]}"; do
+        case "${r_res[k]}" in
+            PASS) n_pass=$(( n_pass + 1 )) ;;
+            FAIL) n_fail=$(( n_fail + 1 )); bad+=("${r_id[k]}") ;;
+            *)    n_other=$(( n_other + 1 )) ;;
+        esac
+    done
+    (( interrupted )) && echo -e "\n${YELLOW}[-] Sweep stopped early.${NC}"
+    echo -e "\n  Results: ${BIGreen}${n_pass} passed${NC}  │  ${BIRed}${n_fail} failed${NC}  │  ${MAGENTA}${n_other} skipped/error${NC}"
+    if (( n_fail > 0 )); then
+        echo -e "\n  ${BIRed}Suspect WGP(s):${NC} ${bad[*]}   ${DIM}(format SE.SH.WGP)${NC}"
+        echo -e "  To fence one off:  ${CYAN}sudo ${mgr} disable-wgp <id>${NC}  then save the table."
+        echo -e "  ${DIM}Nothing was disabled automatically.${NC}"
+    elif (( n_pass > 0 && ! interrupted && ! abort )); then
+        echo -e "\n${BIGreen}[✓] SUCCESS: every tested WGP passed.${NC}"
+        echo -e "  ${DIM}Synthetic loads can miss CUs that only fail in games; use Manual mode to double-check.${NC}"
+        declare -F play_success_chime &>/dev/null && play_success_chime
+    fi
+    echo -e "  Log: ${log}"
+    _bc250_prompt "👉 Press Enter to return cleanly to the toolkit dashboard..."
     read -r
 }
 
