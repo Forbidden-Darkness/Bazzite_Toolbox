@@ -2098,8 +2098,8 @@ while true; do
     echo ""
     echo -e "    ${BOLD}${YELLOW}• Silicon Stability Testing Channels:${RESET}"
     echo -e "      ${CYAN}[4]${RESET}   Launch Silicon Per-Core Stability Sweep ${DIM}(test-cores Curve Validation)${RESET}"    
-    echo -e "      ${CYAN}[5]${RESET}   Launch CPU Core Scheduler & Isolation Matrix ${DIM}(Live Core Matrix & Isolcpus)${RESET}"    
-    echo -e "      ${CYAN}[6]${RESET}   Force-Restore Graphical Boot Splash Screen ${DIM}(Repair rhgb / quiet Flags)${RESET}"        
+    echo -e "      ${CYAN}[6]${RESET}   Launch CPU Core Scheduler & Isolation Matrix ${DIM}(Live Core Matrix & Isolcpus)${RESET}"    
+    echo -e "      ${CYAN}[7]${RESET}   Force-Restore Graphical Boot Splash Screen ${DIM}(Repair rhgb / quiet Flags)${RESET}"        
     echo ""
     echo -e "  ${DIM}──────────────────────────────────────────────────────────────────────────────────${RESET}"
     echo -e "      ${BOLD}${WHITE}[↵]${RESET} Hit Enter to Secure Safe Exit Overclock-Live-Manager"
@@ -2125,8 +2125,9 @@ while true; do
         3a|3A) uninstall_cpu_overclock ;;
         3b|3B) uninstall_cu_live_manager ;;
         4) run_stability_sweep ;;
-        5) view_core_live_manager ;;        
-        6) repair_boot_splash_only ;;                
+        5) run_cu_stability_sweep ;;
+        6) view_core_live_manager ;;        
+        7) repair_boot_splash_only ;;                
         "") echo -e "  ${YELLOW}[-] Exiting Overclock-Live-Manager...${RESET}"; sleep 1; exit 0 ;;
         *) echo -e "  ${RED}❌ ERROR: Invalid menu option selection '$choice'.${RESET}"; sleep 1.5 ;;
     esac
